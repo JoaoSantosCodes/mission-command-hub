@@ -10,6 +10,9 @@ services:
       NODE_ENV: production
       PORT: "8787"
       AIOX_CORE_PATH: /data/aiox-core
+      # Opcional — LLM no painel Dúvidas (ou usa env_file: .env após npm run env:init)
+      # MISSION_DOUBTS_LLM: "1"
+      # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       # DATABASE_URL: postgresql://mission:mission@postgres:5432/mission_agent
     volumes:
       - ../aiox-core:/data/aiox-core:ro

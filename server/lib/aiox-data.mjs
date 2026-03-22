@@ -16,27 +16,35 @@ export function resolveAioxPaths(missionRoot) {
 }
 
 export function readAgentFiles(agentsDir) {
-  if (!fs.existsSync(agentsDir)) {
-    return { ok: false, error: `Pasta de agentes não encontrada: ${agentsDir}`, agents: [] };
-  }
-  const names = fs.readdirSync(agentsDir, { withFileTypes: true });
-  const agents = [];
-  for (const d of names) {
-    if (!d.isFile() || !d.name.endsWith(".md")) continue;
-    const id = d.name.replace(/\.md$/i, "");
-    const full = path.join(agentsDir, d.name);
-    let title = id;
-    try {
-      const raw = fs.readFileSync(full, "utf8");
-      const first = raw.split(/\r?\n/).find((l) => l.trim().startsWith("#"));
-      if (first) title = first.replace(/^#+\s*/, "").trim().slice(0, 80);
-    } catch {
-      /* ignore */
+  try {
+    if (!fs.existsSync(agentsDir)) {
+      return { ok: false, error: `Pasta de agentes não encontrada: ${agentsDir}`, agents: [] };
     }
-    agents.push({ id, file: d.name, title });
+    const names = fs.readdirSync(agentsDir, { withFileTypes: true });
+    const agents = [];
+    for (const d of names) {
+      if (!d.isFile() || !d.name.endsWith(".md")) continue;
+      const id = d.name.replace(/\.md$/i, "");
+      const full = path.join(agentsDir, d.name);
+      let title = id;
+      try {
+        const raw = fs.readFileSync(full, "utf8");
+        const first = raw.split(/\r?\n/).find((l) => l.trim().startsWith("#"));
+        if (first) title = first.replace(/^#+\s*/, "").trim().slice(0, 80);
+      } catch {
+        /* ignore */
+      }
+      agents.push({ id, file: d.name, title });
+    }
+    agents.sort((a, b) => a.id.localeCompare(b.id));
+    return { ok: true, agents };
+  } catch (e) {
+    return {
+      ok: false,
+      error: `Erro ao ler pasta de agentes: ${String(e?.message || e)}`,
+      agents: [],
+    };
   }
-  agents.sort((a, b) => a.id.localeCompare(b.id));
-  return { ok: true, agents };
 }
 
 export function getAioxVersion(aioxRoot, aioxBin) {
@@ -59,4 +67,4 @@ export function getAioxVersion(aioxRoot, aioxBin) {
 export const MAX_COMMAND_LEN = 4000;
 
 export const COMMAND_FORWARD_HINT =
-  "Comando registado. O motor real é a CLI/IDE AIOX — use `npx aiox-core doctor` no repositório aiox-core ou active um agente na tua IDE.";
+  "Comando registado. O motor real é a CLI no aiox-core — usa `npx aiox-core doctor` no repositório ou activa um agente na IDE.";

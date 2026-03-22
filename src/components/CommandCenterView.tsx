@@ -39,6 +39,11 @@ export function CommandCenterView({ agents, logs, onSelectAgent }: CommandCenter
   }, [logs]);
 
   return (
+    <main
+      id="conteudo-principal"
+      tabIndex={-1}
+      className="flex min-h-0 min-w-0 flex-1 flex-col outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+    >
     <div id="mission-cc-root" className="flex min-h-0 flex-1 flex-col" aria-label="Central de agentes">
       <div id="command-center">
         <div id="zone-mascot" className="zone">
@@ -67,5 +72,6 @@ export function CommandCenterView({ agents, logs, onSelectAgent }: CommandCenter
         </div>
       </div>
     </div>
+    </main>
   );
 }

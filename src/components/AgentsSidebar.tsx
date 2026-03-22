@@ -1,4 +1,4 @@
-import { Bot, FolderKanban, LayoutList } from "lucide-react";
+import { Bot, FolderKanban, LayoutList, Plus } from "lucide-react";
 import type { AgentRow, AioxInfo } from "@/types/hub";
 import { MobileDrawer } from "@/components/MobileDrawer";
 
@@ -9,6 +9,9 @@ type AgentsSidebarProps = {
   onSelectAgent: (a: AgentRow) => void;
   mobileOpen: boolean;
   onMobileClose: () => void;
+  /** Quando `true` e `onCreateAgent` definido, mostra atalho «Novo agente». */
+  canCreate?: boolean;
+  onCreateAgent?: () => void;
 };
 
 export function AgentsSidebar({
@@ -18,6 +21,8 @@ export function AgentsSidebar({
   onSelectAgent,
   mobileOpen,
   onMobileClose,
+  canCreate = false,
+  onCreateAgent,
 }: AgentsSidebarProps) {
   const pickAgent = (a: AgentRow) => {
     onSelectAgent(a);
@@ -59,9 +64,24 @@ export function AgentsSidebar({
       </div>
 
       <div className="scrollbar-thin flex-1 overflow-auto p-3">
-        <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          <Bot className="h-3.5 w-3.5" aria-hidden />
-          Agentes de IA
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <Bot className="h-3.5 w-3.5" aria-hidden />
+            Agentes de IA
+          </div>
+          {canCreate && onCreateAgent ? (
+            <button
+              type="button"
+              onClick={() => {
+                onCreateAgent();
+                onMobileClose();
+              }}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary transition-colors hover:bg-primary/20"
+            >
+              <Plus className="h-3 w-3" aria-hidden />
+              Novo
+            </button>
+          ) : null}
         </div>
         {loading ? (
           <p className="text-xs text-muted-foreground">A carregar…</p>

@@ -1,5 +1,7 @@
 # Architecture Agents Hub — servidor MCP (Model Context Protocol)
 
+Integração com **Notion, Figma, LLM** ao nível do IDE e da equipa: ver **[INTEGRATIONS.md](./INTEGRATIONS.md)**.
+
 ## Validação
 
 A implementação usa o SDK oficial [`@modelcontextprotocol/sdk`](https://www.npmjs.com/package/@modelcontextprotocol/sdk) com transporte **stdio** (`StdioServerTransport`). É adequado para integração com Cursor e outros clientes MCP que lançam um processo local e comunicam por JSON-RPC no stdin/stdout.

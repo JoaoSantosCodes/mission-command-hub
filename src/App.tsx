@@ -4,6 +4,7 @@ import { useDocumentVisible } from "@/hooks/useDocumentVisible";
 import { useTheme } from "@/hooks/useTheme";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { fetchJson, postCommand } from "@/lib/api";
+import { formatUserFacingError } from "@/lib/format-error";
 import { POLL_INTERVAL_MS } from "@/constants";
 import type { ActivityEntry, AgentRow, AioxInfo } from "@/types/hub";
 import { SkipLink } from "@/components/SkipLink";
@@ -14,6 +15,9 @@ import { MainWorkspace } from "@/components/MainWorkspace";
 import { ActivityPanel } from "@/components/ActivityPanel";
 import { MobileSummary } from "@/components/MobileSummary";
 import { AgentDetailModal } from "@/components/AgentDetailModal";
+import { CreateAgentModal } from "@/components/CreateAgentModal";
+import { TaskCanvasView } from "@/components/task-canvas";
+import { DoubtsChatPanel } from "@/components/DoubtsChatPanel";
 
 export default function App() {
   const docVisible = useDocumentVisible();
@@ -33,9 +37,13 @@ export default function App() {
 
   const [collapsed, setCollapsed] = useState(false);
   const [detailAgentId, setDetailAgentId] = useState<string | null>(null);
+  const [createAgentOpen, setCreateAgentOpen] = useState(false);
+  const [doubtsOpen, setDoubtsOpen] = useState(false);
   const [agentsDrawerOpen, setAgentsDrawerOpen] = useState(false);
   const [activityDrawerOpen, setActivityDrawerOpen] = useState(false);
   const [viewMode, setViewMode] = useState<HubViewMode>("hub");
+  /** `null` até ao primeiro refresh; depois indica se a API Express respondeu. */
+  const [apiOnline, setApiOnline] = useState<boolean | null>(null);
 
   const refresh = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = opts?.silent ?? false;
@@ -51,8 +59,10 @@ export default function App() {
       setLogs(act.logs);
       setLastSynced(new Date());
       setErr(null);
+      setApiOnline(true);
     } catch (e) {
       setErr(String(e));
+      setApiOnline(false);
     } finally {
       setLoading(false);
       if (!silent) setRefreshing(false);
@@ -76,11 +86,25 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, [toast]);
 
-  useLockBodyScroll(Boolean(detailAgentId) || agentsDrawerOpen || activityDrawerOpen);
+  useLockBodyScroll(
+    Boolean(detailAgentId) ||
+      agentsDrawerOpen ||
+      activityDrawerOpen ||
+      createAgentOpen ||
+      doubtsOpen
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      if (doubtsOpen) {
+        setDoubtsOpen(false);
+        return;
+      }
+      if (createAgentOpen) {
+        setCreateAgentOpen(false);
+        return;
+      }
       if (detailAgentId) {
         setDetailAgentId(null);
         return;
@@ -97,11 +121,31 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [err, detailAgentId, agentsDrawerOpen, activityDrawerOpen]);
+  }, [err, detailAgentId, agentsDrawerOpen, activityDrawerOpen, createAgentOpen, doubtsOpen]);
+
+  /** Toggle painel Dúvidas: Ctrl+/ ou Cmd+/ (não dispara dentro de inputs). */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "/" || (!e.ctrlKey && !e.metaKey)) return;
+      const el = e.target as HTMLElement | null;
+      if (el) {
+        const tag = el.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable) return;
+      }
+      e.preventDefault();
+      setDoubtsOpen((v) => !v);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const onSelectAgentFromCommandCenter = useCallback((id: string) => {
     setDetailAgentId(id);
   }, []);
+
+  const handleRetryConnection = useCallback(() => {
+    void refresh();
+  }, [refresh]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,10 +188,12 @@ export default function App() {
         loading={loading}
         agentsCount={agents.length}
         versionLine={versionLine}
+        apiOnline={apiOnline}
         theme={theme}
         onToggleTheme={toggleTheme}
         onOpenAgentsDrawer={() => setAgentsDrawerOpen(true)}
         onOpenActivityDrawer={() => setActivityDrawerOpen(true)}
+        onOpenDoubts={() => setDoubtsOpen(true)}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
       />
@@ -158,7 +204,7 @@ export default function App() {
           aria-live="assertive"
           className="flex shrink-0 items-start justify-between gap-3 border-b border-destructive/40 bg-destructive/10 px-4 py-2.5 text-xs text-destructive"
         >
-          <span className="min-w-0 flex-1 leading-relaxed">{err}</span>
+          <span className="min-w-0 flex-1 leading-relaxed">{formatUserFacingError(err)}</span>
           <button
             type="button"
             onClick={() => setErr(null)}
@@ -198,6 +244,8 @@ export default function App() {
               onSelectAgent={(a) => setDetailAgentId(a.id)}
               mobileOpen={agentsDrawerOpen}
               onMobileClose={() => setAgentsDrawerOpen(false)}
+              canCreate={info?.agentEditAllowed !== false}
+              onCreateAgent={() => setCreateAgentOpen(true)}
             />
             <MainWorkspace
               info={info}
@@ -213,12 +261,14 @@ export default function App() {
               onMobileClose={() => setActivityDrawerOpen(false)}
             />
           </>
-        ) : (
+        ) : viewMode === "commandCenter" ? (
           <CommandCenterView
             agents={agents}
             logs={logs}
             onSelectAgent={onSelectAgentFromCommandCenter}
           />
+        ) : (
+          <TaskCanvasView />
         )}
       </div>
 
@@ -236,7 +286,21 @@ export default function App() {
         onClose={() => setDetailAgentId(null)}
         canEdit={info?.agentEditAllowed !== false}
         onSaved={() => void refresh({ silent: true })}
+        onDeleted={() => void refresh({ silent: true })}
+        apiOnline={apiOnline}
+        onRetryConnection={handleRetryConnection}
       />
+
+      <CreateAgentModal
+        open={createAgentOpen}
+        onClose={() => setCreateAgentOpen(false)}
+        onCreated={(id) => {
+          void refresh({ silent: true });
+          setDetailAgentId(id);
+        }}
+      />
+
+      <DoubtsChatPanel open={doubtsOpen} onClose={() => setDoubtsOpen(false)} />
     </div>
   );
 }

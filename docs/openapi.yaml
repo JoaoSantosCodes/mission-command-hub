@@ -4,6 +4,10 @@ info:
   version: 1.0.0
   description: |
     Ponte HTTP ao aiox-core local: metadados de agentes (.md), versão CLI e feed de actividade (JSON no disco ou PostgreSQL com DATABASE_URL).
+
+    **Rotas não definidas** sob `/api` devolvem `404` com JSON `{ ok: false, error }`. **Rate limit** (`429`) devolve JSON com `retryAfterSec` opcional.
+
+    **UI — Canvas de tarefas (Kanban):** não faz parte deste contrato. É só cliente (`localStorage` no browser, sem endpoints REST); não há sincronização com o servidor.
 servers:
   - url: http://127.0.0.1:8787
     description: Desenvolvimento (PORT por defeito)
@@ -81,7 +85,79 @@ paths:
                     description: "Onde o feed de atividade está persistido (ficheiro JSON ou PostgreSQL)"
                   agentEditAllowed:
                     type: boolean
-                    description: "false quando MISSION_AGENT_EDIT=0 — sem PUT de agentes"
+                    description: "false quando MISSION_AGENT_EDIT=0 — sem criar/editar/eliminar agentes (.md) via API"
+  /api/aiox/doubts:
+    get:
+      summary: Capacidades do painel Dúvidas & ajuda (UI)
+      description: |
+        Estado actual: notas em `sessionStorage` no browser vs. **LLM opcional** no servidor.
+        `llmEnabled` é `true` quando `MISSION_DOUBTS_LLM=1` e existe chave OpenAI-compatible (`OPENAI_API_KEY` ou `MISSION_LLM_API_KEY`).
+        `knowledgeBaseEnabled` reservado para indexação futura. Chaves só no servidor (nunca no bundle Vite).
+        `docsUrl` opcional via `MISSION_DOUBTS_HELP_URL`.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, llmEnabled, knowledgeBaseEnabled, message]
+                properties:
+                  ok: { type: boolean, example: true }
+                  llmEnabled:
+                    type: boolean
+                    description: "true quando MISSION_DOUBTS_LLM=1 e chave configurada"
+                  knowledgeBaseEnabled:
+                    type: boolean
+                    description: "Indexação docs/Notion para respostas (futuro; por defeito false)"
+                  message: { type: string, description: Texto curto para a UI }
+                  docsUrl:
+                    type: string
+                    nullable: true
+                    description: URL opcional de ajuda (env MISSION_DOUBTS_HELP_URL)
+  /api/aiox/doubts/chat:
+    post:
+      summary: Resposta do modelo (painel Dúvidas) — opt-in
+      description: |
+        Requer `MISSION_DOUBTS_LLM=1` e chave OpenAI-compatible. Usa endpoint `/v1/chat/completions` (modelo `MISSION_LLM_MODEL`, por defeito gpt-4o-mini).
+        Rate limit: `DOUBTS_CHAT_RATE_MAX` por IP por minuto (por defeito 20). Última mensagem em `messages` deve ser `role: user`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                messages:
+                  type: array
+                  minItems: 1
+                  maxItems: 35
+                  items:
+                    type: object
+                    required: [role, content]
+                    properties:
+                      role: { type: string, enum: [user, assistant] }
+                      content: { type: string, maxLength: 8000 }
+      responses:
+        "200":
+          description: Resposta de texto do modelo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, reply]
+                properties:
+                  ok: { type: boolean, example: true }
+                  reply: { type: string }
+        "400":
+          description: Payload inválido
+        "429":
+          description: Rate limit
+        "502":
+          description: Erro do fornecedor do modelo
+        "503":
+          description: LLM desactivado (sem env)
   /api/aiox/agents:
     get:
       summary: Lista de agentes (.md)
@@ -103,6 +179,49 @@ paths:
                         title: { type: string }
         "500":
           description: Pasta de agentes inacessível
+    post:
+      summary: Criar novo ficheiro de agente (.md)
+      description: |
+        Cria `.aiox-core/development/agents/{id}.md` sob o aiox-core (pastas criadas se necessário).
+        Requer que a raiz do aiox-core exista. Corpo JSON com `id` obrigatório; `content` opcional (senão modelo mínimo).
+        Desactivar com `MISSION_AGENT_EDIT=0`. Rate limit partilhado com PUT/DELETE de agentes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                  description: Identificador seguro (letras, números, . _ - ; máx. 128 chars após o primeiro)
+                content:
+                  type: string
+                  description: Markdown completo opcional; se omitido ou vazio, servidor usa modelo mínimo
+      responses:
+        "201":
+          description: Ficheiro criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  id: { type: string }
+                  bytes: { type: integer }
+        "400":
+          description: id inválido
+        "403":
+          description: Criação desactivada (MISSION_AGENT_EDIT=0)
+        "409":
+          description: Já existe agente com o mesmo id
+        "413":
+          description: Conteúdo demasiado grande
+        "429":
+          description: Rate limit
+        "503":
+          description: aiox-core não encontrado (AIOX_CORE_PATH)
   /api/aiox/agents/{id}:
     get:
       summary: Conteúdo Markdown de um agente (id sem .md)
@@ -171,6 +290,32 @@ paths:
           description: Conteúdo demasiado grande
         "429":
           description: Rate limit (PUT agente)
+    delete:
+      summary: Eliminar ficheiro do agente
+      description: Remove o `.md` do disco. Desactivar com `MISSION_AGENT_EDIT=0`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Eliminado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  id: { type: string }
+        "400":
+          description: id inválido
+        "403":
+          description: Eliminação desactivada (MISSION_AGENT_EDIT=0)
+        "404":
+          description: Agente não encontrado
+        "429":
+          description: Rate limit
   /api/aiox/activity:
     get:
       summary: Feed de atividade (JSON no servidor ou PostgreSQL; ver activityBackend em /api/aiox/info)
@@ -220,6 +365,9 @@ paths:
                   timedOut: { type: boolean }
                   stdout: { type: string }
                   stderr: { type: string }
+                  activityLogged:
+                    type: boolean
+                    description: "false se o feed de atividade falhou após o CLI (resultado do exec mantém-se)"
         "400":
           description: Subcomando inválido
         "403":
@@ -264,3 +412,30 @@ paths:
                   error: { type: string }
         "429":
           description: Limite de pedidos por IP (rate limit no POST /command)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RateLimitedError"
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [ok, error]
+      properties:
+        ok: { type: boolean, example: false }
+        error: { type: string }
+    RateLimitedError:
+      allOf:
+        - $ref: "#/components/schemas/ErrorResponse"
+        - type: object
+          properties:
+            retryAfterSec:
+              type: integer
+              description: Segundos até à janela do rate limit resetar (quando disponível)
+    NotFoundApi:
+      allOf:
+        - $ref: "#/components/schemas/ErrorResponse"
+      example:
+        ok: false
+        error: recurso API não encontrado

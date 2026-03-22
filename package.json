@@ -5,17 +5,25 @@
   "type": "module",
   "description": "Architecture Agents Hub — UI + ponte ao aiox-core local",
   "scripts": {
-    "dev": "concurrently -k -n api,web -c blue,magenta \"node server/index.mjs\" \"vite --config vite.config.ts\"",
+    "env:init": "node scripts/init-env.mjs",
+    "predev": "node scripts/init-env.mjs",
+    "prepreview": "node scripts/init-env.mjs",
+    "prestart": "node scripts/init-env.mjs",
+    "dev": "vite --config vite.config.ts",
+    "dev:split": "concurrently -k -n api,web -c blue,magenta \"node server/index.mjs\" \"vite --config vite.config.ts\"",
     "build": "tsc -p tsconfig.json --noEmit && vite build --config vite.config.ts",
     "preview": "vite preview --config vite.config.ts --host",
+    "preview:all": "concurrently -k -n api,ui -c blue,green \"node server/index.mjs\" \"vite preview --config vite.config.ts --host\"",
     "start": "cross-env NODE_ENV=production node server/index.mjs",
     "mcp": "node server/mcp-server.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "postinstall": "node scripts/init-env.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
     "cors": "^2.8.5",
     "cross-env": "^7.0.3",
+    "dotenv": "^17.3.1",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "framer-motion": "^12.38.0",

@@ -15,23 +15,25 @@ npm install
 npm run dev
 ```
 
-- **UI:** http://127.0.0.1:5179 (Vite; `/api` faz proxy para a API)
-- **API:** http://127.0.0.1:8787
+- **`npm install`** corre `postinstall` → **`npm run env:init`**: se ainda não existir **`.env`**, é criado a partir de **[`.env.ready`](./.env.ready)** (porta, polling, **`MISSION_DOUBTS_LLM=1`**, URLs do modelo — **`OPENAI_API_KEY` vazio** até colocares a tua chave). O servidor carrega **`.env`** e **`.env.local`** via [`server/load-env.mjs`](./server/load-env.mjs) (também no Vite embebido).
+- **LLM no painel Dúvidas:** edita **`.env`**, define **`OPENAI_API_KEY=sk-...`** (ou `MISSION_LLM_API_KEY`), reinicia `npm run dev`. Enquanto a chave tiver menos de 8 caracteres ou estiver vazia, o hub mantém notas locais e `GET /api/aiox/doubts` reporta `llmEnabled: false`.
+- **UI + API (dev/preview):** o plugin Vite **embebe** a ponte Express em **`/api/*`** no mesmo processo — **não é necessário** nada a ouvir em `127.0.0.1:8787` enquanto usas `npm run dev` ou `npm run preview`. Abre a URL que o Vite mostra (porta por defeito **5179**). O header indica **API ligada** / **offline** consoante `/api` responda.
+- **`npm run dev:split`** — `concurrently`: Express na **:8787** + Vite (útil se quiseres a API noutro processo).
+- **`MISSION_EMBED_API=0`** — não embebe a API no Vite; volta a depender do **proxy** `/api` → **8787** (corre `node server/index.mjs` à mão ou `dev:split`). Ver `.env.example`.
 
 ## Variáveis de ambiente
 
 | Variável | Descrição |
 |----------|-----------|
 | `AIOX_CORE_PATH` | Caminho absoluto para a raiz do `aiox-core` (por defeito: `../aiox-core` relativo a `MissionAgent/`) |
-| `PORT` | Porta da API (por defeito: `8787`) |
+| `PORT` | Porta em **`npm start`** / processo Express isolado (por defeito: `8787`) |
+| `MISSION_EMBED_API` | `0` desactiva a API embebida no Vite (`dev` / `preview`); usa proxy para `8787` |
 | `MISSION_ACTIVITY_PATH` | Ficheiro JSON do feed (por defeito: `MissionAgent/.mission-agent/activity.json`) |
 | `DATABASE_URL` | (Opcional) URI PostgreSQL; activa persistência do feed na tabela `mission_activity_log` |
 | `PG_POOL_MAX` | (Opcional) Máximo de ligações no pool `pg` (por defeito: `10`) |
 | `WEATHER_LOCATION` | Cidade para `GET /api/aiox/weather` (widget na **Central**; wttr.in) |
-| `MISSION_AGENT_EDIT` | `0` desactiva **gravação** de ficheiros de agente (`PUT /api/aiox/agents/:id` e botão Editar na UI); omitir = permitir |
+| `MISSION_AGENT_EDIT` | `0` desactiva **criar / editar / eliminar** ficheiros de agente (`POST`/`PUT`/`DELETE` `/api/aiox/agents…` e botões na UI); omitir = permitir |
 | `AGENT_EDIT_RATE_MAX` | Máximo de `PUT` por agente por IP/min (por defeito `30`) |
-
-Na UI, o botão **Central** (ícone de monitor) no header abre a vista inspirada no [OpenClaw Command Center](../openclaw-command-center-main/README.md) (MIT): mascote, terminal com o feed e escritório em canvas com os agentes `.md` do aiox-core.
 | `CORS_ORIGINS` | Em produção, lista separada por vírgulas de origens permitidas; vazio = comportamento permissivo (adequado em dev) |
 | `COMMAND_RATE_MAX` | Máximo de `POST /api/aiox/command` por IP por minuto (por defeito: `60`) |
 | `TRUST_PROXY` | Definir `1` atrás de reverse proxy (rate limit / IP correctos) |
@@ -39,6 +41,11 @@ Na UI, o botão **Central** (ícone de monitor) no header abre a vista inspirada
 | `LOG_LEVEL` | Nível pino: `trace` … `silent` (por defeito `info`; em testes `silent`) |
 | `MASK_PATHS_IN_UI` | `1` ou `true` para truncar `aioxRoot` / `agentsDir` na API (útil em ecrãs partilhados) |
 | `VITE_*` | Variáveis só no **build** Vite — ver `.env.example` (`VITE_AIOX_DOCS_URL`, `VITE_POLL_INTERVAL_MS`) |
+| `OPENAI_API_KEY` / `MISSION_LLM_API_KEY` | Chave **só no servidor** para `POST /api/aiox/doubts/chat` (com `MISSION_DOUBTS_LLM=1`). Ver [`.env.ready`](./.env.ready) |
+| `MISSION_DOUBTS_LLM` | `1` para activar a rota de chat (ainda exige chave ≥8 caracteres). Pré-definido em `.env.ready` |
+| `MISSION_LLM_BASE_URL` / `MISSION_LLM_MODEL` | Endpoint OpenAI-compatible e modelo (pré-definidos em `.env.ready`) |
+
+**Vistas no header:** **Hub** (três colunas), **Central** (ícone monitor — layout tipo [OpenClaw Command Center](../openclaw-command-center-main/README.md): canvas + terminal + agentes), **Canvas de tarefas** (ícone Kanban — quadro local com presets e `localStorage`, sem backend). **Dúvidas** (ícone mensagem) abre painel com FAQ + chat de notas de sessão; **GET `/api/aiox/doubts`** e opcionalmente **POST `/api/aiox/doubts/chat`** com `MISSION_DOUBTS_LLM=1` + chave (ver `.env.example`); atalho **Ctrl+/** (**Cmd+/** no Mac); import/export JSON, Markdown, copiar e limpar (ver `CHECKLIST.md` → Melhorias).
 
 **Tema:** o botão sol/lua no header alterna claro/escuro; a preferência fica em `localStorage` (`mission-agent-theme`). Em ecrãs estreitos, usa os ícones no header ou os botões no rodapé do resumo para abrir **agentes** e **atividade** em gavetas.
 
@@ -53,13 +60,22 @@ npm start
 
 O servidor Express serve o `dist/` e a API nos mesmos endpoints `/api/*`.
 
+**`npm run preview`:** o bundle estático + a mesma API **embebida** em `/api` (sem precisar de :8787). O `vite.config.ts` mantém **proxy** `/api` → `8787` só como redundância se usares `MISSION_EMBED_API=0`.
+
+| Comando | O que faz |
+|--------|------------|
+| **`npm run dev`** | Vite + API em `/api` **no mesmo processo** — recomendado no dia-a-dia |
+| **`npm run preview`** | Bundle + API embebida em `/api` (sem :8787 por defeito) |
+| **`npm run preview:all`** | Dois processos: Express em **:8787** + `vite preview` (útil com `MISSION_EMBED_API=0`) |
+| **`npm run build` + `npm start`** | Um só processo na **:8787**: `dist/` + `/api/*` (produção local) |
+
 ## Testes
 
 ```bash
 npm test
 ```
 
-Smoke da API (Vitest + Supertest): `health`, `info`, `agents`, validação de `command`, persistência do feed.
+Smoke da API (**23** testes Vitest + Supertest): `health`, 404/JSON inválido, métricas, tempo, `info`, `doubts` / `doubts/chat`, `agents`, `exec`, validação de `command`, GET/PUT agente, `MISSION_AGENT_EDIT`, caminhos mascarados, persistência do feed.
 
 **CI:** em repositórios com esta pasta na raiz, o workflow `.github/workflows/mission-agent-ci.yml` corre `npm ci`, `npm test` e `npm run build` em `MissionAgent/`.
 
@@ -83,12 +99,13 @@ Ver **[docs/openapi.yaml](./docs/openapi.yaml)** (OpenAPI 3.0).
 - Não executa agentes LLM nem substitui Claude/Codex — a **CLI no aiox-core** continua a fonte de operação.
 - O comando global apenas **regista** no feed e devolve uma dica; para fluxo real usa a IDE conforme a documentação do `aiox-core`.
 
-## MCP (Cursor / IDE)
+## MCP e integrações (Cursor / IDE)
 
-Servidor **stdio** opcional que expõe as mesmas leituras do disco como tools MCP. Ver **[docs/MCP.md](./docs/MCP.md)** e `npm run mcp`.
+- **Servidor incluído:** `npm run mcp` — tools para aiox-core / agentes. Ver **[docs/MCP.md](./docs/MCP.md)**.
+- **Stack completo (Notion, Figma, LLM, processo de equipa):** **[docs/INTEGRATIONS.md](./docs/INTEGRATIONS.md)** e exemplo **[docs/cursor-mcp.stack.example.json](./docs/cursor-mcp.stack.example.json)**.
 
 ## Roadmap e pendências
 
 Ver **[CHECKLIST.md](./CHECKLIST.md)** — melhorias técnicas, UX, integração com `aiox-core` e itens de segurança.
 
-Copia variáveis opcionais a partir de **[.env.example](./.env.example)**.
+Arranque rápido: **[`.env.ready`](./.env.ready)** → **`npm run env:init`** (ou automático no `postinstall`). Referência completa: **[.env.example](./.env.example)**.

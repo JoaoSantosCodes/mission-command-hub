@@ -3,19 +3,21 @@ import {
   Bot,
   LayoutGrid,
   Loader2,
+  MessageCircle,
   Monitor,
   Moon,
   PanelLeft,
   PanelRight,
   RefreshCw,
   Sparkles,
+  SquareKanban,
   Sun,
   Terminal,
 } from "lucide-react";
 import { MAX_COMMAND_CHARS } from "@/constants";
 import type { ThemeMode } from "@/hooks/useTheme";
 
-export type HubViewMode = "hub" | "commandCenter";
+export type HubViewMode = "hub" | "commandCenter" | "taskCanvas";
 
 type HubHeaderProps = {
   cmd: string;
@@ -30,10 +32,14 @@ type HubHeaderProps = {
   loading: boolean;
   agentsCount: number;
   versionLine: string;
+  /** `null` até ao primeiro pedido; `true` / `false` conforme os pedidos a `/api` funcionam. */
+  apiOnline: boolean | null;
   theme: ThemeMode;
   onToggleTheme: () => void;
   onOpenAgentsDrawer: () => void;
   onOpenActivityDrawer: () => void;
+  /** Painel lateral Dúvidas / chat local */
+  onOpenDoubts?: () => void;
   viewMode?: HubViewMode;
   onViewModeChange?: (mode: HubViewMode) => void;
 };
@@ -51,10 +57,12 @@ export function HubHeader({
   loading,
   agentsCount,
   versionLine,
+  apiOnline,
   theme,
   onToggleTheme,
   onOpenAgentsDrawer,
   onOpenActivityDrawer,
+  onOpenDoubts,
   viewMode = "hub",
   onViewModeChange,
 }: HubHeaderProps) {
@@ -67,6 +75,32 @@ export function HubHeader({
         <span className="max-w-[11rem] truncate text-xs font-semibold tracking-tight text-foreground sm:max-w-none sm:text-sm">
           Architecture Agents Hub
         </span>
+      </div>
+
+      <div
+        className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-secondary/30 px-2 py-1 text-[10px] font-medium text-muted-foreground"
+        title={
+          apiOnline === true
+            ? "Ponte /api a responder (em dev/preview o Express corre embebido no Vite; em produção costuma ser :8787)"
+            : apiOnline === false
+              ? "Sem resposta em /api — corre npm run dev (recomendado) ou npm run build && npm start"
+              : "A verificar ligação à API…"
+        }
+      >
+        <span
+          className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+            apiOnline === true
+              ? "bg-emerald-500 shadow-[0_0_6px_rgba(34,197,94,0.55)]"
+              : apiOnline === false
+                ? "bg-red-500"
+                : "animate-pulse bg-amber-400"
+          }`}
+          aria-hidden
+        />
+        <span className="hidden max-w-[5.5rem] truncate sm:inline">
+          {apiOnline === true ? "API ligada" : apiOnline === false ? "API offline" : "API …"}
+        </span>
+        <span className="font-mono text-[9px] opacity-80">/api</span>
       </div>
 
       <div className="flex shrink-0 items-center gap-1 lg:hidden">
@@ -154,7 +188,32 @@ export function HubHeader({
             >
               <Monitor className="h-3.5 w-3.5" aria-hidden />
             </button>
+            <button
+              type="button"
+              onClick={() => onViewModeChange("taskCanvas")}
+              className={`rounded px-2 py-1.5 transition-colors ${
+                viewMode === "taskCanvas"
+                  ? "bg-secondary text-foreground"
+                  : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+              }`}
+              title="Canvas de tarefas (Kanban modular)"
+              aria-pressed={viewMode === "taskCanvas"}
+              aria-label="Canvas de tarefas"
+            >
+              <SquareKanban className="h-3.5 w-3.5" aria-hidden />
+            </button>
           </div>
+        ) : null}
+        {onOpenDoubts ? (
+          <button
+            type="button"
+            onClick={onOpenDoubts}
+            className="rounded-md border border-border p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            title="Dúvidas e ajuda (chat local). Atalho: Ctrl+/ ou Cmd+/"
+            aria-label="Abrir dúvidas e ajuda"
+          >
+            <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+          </button>
         ) : null}
         <button
           type="button"

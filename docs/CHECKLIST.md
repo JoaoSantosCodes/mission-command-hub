@@ -1,17 +1,17 @@
 # Architecture Agents Hub — melhorias e pendências
 
-Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-20 (revisão de conteúdo + alinhamento com código e testes).
+Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-22 — `.env.ready` + `env:init` / `load-env.mjs` + `dotenv`; ambiente pronto aguardando `OPENAI_API_KEY`.
 
 ---
 
 ## Concluído (baseline)
 
-- [x] API Express: `health`, `info`, `agents` (lista + GET por id + **PUT** edição `.md`), `activity`, `command`, `metrics`, `weather`, `exec` (opt-in)
+- [x] API Express: `health`, `info`, `agents` (lista + **POST** criar + GET por id + **PUT** + **DELETE** `.md`), `activity`, `command`, `metrics`, `weather`, `exec` (opt-in), **`doubts`** + **`doubts/chat`** (LLM opt-in)
 - [x] Leitura de agentes `.md` em `aiox-core/.aiox-core/development/agents/`
 - [x] Versão CLI via `bin/aiox.js --version`
-- [x] UI 3 colunas + feed + barra de comando; vista alternativa **Central** (canvas + terminal)
-- [x] Proxy Vite `/api` → porta da API
-- [x] Build produção: `dist` servido pelo Express
+- [x] UI 3 colunas + feed + barra de comando; vistas **Central** (canvas + terminal) e **Canvas de tarefas** (Kanban local)
+- [x] **Dev/preview:** ponte Express **embebida** no Vite em `/api` (`mission-api-plugin.mjs`); com `MISSION_EMBED_API=0`, proxy `/api` → **8787**
+- [x] **Produção:** `npm run build` + `npm start` — `dist` + `/api/*` no mesmo processo Express
 
 ### Refinamentos recentes
 
@@ -26,14 +26,20 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 - [x] **Servidor MCP (stdio)** com `@modelcontextprotocol/sdk`: tools `mission_aiox_info`, `mission_list_agents`, `mission_register_command` + `docs/MCP.md` + script `npm run mcp`
 - [x] **Refactor** `create-app.mjs` para testes sem `listen`; smoke Vitest; `docs/openapi.yaml`; erros HTTP no cliente
 - [x] **Activity JSON** + rate limit + Helmet (prod) + CORS (`CORS_ORIGINS`) + CI GitHub Actions
-- [x] **Pino** + `pino-http` (`LOG_LEVEL`); **Dockerfile** + `docker-compose.yml`; **componentes** (`HubHeader`, `AgentsSidebar`, `MainWorkspace`, `ActivityPanel`, `CommandCenterView`, `AioxCliPanel`, …); **GET agente** + modal; **Esc** fecha erro/modal; **MASK_PATHS_IN_UI**
+- [x] **Pino** + `pino-http` (`LOG_LEVEL`); **Dockerfile** + `docker-compose.yml`; **componentes** (`HubHeader`, `AgentsSidebar`, `MainWorkspace`, `ActivityPanel`, `CommandCenterView`, `TaskCanvasView`, `DoubtsChatPanel`, `AioxCliPanel`, …); **GET agente** + modal; **Esc** fecha erro/modal; **MASK_PATHS_IN_UI**
 - [x] **Tema** claro/escuro + **gavetas móveis** (`<lg`) para agentes e feed
 - [x] **POST /api/aiox/exec** (`doctor` / `info`) + painel na área de trabalho
 - [x] **Refinamentos UX**: polling silencioso (sem ícone a girar a cada ciclo); erro não apagado pelo auto-refresh até nova sincronização OK; avisos/toasts com fecho; **skip link** com foco no `main`; **scroll lock** com modal/gavetas; saída CLI com **copiar**; toasts longos com timeout maior
 - [x] **Feed de atividade em PostgreSQL** opcional (`DATABASE_URL`, tabela `mission_activity_log`; fallback JSON; `activityBackend` em `/api/aiox/info`)
 - [x] **Central de agentes** (layout OpenClaw): vista alternativa com canvas + terminal + `GET /api/aiox/metrics` e `GET /api/aiox/weather`
-- [x] **Editar agente**: `PUT /api/aiox/agents/:id` + modal com textarea (definição completa `.md`; skill/persona no YAML); `MISSION_AGENT_EDIT=0` só leitura
+- [x] **Agentes `.md`**: `POST /api/aiox/agents` (criar), `PUT …/:id` (gravar), `DELETE …/:id` (eliminar); UI **Novo** na sidebar + modal de criação (`CreateAgentModal`); modal de detalhe com **Editar** / **Eliminar**; `MISSION_AGENT_EDIT=0` só leitura
 - [x] **Marca Architecture Agents Hub**: copy na UI (header, sidebar, área de trabalho, Central), `index.html`, canvas/terminal (`office.js`, `mission-boot.js`), README, OpenAPI (`info.title`), MCP/CHECKLIST; **mantidos** por compatibilidade: rotas `/api/aiox/*`, env `AIOX_*`, nome do pacote npm `mission-agent`, campo `service` em `/api/health`
+- [x] **Modal de agente** (`AgentDetailModal`): contexto "Architecture Agents Hub" + título **Definição do agente** + id do `.md` em mono; erros sem prefixo `Error:` (`formatUserFacingError`); barra de erro global idem
+- [x] **Cliente / API**: se a resposta não for JSON (ex.: HTML `Cannot GET`), mensagem orientativa; **sem** prefixo "Pedido inválido" nesse caso; `vite.config.ts` com `preview.proxy` / `server.proxy` como fallback quando `MISSION_EMBED_API=0`
+- [x] **`npm run dev` / `preview`**: plugin Vite (`mission-api-plugin.mjs`) **embebe** `createBridgeApp` em `/api` (sem precisar de :8787); `MISSION_EMBED_API=0` volta ao proxy → 8787; **`dev:split`** mantém `concurrently`; **header** com indicador API ligada/offline; **modal de agente** com aviso, retry e UI melhorada
+- [x] **Canvas de tarefas modular** (`task-canvas/`): terceira vista no header (ícone Kanban); colunas fixas `todo`→`doing`→`review`→`done`; **presets** (Fluxo geral / Agentes / Entrega); drag-and-drop + setas; persistência `localStorage` (`mission-agent-task-board-v1`)
+- [x] **Refinamentos API**: `rate-limit-json` (429 em JSON + `retryAfterSec`); **404** JSON para `/api` desconhecido; **erros de parse JSON** / payload; `GET /agents` 500 só `{ ok, error }`; `readAgentFiles` com try/catch; cliente (`api.ts`) mensagens para **429**; smoke + OpenAPI (`components/schemas`, nota **Kanban só UI** em `info.description`)
+- [x] **Ambiente local**: [`.env.ready`](../.env.ready) versionado; `npm run env:init` + `postinstall`; **`dotenv`** + [`server/load-env.mjs`](../server/load-env.mjs) (Express e Vite embebido); `.env` e `.env.local` no `.gitignore`
 
 ---
 
@@ -41,7 +47,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 ### Alta
 
-- [x] **Testes automatizados**: Vitest + Supertest — **15** casos em `test/api.smoke.test.mjs`: `health`, métricas, tempo, `info` (incl. `activityBackend`, `agentEditAllowed`), lista de agentes, `exec` 503/403, validação de `command`, GET agente 404, **PUT** grava `.md` + 403 com `MISSION_AGENT_EDIT=0`, caminhos mascarados, persistência do feed entre instâncias (`npm test`)
+- [x] **Testes automatizados**: Vitest + Supertest — **23** casos em `test/api.smoke.test.mjs`: `health`, 404 rota API, POST JSON inválido, métricas, tempo, `info`, **`doubts`**, **`doubts/chat`** (503 / 400), agentes, `exec` 503/403, validação `command`, GET agente 404, **POST** criar agente + **409** duplicado, **DELETE** agente, **PUT** `.md` + 403 com `MISSION_AGENT_EDIT=0`, caminhos mascarados, persistência do feed (`npm test`)
 - [x] **Validação de entrada**: limite no servidor + `maxLength` no input e mensagens de erro alinhadas
 - [x] **Tratamento de erro HTTP** no cliente: rede (`TypeError`) vs 4xx/5xx com prefixos legíveis
 - [x] **Persistência do feed**: JSON em `MissionAgent/.mission-agent/activity.json` ou `MISSION_ACTIVITY_PATH`
@@ -56,7 +62,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 ### Baixa
 
 - [x] **CI** (GitHub Actions): workflow `Mission Agent CI` em `.github/workflows/mission-agent-ci.yml` — `npm ci`, `npm test`, `npm run build`. **Repo só com esta pasta:** workflow na raiz do clone (ver `MissionAgent/.github/...`). **Monorepo** `AgentesMissao` (pasta pai): cópia alternativa em `AgentesMissao/.github/...` com `working-directory: MissionAgent` e paths `MissionAgent/**`
-- [x] **Separar** `App.tsx` em componentes (`HubHeader`, `AgentsSidebar`, `MainWorkspace`, `ActivityPanel`, `MobileSummary`, `AgentDetailModal`, `CommandCenterView`, …)
+- [x] **Separar** `App.tsx` em componentes (`HubHeader`, `AgentsSidebar`, `MainWorkspace`, `ActivityPanel`, `MobileSummary`, `AgentDetailModal`, `CommandCenterView`, `TaskCanvasView`, `DoubtsChatPanel`, …)
 
 ---
 
@@ -64,10 +70,23 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 - [x] **Responsive**: em `<lg`, agentes e atividade em **gavetas** (`MobileDrawer`) + atalhos no header e no resumo móvel
 - [x] **Tema claro/escuro**: toggle no header + `localStorage` (`mission-agent-theme`) + variáveis `:root` / `.dark`
-- [x] **“Saltar para conteúdo”**: skip link com foco visível (outline) em `index.css`
+- [x] **“Saltar para conteúdo”**: skip link → `#conteudo-principal` com foco visível; alvo presente no **Hub** (`MainWorkspace`), **Central** e **Canvas de tarefas** (`main` com `tabIndex={-1}`)
 - [x] **Detalhe do agente**: modal com preview `.md` (`GET /api/aiox/agents/:id`) + edição quando permitido
-- [x] **Atalhos**: Esc fecha modal → gavetas → erro; Enter submete o comando
+- [x] **Atalhos**: Esc fecha painel **Dúvidas** → modais → gavetas → erro; Enter submete o comando
 - [x] **Identidade visual**: produto apresentado como **Architecture Agents Hub** na UI e documentação (ver refinamentos)
+- [x] **Dúvidas & ajuda**: botão no header (ícone mensagem) → painel lateral com **FAQ** + **chat** (`sessionStorage`); com **`MISSION_DOUBTS_LLM=1`** + chave, **POST** `/api/aiox/doubts/chat` e UI com resposta do modelo; **GET** `/api/aiox/doubts` + `MISSION_DOUBTS_HELP_URL`; **import** / **export** JSON, Markdown, **copiar**, **limpar**; atalho **Ctrl+/** ou **Cmd+/**; `DoubtsChatPanel`
+
+---
+
+## Melhorias (roadmap)
+
+| Prioridade | Melhoria | Notas |
+|------------|----------|--------|
+| Média | **Chat com LLM no servidor** | **Parcial:** `POST /api/aiox/doubts/chat` + `llmEnabled` em `GET /api/aiox/doubts` (opt-in); rate limit `DOUBTS_CHAT_RATE_MAX`. Evoluir: **streaming**, custos/quotas, política de dados; chaves só no servidor; nunca no bundle Vite |
+| Média | **Ligação opcional a base de conhecimento** | Indexar `docs/` ou Notion para respostas contextualizadas (MCP já cobre parte no IDE) |
+| ~~Baixa~~ | ~~**Exportar histórico do painel Dúvidas**~~ | **Feito:** botões JSON + Markdown em `DoubtsChatPanel` |
+| ~~Baixa~~ | ~~**Atalho de teclado** para Dúvidas~~ | **Feito:** `Ctrl+/` / `Cmd+/` toggle global (ignorado dentro de `input`/`textarea`/contenteditable) |
+| ~~Baixa~~ | ~~**Importar histórico JSON** + copiar mensagem~~ | **Feito:** `Importar` (array ou `{ messages }`), botão copiar por bolha, `maxLength` na nota |
 
 ---
 
@@ -76,6 +95,11 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 - [x] **Comando real opcional**: `POST /api/aiox/exec` (`doctor` \| `info`), `ENABLE_AIOX_CLI_EXEC` + `AIOX_EXEC_SECRET`, rate limit, timeout; UI `AioxCliPanel` quando disponível
 - [x] **Variável `AIOX_CORE_PATH`** documentada em `.env.example` na raiz do workspace e em `MissionAgent/.env.example`
 - [x] **Sincronização com documentação** — link opcional via `VITE_AIOX_DOCS_URL` na área de trabalho
+
+## Integrações MCP / LLM / Notion / Figma
+
+- [x] **Documentação**: [docs/INTEGRATIONS.md](./INTEGRATIONS.md) (MCP hub + Notion/Figma/LLM no Cursor, processo Notion/Figma, diagrama); exemplo [docs/cursor-mcp.stack.example.json](./docs/cursor-mcp.stack.example.json); `.env.example` com placeholders comentados para chaves futuras
+- [ ] **Operacional**: configurar no Cursor os servidores MCP Notion e Figma com tokens (fora do Git); validar leitura de ficheiro Figma antes de UI crítica
 
 ---
 
@@ -95,12 +119,14 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 | Autenticação | Não implementada; não expor a internet sem reverse proxy + auth |
 | Multi-utilizador | Feed persistido em ficheiro local; ainda sem isolamento por sessão/utilizador |
 | Nome npm | Pacote continua `mission-agent` (pasta `MissionAgent/`); mudança só relevante se publicar no npm |
+| Só UI sem API | Com API **embebida** no Vite, `/api` deve responder no **mesmo host/porta** do Vite. Se usares **`MISSION_EMBED_API=0`**, é preciso Express em **8787** (`preview:all`, `dev:split`, ou `build`+`start`) |
+| Canvas de tarefas | Só **localStorage** no browser; sem API, sem sync entre dispositivos — evoluir para backend seria feature nova |
 
 ---
 
 ## Como usar este ficheiro
 
 1. Ao fechar uma tarefa, marcar `[x]` e opcionalmente mover para **Concluído**.
-2. Novas ideias: adicionar em **Melhorias** ou **Pendências** com uma linha de contexto.
+2. Novas ideias: adicionar na tabela **Melhorias (roadmap)** ou em **Pendências** com uma linha de contexto.
 3. Revisão periódica (ex.: sprint): arquivar itens obsoletos noutro ficheiro `CHECKLIST-ARCHIVE.md` se necessário.
 4. **Processo de equipa:** novo projecto ou mudança de escopo → actualizar a base de conhecimento acordada (ex.: Notion / OpenAPI) **antes** de expandir código, para manter contrato e desenho alinhados.

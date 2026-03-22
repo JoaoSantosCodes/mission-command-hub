@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mission-agent-aiox": {
+      "command": "node",
+      "args": ["${workspaceFolder}/MissionAgent/server/mcp-server.mjs"],
+      "env": {
+        "AIOX_CORE_PATH": "${workspaceFolder}/aiox-core"
+      }
+    }
+  }
+}

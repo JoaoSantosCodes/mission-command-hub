@@ -11,7 +11,7 @@ export type AioxInfo = {
   aioxExecAvailable?: boolean;
   /** Onde o feed de atividade está persistido (ficheiro JSON ou PostgreSQL) */
   activityBackend?: "file" | "postgres";
-  /** `false` quando `MISSION_AGENT_EDIT=0` — sem gravação de `.md` na API */
+  /** `false` quando `MISSION_AGENT_EDIT=0` — sem criar / editar / eliminar `.md` na API */
   agentEditAllowed?: boolean;
 };
 
@@ -22,6 +22,8 @@ export type AioxExecResponse = {
   timedOut?: boolean;
   stdout: string;
   stderr: string;
+  /** `false` se o feed falhou após o CLI (saída do exec mantém-se) */
+  activityLogged?: boolean;
 };
 
 export type AgentRow = { id: string; file: string; title: string };
@@ -39,4 +41,13 @@ export type AgentDetailResponse = {
   file: string;
   title: string;
   content: string;
+};
+
+/** Resposta de `GET /api/aiox/doubts` — estado do painel Dúvidas vs. futuro LLM no servidor. */
+export type AioxDoubtsCapabilities = {
+  ok: boolean;
+  llmEnabled: boolean;
+  knowledgeBaseEnabled: boolean;
+  message: string;
+  docsUrl?: string | null;
 };

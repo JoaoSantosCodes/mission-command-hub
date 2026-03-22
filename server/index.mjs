@@ -2,6 +2,7 @@
  * API bridge: lê agentes do aiox-core no disco e expõe metadados + log de comandos.
  * Não substitui a CLI — espelha o que está instalado em AIOX_CORE_PATH.
  */
+import "./load-env.mjs";
 import express from "express";
 import fs from "fs";
 import path from "path";

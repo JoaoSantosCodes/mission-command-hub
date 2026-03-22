@@ -31,6 +31,23 @@ describe("API smoke", () => {
     expect(res.body).toMatchObject({ ok: true, service: "mission-agent-bridge" });
   });
 
+  it("GET /api/rota-inexistente → 404 JSON", async () => {
+    const res = await request(app).get("/api/endpoint-que-nao-existe-xyz");
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({ ok: false });
+    expect(typeof res.body.error).toBe("string");
+  });
+
+  it("POST /api/aiox/command com JSON inválido → 400 JSON", async () => {
+    const res = await request(app)
+      .post("/api/aiox/command")
+      .set("Content-Type", "application/json")
+      .send("{not-json");
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ ok: false });
+    expect(typeof res.body.error).toBe("string");
+  });
+
   it("GET /api/aiox/metrics", async () => {
     const res = await request(app).get("/api/aiox/metrics").expect(200);
     expect(res.body).toMatchObject({
@@ -40,12 +57,16 @@ describe("API smoke", () => {
     });
   });
 
-  it("GET /api/aiox/weather", async () => {
-    const res = await request(app).get("/api/aiox/weather");
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("temp_c");
-    expect(res.body).toHaveProperty("desc");
-  });
+  it(
+    "GET /api/aiox/weather",
+    async () => {
+      const res = await request(app).get("/api/aiox/weather");
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty("temp_c");
+      expect(res.body).toHaveProperty("desc");
+    },
+    15_000
+  );
 
   it("GET /api/aiox/info", async () => {
     const res = await request(app).get("/api/aiox/info").expect(200);
@@ -58,6 +79,42 @@ describe("API smoke", () => {
     expect(["file", "postgres"]).toContain(res.body.activityBackend);
     expect(res.body).toHaveProperty("agentEditAllowed");
     expect(typeof res.body.agentEditAllowed).toBe("boolean");
+  });
+
+  it("GET /api/aiox/doubts", async () => {
+    const res = await request(app).get("/api/aiox/doubts").expect(200);
+    expect(res.body).toMatchObject({
+      ok: true,
+      llmEnabled: false,
+      knowledgeBaseEnabled: false,
+    });
+    expect(typeof res.body.message).toBe("string");
+    expect(res.body).toHaveProperty("docsUrl");
+  });
+
+  it("POST /api/aiox/doubts/chat → 503 sem MISSION_DOUBTS_LLM", async () => {
+    const res = await request(app)
+      .post("/api/aiox/doubts/chat")
+      .set("Content-Type", "application/json")
+      .send({ messages: [{ role: "user", content: "olá" }] });
+    expect(res.status).toBe(503);
+    expect(res.body).toMatchObject({ ok: false });
+    expect(typeof res.body.error).toBe("string");
+  });
+
+  it("POST /api/aiox/doubts/chat → 400 sem messages", async () => {
+    const prev = process.env.MISSION_DOUBTS_LLM;
+    const prevK = process.env.OPENAI_API_KEY;
+    process.env.MISSION_DOUBTS_LLM = "1";
+    process.env.OPENAI_API_KEY = "sk-test-key-for-smoke-minimum-8";
+    const appLlm = await createBridgeApp(MISSION_ROOT, { activityLogPath: tmpActivity });
+    const res = await request(appLlm)
+      .post("/api/aiox/doubts/chat")
+      .set("Content-Type", "application/json")
+      .send({});
+    expect(res.status).toBe(400);
+    process.env.MISSION_DOUBTS_LLM = prev;
+    process.env.OPENAI_API_KEY = prevK;
   });
 
   it("GET /api/aiox/agents", async () => {
@@ -132,6 +189,72 @@ describe("API smoke", () => {
       expect(res.status).toBe(200);
       expect(res.body.ok).toBe(true);
       expect(fs.readFileSync(agentFile, "utf8")).toContain("hello2");
+    } finally {
+      process.env.AIOX_CORE_PATH = prevAiox;
+      process.env.MISSION_AGENT_EDIT = prevEdit;
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("POST /api/aiox/agents cria .md no aiox-core", async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ma-aiox-"));
+    const prevAiox = process.env.AIOX_CORE_PATH;
+    const prevEdit = process.env.MISSION_AGENT_EDIT;
+    process.env.AIOX_CORE_PATH = tmpRoot;
+    delete process.env.MISSION_AGENT_EDIT;
+    const postApp = await createBridgeApp(MISSION_ROOT, { activityLogPath: tmpActivity });
+    try {
+      const res = await request(postApp).post("/api/aiox/agents").send({ id: "create-smoke-agent" });
+      expect(res.status).toBe(201);
+      expect(res.body.ok).toBe(true);
+      const f = path.join(tmpRoot, ".aiox-core", "development", "agents", "create-smoke-agent.md");
+      expect(fs.existsSync(f)).toBe(true);
+      expect(fs.readFileSync(f, "utf8")).toContain("create-smoke-agent");
+    } finally {
+      process.env.AIOX_CORE_PATH = prevAiox;
+      process.env.MISSION_AGENT_EDIT = prevEdit;
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("POST /api/aiox/agents 409 quando o id já existe", async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ma-aiox-"));
+    const agentsDir = path.join(tmpRoot, ".aiox-core", "development", "agents");
+    fs.mkdirSync(agentsDir, { recursive: true });
+    fs.writeFileSync(path.join(agentsDir, "dup-agent.md"), "# dup\n", "utf8");
+    const prevAiox = process.env.AIOX_CORE_PATH;
+    const prevEdit = process.env.MISSION_AGENT_EDIT;
+    delete process.env.MISSION_AGENT_EDIT;
+    process.env.AIOX_CORE_PATH = tmpRoot;
+    const dupApp = await createBridgeApp(MISSION_ROOT, { activityLogPath: tmpActivity });
+    try {
+      const res = await request(dupApp).post("/api/aiox/agents").send({ id: "dup-agent" });
+      expect(res.status).toBe(409);
+      expect(res.body.ok).toBe(false);
+    } finally {
+      process.env.AIOX_CORE_PATH = prevAiox;
+      if (prevEdit !== undefined) process.env.MISSION_AGENT_EDIT = prevEdit;
+      else delete process.env.MISSION_AGENT_EDIT;
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("DELETE /api/aiox/agents/:id remove o ficheiro", async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ma-aiox-"));
+    const agentsDir = path.join(tmpRoot, ".aiox-core", "development", "agents");
+    fs.mkdirSync(agentsDir, { recursive: true });
+    const fp = path.join(agentsDir, "delete-smoke.md");
+    fs.writeFileSync(fp, "# delete-smoke\n", "utf8");
+    const prevAiox = process.env.AIOX_CORE_PATH;
+    const prevEdit = process.env.MISSION_AGENT_EDIT;
+    process.env.AIOX_CORE_PATH = tmpRoot;
+    delete process.env.MISSION_AGENT_EDIT;
+    const delApp = await createBridgeApp(MISSION_ROOT, { activityLogPath: tmpActivity });
+    try {
+      const res = await request(delApp).delete("/api/aiox/agents/delete-smoke");
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
+      expect(fs.existsSync(fp)).toBe(false);
     } finally {
       process.env.AIOX_CORE_PATH = prevAiox;
       process.env.MISSION_AGENT_EDIT = prevEdit;

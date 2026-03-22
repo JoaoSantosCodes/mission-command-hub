@@ -7,7 +7,7 @@ import fs from "fs";
 import os from "node:os";
 import path from "path";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import { rateLimitJson } from "./lib/rate-limit-json.mjs";
 import pinoHttp from "pino-http";
 import {
   resolveAioxPaths,
@@ -23,6 +23,7 @@ import {
   isAioxExecConfigured,
   runAioxSubcommand,
 } from "./lib/aiox-exec.mjs";
+import { callDoubtsChatCompletion, isDoubtsLlmConfigured } from "./lib/doubts-llm.mjs";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -80,25 +81,24 @@ export async function createBridgeApp(missionRoot, options = {}) {
   );
   app.use(express.json({ limit: "1mb" }));
 
-  const commandLimiter = rateLimit({
+  const commandLimiter = rateLimitJson({
     windowMs: 60 * 1000,
-    max: Number(process.env.COMMAND_RATE_MAX || 60),
-    standardHeaders: true,
-    legacyHeaders: false,
+    limit: Number(process.env.COMMAND_RATE_MAX || 60),
   });
 
-  const aioxExecLimiter = rateLimit({
+  const aioxExecLimiter = rateLimitJson({
     windowMs: 60 * 1000,
-    max: Number(process.env.AIOX_EXEC_RATE_MAX || 5),
-    standardHeaders: true,
-    legacyHeaders: false,
+    limit: Number(process.env.AIOX_EXEC_RATE_MAX || 5),
   });
 
-  const agentEditLimiter = rateLimit({
+  const agentEditLimiter = rateLimitJson({
     windowMs: 60 * 1000,
-    max: Number(process.env.AGENT_EDIT_RATE_MAX || 30),
-    standardHeaders: true,
-    legacyHeaders: false,
+    limit: Number(process.env.AGENT_EDIT_RATE_MAX || 30),
+  });
+
+  const doubtsChatLimiter = rateLimitJson({
+    windowMs: 60 * 1000,
+    limit: Number(process.env.DOUBTS_CHAT_RATE_MAX || 20),
   });
 
   const agentEditAllowed = process.env.MISSION_AGENT_EDIT !== "0";
@@ -131,6 +131,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       const url = `https://wttr.in/${encodeURIComponent(loc)}?format=j1`;
       const r = await fetch(url, {
         headers: { "User-Agent": "MissionAgent/1.0" },
+        signal: AbortSignal.timeout(12_000),
       });
       if (!r.ok) throw new Error("wttr");
       const j = await r.json();
@@ -167,10 +168,147 @@ export async function createBridgeApp(missionRoot, options = {}) {
     });
   });
 
+  /** Capacidades do painel Dúvidas (notas locais vs LLM opcional no servidor). */
+  app.get("/api/aiox/doubts", (_req, res) => {
+    const docsUrl = process.env.MISSION_DOUBTS_HELP_URL?.trim() || null;
+    const llmEnabled = isDoubtsLlmConfigured();
+    res.json({
+      ok: true,
+      llmEnabled,
+      knowledgeBaseEnabled: false,
+      message: llmEnabled
+        ? "O painel Dúvidas pode enviar mensagens a um modelo no servidor (opt-in). O histórico continua em sessionStorage no browser; não uses dados sensíveis."
+        : "O painel Dúvidas guarda notas só na sessão do browser. Para activar LLM no servidor: MISSION_DOUBTS_LLM=1 e chave OpenAI-compatible (ver .env.example). Senão usa o Chat do Cursor (Ctrl+L).",
+      docsUrl,
+    });
+  });
+
+  const MAX_DOUBTS_MSG = 35;
+  const MAX_DOUBTS_CONTENT = 8000;
+
+  app.post("/api/aiox/doubts/chat", doubtsChatLimiter, async (req, res) => {
+    if (!isDoubtsLlmConfigured()) {
+      return res.status(503).json({
+        ok: false,
+        error: "Chat com LLM no servidor desactivado. Define MISSION_DOUBTS_LLM=1 e OPENAI_API_KEY (ou MISSION_LLM_API_KEY).",
+      });
+    }
+    const raw = req.body?.messages;
+    if (!Array.isArray(raw)) {
+      return res.status(400).json({ ok: false, error: "Corpo inválido: espera-se { messages: [...] }." });
+    }
+    if (raw.length === 0 || raw.length > MAX_DOUBTS_MSG) {
+      return res.status(400).json({
+        ok: false,
+        error: `messages: entre 1 e ${MAX_DOUBTS_MSG} entradas.`,
+      });
+    }
+    const cleaned = [];
+    for (let i = 0; i < raw.length; i++) {
+      const m = raw[i];
+      if (!m || typeof m !== "object") {
+        return res.status(400).json({ ok: false, error: "Cada mensagem deve ser um objecto." });
+      }
+      const role = m.role;
+      const content = m.content;
+      if (role !== "user" && role !== "assistant") {
+        return res.status(400).json({ ok: false, error: "role deve ser user ou assistant." });
+      }
+      if (typeof content !== "string" || !content.trim()) {
+        return res.status(400).json({ ok: false, error: "content deve ser texto não vazio." });
+      }
+      if (content.length > MAX_DOUBTS_CONTENT) {
+        return res.status(400).json({
+          ok: false,
+          error: `content demasiado longo (máx. ${MAX_DOUBTS_CONTENT} caracteres).`,
+        });
+      }
+      cleaned.push({ role, content });
+    }
+    if (cleaned[cleaned.length - 1].role !== "user") {
+      return res.status(400).json({
+        ok: false,
+        error: "A última mensagem do histórico deve ser do utilizador (user).",
+      });
+    }
+    try {
+      const { text } = await callDoubtsChatCompletion(cleaned);
+      res.json({ ok: true, reply: text });
+    } catch (e) {
+      logger.warn({ err: String(e?.message || e) }, "doubts chat failed");
+      res.status(502).json({
+        ok: false,
+        error: String(e?.message || e) || "Falha ao obter resposta do modelo.",
+      });
+    }
+  });
+
   app.get("/api/aiox/agents", (_req, res) => {
     const r = readAgentFiles(AGENTS_DIR);
-    if (!r.ok) return res.status(500).json(r);
+    if (!r.ok) {
+      return res.status(500).json({ ok: false, error: r.error });
+    }
     res.json({ agents: r.agents });
+  });
+
+  app.post("/api/aiox/agents", agentEditLimiter, async (req, res) => {
+    if (!agentEditAllowed) {
+      return res.status(403).json({
+        ok: false,
+        error: "Criação de agentes desactivada (MISSION_AGENT_EDIT=0).",
+      });
+    }
+    const idParam = req.body?.id;
+    const resolved = resolveAgentMarkdownPath(AGENTS_DIR, idParam);
+    if (!resolved) {
+      return res.status(400).json({
+        ok: false,
+        error: "id inválido (usa letras, números, . _ - ; máx. 128 caracteres)",
+      });
+    }
+    if (!fs.existsSync(AIOX_ROOT)) {
+      return res.status(503).json({
+        ok: false,
+        error: "Repositório aiox-core não encontrado. Define AIOX_CORE_PATH ou coloca aiox-core ao lado de MissionAgent.",
+      });
+    }
+    try {
+      fs.mkdirSync(AGENTS_DIR, { recursive: true });
+    } catch (e) {
+      logger.warn({ err: String(e?.message || e) }, "mkdir agents failed");
+      return res.status(500).json({ ok: false, error: "falha ao criar pasta de agentes" });
+    }
+    if (fs.existsSync(resolved)) {
+      return res.status(409).json({ ok: false, error: "já existe um agente com este id" });
+    }
+    const id = path.basename(resolved, ".md");
+    const contentIn = req.body?.content;
+    let content;
+    if (typeof contentIn === "string" && contentIn.trim().length > 0) {
+      content = contentIn;
+    } else {
+      content = `# ${id}\n\n---\n\n`;
+    }
+    const bytes = Buffer.byteLength(content, "utf8");
+    if (bytes > AGENT_FILE_MAX_BYTES) {
+      return res.status(413).json({
+        ok: false,
+        error: `conteúdo demasiado grande (máx. ${AGENT_FILE_MAX_BYTES} bytes)`,
+      });
+    }
+    try {
+      fs.writeFileSync(resolved, content, "utf8");
+    } catch (e) {
+      logger.warn({ err: String(e?.message || e) }, "agent file create failed");
+      return res.status(500).json({ ok: false, error: "falha ao criar ficheiro do agente" });
+    }
+    try {
+      await activity.pushLog("@mission-hub", `Criou agente ${id} (${bytes} bytes)`, "command");
+    } catch (e) {
+      logger.warn({ err: String(e?.message || e) }, "activity pushLog after agent create failed");
+    }
+    logger.info({ id, bytes }, "agent markdown created");
+    res.status(201).json({ ok: true, id, bytes });
   });
 
   app.get("/api/aiox/agents/:id", (req, res) => {
@@ -248,6 +386,36 @@ export async function createBridgeApp(missionRoot, options = {}) {
     res.json({ ok: true, id, bytes });
   });
 
+  app.delete("/api/aiox/agents/:id", agentEditLimiter, async (req, res) => {
+    if (!agentEditAllowed) {
+      return res.status(403).json({
+        ok: false,
+        error: "Eliminação de agentes desactivada (MISSION_AGENT_EDIT=0).",
+      });
+    }
+    const resolved = resolveAgentMarkdownPath(AGENTS_DIR, req.params.id);
+    if (!resolved) {
+      return res.status(400).json({ ok: false, error: "id inválido" });
+    }
+    if (!fs.existsSync(resolved)) {
+      return res.status(404).json({ ok: false, error: "agente não encontrado" });
+    }
+    const id = path.basename(resolved, ".md");
+    try {
+      fs.unlinkSync(resolved);
+    } catch (e) {
+      logger.warn({ err: String(e?.message || e) }, "agent file delete failed");
+      return res.status(500).json({ ok: false, error: "falha ao eliminar ficheiro do agente" });
+    }
+    try {
+      await activity.pushLog("@mission-hub", `Eliminou agente ${id}`, "command");
+    } catch (e) {
+      logger.warn({ err: String(e?.message || e) }, "activity pushLog after agent delete failed");
+    }
+    logger.info({ id }, "agent markdown deleted");
+    res.json({ ok: true, id });
+  });
+
   app.get("/api/aiox/activity", (_req, res) => {
     res.json({ logs: activity.getLogs() });
   });
@@ -269,6 +437,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
     if ("error" in result && result.error) {
       return res.status(400).json({ ok: false, error: result.error });
     }
+    let activityLogged = true;
     try {
       await activity.pushLog(
         "@aiox-cli",
@@ -276,8 +445,8 @@ export async function createBridgeApp(missionRoot, options = {}) {
         "output"
       );
     } catch (e) {
+      activityLogged = false;
       logger.warn({ err: String(e?.message || e) }, "activity pushLog after exec failed");
-      return res.status(500).json({ ok: false, error: "falha ao registar no feed" });
     }
     logger.info({ subcommand: sub, exitCode: result.exitCode }, "aiox exec completed");
     res.json({
@@ -287,6 +456,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       timedOut: result.timedOut,
       stdout: result.stdout,
       stderr: result.stderr,
+      activityLogged,
     });
   });
 
@@ -318,6 +488,25 @@ export async function createBridgeApp(missionRoot, options = {}) {
       message: COMMAND_FORWARD_HINT,
       agentsAvailable: ar.ok ? ar.agents.length : 0,
     });
+  });
+
+  app.use("/api", (req, res) => {
+    res.status(404).json({ ok: false, error: "recurso API não encontrado" });
+  });
+
+  app.use((err, _req, res, next) => {
+    const isJsonParse =
+      (err instanceof SyntaxError && "body" in err) ||
+      err?.type === "entity.parse.failed" ||
+      err?.type === "entity.too.large";
+    if (isJsonParse) {
+      const msg =
+        err?.type === "entity.too.large"
+          ? "Corpo do pedido demasiado grande"
+          : "JSON inválido no corpo do pedido";
+      return res.status(err.status || 400).json({ ok: false, error: msg });
+    }
+    next(err);
   });
 
   return app;
