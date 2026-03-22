@@ -77,7 +77,20 @@ npm test
 
 Smoke da API (**23** testes Vitest + Supertest): `health`, 404/JSON inválido, métricas, tempo, `info`, `doubts` / `doubts/chat`, `agents`, `exec`, validação de `command`, GET/PUT agente, `MISSION_AGENT_EDIT`, caminhos mascarados, persistência do feed.
 
-**CI:** em repositórios com esta pasta na raiz, o workflow `.github/workflows/mission-agent-ci.yml` corre `npm ci`, `npm test` e `npm run build` em `MissionAgent/`.
+**CI:** o workflow [`.github/workflows/mission-agent-ci.yml`](./.github/workflows/mission-agent-ci.yml) corre `npm ci`, `npm test` e `npm run build` em cada push ou PR para `main` / `master` (quando o repositório Git tem a raiz em `MissionAgent/`).
+
+### Sincronizar com o GitHub
+
+Se ainda não tens `origin` configurado, cria um repositório vazio no GitHub e corre:
+
+```bash
+cd MissionAgent
+git remote add origin https://github.com/SEU_USER/SEU_REPO.git
+git branch -M main
+git push -u origin main
+```
+
+(Substitui a URL pelo teu repositório; usa SSH se preferires `git@github.com:USER/REPO.git`.)
 
 ## Docker
 
