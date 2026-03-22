@@ -55,7 +55,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 ### Baixa
 
-- [x] **CI** (GitHub Actions): ficheiro na **raiz do repositório** `AgentesMissao` → `.github/workflows/mission-agent-ci.yml` (job `Mission Agent CI`; gatilhos em `MissionAgent/**`) — `npm ci`, `npm test`, `npm run build` com `working-directory: MissionAgent`
+- [x] **CI** (GitHub Actions): workflow `Mission Agent CI` em `.github/workflows/mission-agent-ci.yml` — `npm ci`, `npm test`, `npm run build`. **Repo só com esta pasta:** workflow na raiz do clone (ver `MissionAgent/.github/...`). **Monorepo** `AgentesMissao` (pasta pai): cópia alternativa em `AgentesMissao/.github/...` com `working-directory: MissionAgent` e paths `MissionAgent/**`
 - [x] **Separar** `App.tsx` em componentes (`HubHeader`, `AgentsSidebar`, `MainWorkspace`, `ActivityPanel`, `MobileSummary`, `AgentDetailModal`, `CommandCenterView`, …)
 
 ---
