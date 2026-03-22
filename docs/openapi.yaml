@@ -1,0 +1,266 @@
+openapi: 3.0.3
+info:
+  title: Architecture Agents Hub — API
+  version: 1.0.0
+  description: |
+    Ponte HTTP ao aiox-core local: metadados de agentes (.md), versão CLI e feed de actividade (JSON no disco ou PostgreSQL com DATABASE_URL).
+servers:
+  - url: http://127.0.0.1:8787
+    description: Desenvolvimento (PORT por defeito)
+paths:
+  /api/health:
+    get:
+      summary: Estado do serviço
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  service: { type: string, example: mission-agent-bridge }
+  /api/aiox/metrics:
+    get:
+      summary: Métricas locais (CPU/memória) para a central de agentes (canvas)
+      description: |
+        Usado pelo escritório pixel art (rack de servidor). `disk_pct` e `temp_c` podem ser 0 quando não disponíveis.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cpu_pct: { type: integer }
+                  mem_pct: { type: integer }
+                  disk_pct: { type: integer }
+                  temp_c: { type: number }
+                  uptime: { type: integer, description: segundos desde o arranque do processo Node }
+  /api/aiox/weather:
+    get:
+      summary: Tempo (wttr.in) para o widget na central
+      description: Localização por `WEATHER_LOCATION` (por defeito Lisbon,Portugal).
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  temp_c: { oneOf: [{ type: string }, { type: number }] }
+                  desc: { type: string }
+                  code: { type: integer }
+                  location: { type: string }
+  /api/aiox/info:
+    get:
+      summary: Metadados aiox-core e contagem de agentes
+      responses:
+        "200":
+          description: Informação agregada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  aioxRoot: { type: string }
+                  aioxExists: { type: boolean }
+                  agentsDir: { type: string }
+                  version: { type: string, nullable: true }
+                  versionError: { type: string, nullable: true }
+                  agentCount: { type: integer }
+                  agentsError: { type: string, nullable: true }
+                  pathsMasked: { type: boolean, description: "Quando true, aioxRoot/agentsDir são truncados (MASK_PATHS_IN_UI)" }
+                  aioxExecAvailable: { type: boolean, description: "Execução doctor/info disponível (env + segredo)" }
+                  activityBackend:
+                    type: string
+                    enum: [file, postgres]
+                    description: "Onde o feed de atividade está persistido (ficheiro JSON ou PostgreSQL)"
+                  agentEditAllowed:
+                    type: boolean
+                    description: "false quando MISSION_AGENT_EDIT=0 — sem PUT de agentes"
+  /api/aiox/agents:
+    get:
+      summary: Lista de agentes (.md)
+      responses:
+        "200":
+          description: Lista obtida
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        file: { type: string }
+                        title: { type: string }
+        "500":
+          description: Pasta de agentes inacessível
+  /api/aiox/agents/{id}:
+    get:
+      summary: Conteúdo Markdown de um agente (id sem .md)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Corpo do ficheiro
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  file: { type: string }
+                  title: { type: string }
+                  content: { type: string }
+        "400":
+          description: id inválido
+        "404":
+          description: Agente não encontrado
+        "413":
+          description: Ficheiro demasiado grande (>512 KiB)
+    put:
+      summary: Gravar definição Markdown do agente (skill/persona no YAML do ficheiro)
+      description: |
+        Escreve o ficheiro `.md` em `.aiox-core/development/agents/{id}.md`.
+        Desactivar com `MISSION_AGENT_EDIT=0`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  description: Texto completo UTF-8 (máx. 512 KiB)
+      responses:
+        "200":
+          description: Gravado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  id: { type: string }
+                  bytes: { type: integer }
+        "400":
+          description: id inválido ou body inválido
+        "403":
+          description: Edição desactivada (MISSION_AGENT_EDIT=0)
+        "404":
+          description: Agente não encontrado
+        "413":
+          description: Conteúdo demasiado grande
+        "429":
+          description: Rate limit (PUT agente)
+  /api/aiox/activity:
+    get:
+      summary: Feed de atividade (JSON no servidor ou PostgreSQL; ver activityBackend em /api/aiox/info)
+      responses:
+        "200":
+          description: Lista de entradas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logs:
+                    type: array
+                    items:
+                      type: object
+  /api/aiox/exec:
+    post:
+      summary: Executa aiox doctor ou aiox info (opt-in; confirmação obrigatória)
+      description: |
+        Requer ENABLE_AIOX_CLI_EXEC e AIOX_EXEC_SECRET (≥8 caracteres) no servidor.
+        Corpo JSON com subcomando permitido e o mesmo segredo em `confirm`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subcommand, confirm]
+              properties:
+                subcommand:
+                  type: string
+                  enum: [doctor, info]
+                confirm:
+                  type: string
+                  description: Deve coincidir com AIOX_EXEC_SECRET
+      responses:
+        "200":
+          description: Processo terminado (ok reflecte exit code 0)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  subcommand: { type: string }
+                  exitCode: { type: integer, nullable: true }
+                  timedOut: { type: boolean }
+                  stdout: { type: string }
+                  stderr: { type: string }
+        "400":
+          description: Subcomando inválido
+        "403":
+          description: Segredo incorrecto
+        "429":
+          description: Rate limit (exec)
+        "503":
+          description: Funcionalidade desactivada ou segredo não configurado
+  /api/aiox/command:
+    post:
+      summary: Regista comando (não executa shell)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [command]
+              properties:
+                command:
+                  type: string
+                  description: Texto do comando (máx. 4000 caracteres após trim)
+      responses:
+        "200":
+          description: Registado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  message: { type: string }
+                  agentsAvailable: { type: integer }
+        "400":
+          description: Comando vazio ou demasiado longo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: false }
+                  error: { type: string }
+        "429":
+          description: Limite de pedidos por IP (rate limit no POST /command)

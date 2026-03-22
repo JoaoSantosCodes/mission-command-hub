@@ -1,0 +1,10 @@
+node_modules
+dist
+.mission-agent
+.git
+.gitignore
+coverage
+*.md
+!README.md
+.env
+.env.*

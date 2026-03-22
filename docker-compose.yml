@@ -1,0 +1,31 @@
+# Exemplo: monta o aiox-core local em /data/aiox-core (ajusta o caminho no host).
+# Opcional: descomenta `postgres` e define DATABASE_URL no serviço mission-agent para
+# persistir o feed de atividade em PostgreSQL (tabela mission_activity_log criada ao arranque).
+services:
+  mission-agent:
+    build: .
+    ports:
+      - "8787:8787"
+    environment:
+      NODE_ENV: production
+      PORT: "8787"
+      AIOX_CORE_PATH: /data/aiox-core
+      # DATABASE_URL: postgresql://mission:mission@postgres:5432/mission_agent
+    volumes:
+      - ../aiox-core:/data/aiox-core:ro
+    # depends_on:
+    #   - postgres
+
+  # postgres:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: mission
+  #     POSTGRES_PASSWORD: mission
+  #     POSTGRES_DB: mission_agent
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+
+# volumes:
+#   postgres_data:
