@@ -1,6 +1,6 @@
 # Architecture Agents Hub — melhorias e pendências
 
-Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-22 — `.env.ready` + `env:init` / `load-env.mjs` + `dotenv`; ambiente pronto aguardando `OPENAI_API_KEY`.
+Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-22 — validação executada (`npm test` + `npm run build` OK); registo em **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
 
 ---
 
@@ -115,12 +115,19 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 | Item | Nota |
 |------|------|
-| Motor LLM | Fora de âmbito — hub não substitui IDE/CLI |
+| LLM | **Opcional** no painel Dúvidas (`POST /api/aiox/doubts/chat`, env); não substitui o modelo do **IDE** para edição — ver roadmap «Chat com LLM no servidor» (streaming, quotas em aberto) |
 | Autenticação | Não implementada; não expor a internet sem reverse proxy + auth |
 | Multi-utilizador | Feed persistido em ficheiro local; ainda sem isolamento por sessão/utilizador |
 | Nome npm | Pacote continua `mission-agent` (pasta `MissionAgent/`); mudança só relevante se publicar no npm |
 | Só UI sem API | Com API **embebida** no Vite, `/api` deve responder no **mesmo host/porta** do Vite. Se usares **`MISSION_EMBED_API=0`**, é preciso Express em **8787** (`preview:all`, `dev:split`, ou `build`+`start`) |
 | Canvas de tarefas | Só **localStorage** no browser; sem API, sem sync entre dispositivos — evoluir para backend seria feature nova |
+
+---
+
+## Validação periódica
+
+- Registo de auditorias (datas, contagem de testes, lacunas): **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
+- Em cada revisão formal, actualizar a linha **Última revisão** no topo deste ficheiro e o registo em `CHECKLIST-VALIDATION.md`.
 
 ---
 
@@ -130,3 +137,4 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 2. Novas ideias: adicionar na tabela **Melhorias (roadmap)** ou em **Pendências** com uma linha de contexto.
 3. Revisão periódica (ex.: sprint): arquivar itens obsoletos noutro ficheiro `CHECKLIST-ARCHIVE.md` se necessário.
 4. **Processo de equipa:** novo projecto ou mudança de escopo → actualizar a base de conhecimento acordada (ex.: Notion / OpenAPI) **antes** de expandir código, para manter contrato e desenho alinhados.
+5. **Validação vs. código:** seguir o passo-a-passo em [CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md) e actualizar o registo após mudanças relevantes na API ou no painel Dúvidas.

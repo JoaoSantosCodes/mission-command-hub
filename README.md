@@ -119,6 +119,6 @@ Ver **[docs/openapi.yaml](./docs/openapi.yaml)** (OpenAPI 3.0).
 
 ## Roadmap e pendências
 
-Ver **[CHECKLIST.md](./CHECKLIST.md)** — melhorias técnicas, UX, integração com `aiox-core` e itens de segurança.
+Ver **[CHECKLIST.md](./docs/CHECKLIST.md)** — melhorias técnicas, UX, integração com `aiox-core` e segurança. Registo de validações periódicas: **[CHECKLIST-VALIDATION.md](./docs/CHECKLIST-VALIDATION.md)**.
 
 Arranque rápido: **[`.env.ready`](./.env.ready)** → **`npm run env:init`** (ou automático no `postinstall`). Referência completa: **[.env.example](./.env.example)**.
