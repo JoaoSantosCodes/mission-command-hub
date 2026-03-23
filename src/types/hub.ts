@@ -30,6 +30,23 @@ export type AioxExecResponse = {
 
 export type AgentRow = { id: string; file: string; title: string };
 
+export type AgentCustomization = {
+  displayName?: string;
+  avatarIndex?: number;
+  avatarOffsetX?: number;
+  avatarOffsetY?: number;
+  accentColor?: string;
+};
+
+export type OfficeCustomization = {
+  theme?: "default" | "neon";
+};
+
+export type HubCustomizationPayload = {
+  agents: Record<string, AgentCustomization>;
+  office: OfficeCustomization;
+};
+
 export type ActivityEntry = {
   id: string;
   timestamp: string;

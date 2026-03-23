@@ -3,7 +3,26 @@ import { X } from "lucide-react";
 import { useDocumentVisible } from "@/hooks/useDocumentVisible";
 import { useTheme } from "@/hooks/useTheme";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
-import { fetchJson, postCommand } from "@/lib/api";
+import {
+  consumeFishFood,
+  fetchJson,
+  feedFish,
+  getIntegrationsStatus,
+  getFishState,
+  getCustomization,
+  postCommand,
+  putCustomization,
+} from "@/lib/api";
+import {
+  AGENT_PROFILE_CHANGED_EVENT,
+  readAllAgentProfiles,
+  replaceAllAgentProfiles,
+} from "@/lib/agent-profile-store";
+import {
+  OFFICE_THEME_CHANGED_EVENT,
+  readOfficeTheme,
+  writeOfficeTheme,
+} from "@/lib/office-customization-store";
 import { formatUserFacingError } from "@/lib/format-error";
 import { POLL_INTERVAL_MS } from "@/constants";
 import type { ActivityEntry, AgentRow, AioxInfo, AioxOverviewResponse } from "@/types/hub";
@@ -18,6 +37,7 @@ import { AgentDetailModal } from "@/components/AgentDetailModal";
 import { CreateAgentModal } from "@/components/CreateAgentModal";
 import { TaskCanvasView } from "@/components/task-canvas";
 import { DoubtsChatPanel } from "@/components/DoubtsChatPanel";
+import { CustomizationPanel } from "@/components/CustomizationPanel";
 
 export default function App() {
   const docVisible = useDocumentVisible();
@@ -39,11 +59,19 @@ export default function App() {
   const [detailAgentId, setDetailAgentId] = useState<string | null>(null);
   const [createAgentOpen, setCreateAgentOpen] = useState(false);
   const [doubtsOpen, setDoubtsOpen] = useState(false);
+  const [customizationOpen, setCustomizationOpen] = useState(false);
   const [agentsDrawerOpen, setAgentsDrawerOpen] = useState(false);
   const [activityDrawerOpen, setActivityDrawerOpen] = useState(false);
   const [viewMode, setViewMode] = useState<HubViewMode>("hub");
   /** `null` até ao primeiro refresh; depois indica se a API Express respondeu. */
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
+  const [customRev, setCustomRev] = useState("0:0");
+  const [customHydrated, setCustomHydrated] = useState(false);
+  const [customSyncState, setCustomSyncState] = useState<"local" | "syncing" | "synced" | "conflict" | "error">(
+    "local"
+  );
+  const [fishFood, setFishFood] = useState<{ food: number; maxFood: number; mood: "feliz" | "normal" | "fome" | "critico" } | null>(null);
+  const [integrations, setIntegrations] = useState<import("@/lib/api").IntegrationsStatus | null>(null);
 
   const refresh = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = opts?.silent ?? false;
@@ -66,14 +94,129 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // Atualiza estado de integrações (API / DB / LLM / tokens).
+    // Não bloqueia o refresh da UI principal.
+    void (async () => {
+      try {
+        const s = await getIntegrationsStatus({ validate: true });
+        setIntegrations(s);
+      } catch {
+        // Sem integração disponível; mantemos o estado anterior.
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  const refreshFish = useCallback(async () => {
+    try {
+      const next = await getFishState();
+      setFishFood({ food: next.food, maxFood: next.maxFood, mood: next.mood });
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshFish();
+  }, [refreshFish]);
+
+  useEffect(() => {
+    if (!docVisible) return;
+    const id = window.setInterval(() => void refreshFish(), Math.max(12_000, POLL_INTERVAL_MS));
+    return () => window.clearInterval(id);
+  }, [docVisible, refreshFish]);
+
+  const hydrateCustomizationFromServer = useCallback(async () => {
+    const r = await getCustomization();
+    replaceAllAgentProfiles(r.data.agents || {});
+    if (r.data.office?.theme === "neon" || r.data.office?.theme === "default") {
+      writeOfficeTheme(r.data.office.theme, { emit: false });
+    }
+    setCustomRev(r.revision || "0:0");
+    return r;
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        await hydrateCustomizationFromServer();
+        if (alive) setCustomSyncState("synced");
+      } catch {
+        if (alive) setCustomSyncState("local");
+      } finally {
+        if (alive) setCustomHydrated(true);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [hydrateCustomizationFromServer]);
+
+  const syncCustomizationNow = useCallback(async () => {
+    setCustomSyncState("syncing");
+    const payload = {
+      agents: readAllAgentProfiles(),
+      office: { theme: readOfficeTheme() },
+    };
+    try {
+      const r = await putCustomization(payload, customRev || "0:0");
+      setCustomRev(r.revision || customRev);
+      setCustomSyncState("synced");
+    } catch (e) {
+      if (String(e).includes("CONFLICT_CUSTOMIZATION")) {
+        setCustomSyncState("conflict");
+        try {
+          await hydrateCustomizationFromServer();
+          setCustomSyncState("synced");
+        } catch {
+          setCustomSyncState("error");
+        }
+        return;
+      }
+      setCustomSyncState("error");
+    }
+  }, [customRev, hydrateCustomizationFromServer]);
+
+  useEffect(() => {
+    if (!customHydrated) return;
+    let timer: number | null = null;
+    const flush = () => {
+      if (timer != null) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void syncCustomizationNow();
+      }, 550);
+    };
+    window.addEventListener(AGENT_PROFILE_CHANGED_EVENT, flush as EventListener);
+    window.addEventListener(OFFICE_THEME_CHANGED_EVENT, flush as EventListener);
+    return () => {
+      window.removeEventListener(AGENT_PROFILE_CHANGED_EVENT, flush as EventListener);
+      window.removeEventListener(OFFICE_THEME_CHANGED_EVENT, flush as EventListener);
+      if (timer != null) window.clearTimeout(timer);
+    };
+  }, [customHydrated, syncCustomizationNow]);
 
   useEffect(() => {
     if (!docVisible) return;
     const t = window.setInterval(() => void refresh({ silent: true }), POLL_INTERVAL_MS);
     return () => window.clearInterval(t);
   }, [docVisible, refresh]);
+
+  useEffect(() => {
+    const onTaskTokenSpent = (evt: Event) => {
+      const d = (evt as CustomEvent<{ amount?: number; to?: string }>).detail;
+      const amount = Number(d?.amount ?? 0);
+      if (!Number.isFinite(amount) || amount <= 0) return;
+      void consumeFishFood(amount, `task:${String(d?.to ?? "move")}`)
+        .then((next) => setFishFood({ food: next.food, maxFood: next.maxFood, mood: next.mood }))
+        .catch(() => void 0);
+    };
+    window.addEventListener("mission-task-token-spent", onTaskTokenSpent as EventListener);
+    return () => window.removeEventListener("mission-task-token-spent", onTaskTokenSpent as EventListener);
+  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -87,7 +230,8 @@ export default function App() {
       agentsDrawerOpen ||
       activityDrawerOpen ||
       createAgentOpen ||
-      doubtsOpen
+      doubtsOpen ||
+      customizationOpen
   );
 
   useEffect(() => {
@@ -95,6 +239,10 @@ export default function App() {
       if (e.key !== "Escape") return;
       if (doubtsOpen) {
         setDoubtsOpen(false);
+        return;
+      }
+      if (customizationOpen) {
+        setCustomizationOpen(false);
         return;
       }
       if (createAgentOpen) {
@@ -117,7 +265,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [err, detailAgentId, agentsDrawerOpen, activityDrawerOpen, createAgentOpen, doubtsOpen]);
+  }, [err, detailAgentId, agentsDrawerOpen, activityDrawerOpen, createAgentOpen, doubtsOpen, customizationOpen]);
 
   /** Toggle painel Dúvidas: Ctrl+/ ou Cmd+/ (não dispara dentro de inputs). */
   useEffect(() => {
@@ -151,6 +299,12 @@ export default function App() {
     setErr(null);
     try {
       const data = await postCommand(t);
+      try {
+        const fish = await consumeFishFood(3, "command");
+        setFishFood({ food: fish.food, maxFood: fish.maxFood, mood: fish.mood });
+      } catch {
+        /* ignore fish failures */
+      }
       setCmd("");
       if (data.message) setToast(data.message);
       await refresh();
@@ -167,6 +321,16 @@ export default function App() {
       : "—";
 
   const versionLine = loading ? "…" : (info?.version ?? info?.versionError ?? "—");
+  const customSyncLabelPt =
+    customSyncState === "syncing"
+      ? "sincronizando"
+      : customSyncState === "synced"
+        ? "sincronizado"
+        : customSyncState === "conflict"
+          ? "conflito"
+          : customSyncState === "error"
+            ? "erro"
+            : "local";
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
@@ -190,6 +354,8 @@ export default function App() {
         onOpenAgentsDrawer={() => setAgentsDrawerOpen(true)}
         onOpenActivityDrawer={() => setActivityDrawerOpen(true)}
         onOpenDoubts={() => setDoubtsOpen(true)}
+        onOpenCustomization={() => setCustomizationOpen(true)}
+        customizationSyncLabel={customSyncLabelPt}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
       />
@@ -236,12 +402,14 @@ export default function App() {
             <AgentsSidebar
               info={info}
               agents={agents}
+              logs={logs}
               loading={loading}
               onSelectAgent={(a) => setDetailAgentId(a.id)}
               mobileOpen={agentsDrawerOpen}
               onMobileClose={() => setAgentsDrawerOpen(false)}
               canCreate={info?.agentEditAllowed !== false}
               onCreateAgent={() => setCreateAgentOpen(true)}
+              integrations={integrations}
             />
             <MainWorkspace
               info={info}
@@ -262,6 +430,14 @@ export default function App() {
             agents={agents}
             logs={logs}
             onSelectAgent={onSelectAgentFromCommandCenter}
+            highlightedAgentId={detailAgentId}
+            customizationSyncLabel={customSyncLabelPt}
+            onSyncCustomization={() => void syncCustomizationNow()}
+            fishFood={fishFood}
+            onFeedFish={async () => {
+              const next = await feedFish(12);
+              setFishFood({ food: next.food, maxFood: next.maxFood, mood: next.mood });
+            }}
           />
         ) : (
           <TaskCanvasView />
@@ -297,6 +473,14 @@ export default function App() {
       />
 
       <DoubtsChatPanel open={doubtsOpen} onClose={() => setDoubtsOpen(false)} />
+
+      <CustomizationPanel
+        open={customizationOpen}
+        onClose={() => setCustomizationOpen(false)}
+        agents={agents}
+        syncStateLabel={customSyncLabelPt}
+        onSyncNow={() => void syncCustomizationNow()}
+      />
     </div>
   );
 }

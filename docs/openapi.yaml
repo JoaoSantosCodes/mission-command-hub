@@ -70,9 +70,13 @@ paths:
               schema:
                 type: object
                 properties:
-                  aioxRoot: { type: string }
+                  aioxRoot:
+                    type: string
+                    description: Raiz do projeto AIOX (pasta com .aiox-core); não é só o nome do repositório git
                   aioxExists: { type: boolean }
-                  agentsDir: { type: string }
+                  agentsDir:
+                    type: string
+                    description: Pasta dos *.md resolvida via resource_locations.agents_dir (L1→L2→L4) ou AIOX_AGENTS_DIR
                   version: { type: string, nullable: true }
                   versionError: { type: string, nullable: true }
                   agentCount: { type: integer }
@@ -158,6 +162,207 @@ paths:
           description: Conflito (If-Match)
         "429":
           description: Rate limit
+  /api/aiox/customization:
+    get:
+      summary: Personalização do hub (agentes + escritório)
+      description: |
+        Contrato base para modo híbrido (local agora, sync servidor opcional).
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      agents:
+                        type: object
+                        additionalProperties: { type: object }
+                      office:
+                        type: object
+                  revision: { type: string, description: "Usar no If-Match do PUT" }
+    put:
+      summary: Gravar personalização do hub
+      parameters:
+        - name: If-Match
+          in: header
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                agents:
+                  type: object
+                  additionalProperties: { type: object }
+                office:
+                  type: object
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  revision: { type: string }
+        "409":
+          description: Conflito (If-Match)
+        "429":
+          description: Rate limit
+  /api/aiox/fish:
+    get:
+      summary: Estado do aquário (ração do peixe)
+      description: |
+        Persiste `food`/`maxFood` num ficheiro local (`MISSION_FISH_PATH` ou por defeito `.mission-agent/fish-state.json`) e devolve um `mood` derivado.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  food: { type: integer }
+                  maxFood: { type: integer }
+                  updatedAt: { type: string, format: date-time }
+                  mood:
+                    type: string
+                    enum: [feliz, normal, fome, critico]
+  /api/aiox/fish/consume:
+    post:
+      summary: Consome ração do aquário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount: { type: integer, description: 'Quantidade a consumir (0-50)' }
+                source: { type: string, description: 'Origem do consumo (ex: command; task:doing)' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  food: { type: integer }
+                  maxFood: { type: integer }
+                  updatedAt: { type: string, format: date-time }
+                  mood:
+                    type: string
+                    enum: [feliz, normal, fome, critico]
+  /api/aiox/fish/feed:
+    post:
+      summary: Alimenta o peixe (recupera ração)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount: { type: integer, description: Quantidade a adicionar (1-50) }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  food: { type: integer }
+                  maxFood: { type: integer }
+                  updatedAt: { type: string, format: date-time }
+                  mood:
+                    type: string
+                    enum: [feliz, normal, fome, critico]
+  /api/aiox/integrations-status:
+    get:
+      summary: Status de integrações (API / DB / LLM / tokens)
+      parameters:
+        - name: validate
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ["1"]
+      description: |
+        Painel para a UI verificar o que o servidor consegue detetar (env/configs e capacidades).
+        Quando `validate=1`, o servidor faz chamadas HTTP leves para validar chaves/tokens:
+        OpenAI `/v1/models`, Notion `/v1/users/me`, Figma `/v1/me`.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, generatedAt, database, exec, doubts, notion, figma, fish]
+                properties:
+                  ok: { type: boolean, example: true }
+                  generatedAt: { type: string, format: date-time }
+                  database:
+                    type: object
+                    properties:
+                      configured: { type: boolean }
+                      activityBackend: { type: string, enum: [file, postgres] }
+                  exec:
+                    type: object
+                    properties:
+                      configured: { type: boolean }
+                  doubts:
+                    type: object
+                    properties:
+                      openaiKeyConfigured: { type: boolean }
+                      doubtsOptIn: { type: boolean }
+                      llmEnabled: { type: boolean }
+                      streamAvailable: { type: boolean }
+                      openaiValidated:
+                        type: boolean
+                        description: "Só existe quando validate=1."
+                      openaiError:
+                        type: string
+                        nullable: true
+                  notion:
+                    type: object
+                    properties:
+                      tokenConfigured: { type: boolean }
+                      tokenValidated:
+                        type: boolean
+                        description: "Só existe quando validate=1."
+                      tokenError:
+                        type: string
+                        nullable: true
+                  figma:
+                    type: object
+                    properties:
+                      tokenConfigured: { type: boolean }
+                      tokenValidated:
+                        type: boolean
+                        description: "Só existe quando validate=1."
+                      tokenError:
+                        type: string
+                        nullable: true
+                  fish:
+                    type: object
+                    properties:
+                      persistence: { type: string, example: file }
+                      enabled: { type: boolean }
   /api/aiox/overview:
     get:
       summary: Vista agregada (ponte + lista de agentes + feed + contagens)

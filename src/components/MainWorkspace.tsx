@@ -164,7 +164,8 @@ export function MainWorkspace({ info, agentsCount, timeLabel, onRefresh }: MainW
                     <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
                     <div className="space-y-2 text-[11px] leading-relaxed text-muted-foreground">
                       <p>
-                        No repositório <code className="rounded bg-muted px-1 font-mono text-[10px]">aiox-core</code> corre{" "}
+                        Na <strong className="font-medium text-foreground/90">raiz do projeto AIOX</strong> (caminho acima —
+                        onde vive <code className="rounded bg-muted px-1 font-mono text-[10px]">.aiox-core</code>) corre{" "}
                         <code className="rounded bg-muted px-1 font-mono text-[10px]">npx aiox-core doctor</code> para
                         diagnóstico.
                       </p>

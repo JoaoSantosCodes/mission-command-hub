@@ -9,13 +9,13 @@ Registo de auditorias cruzadas entre **`docs/CHECKLIST.md`** e o código / repos
 | Campo | Valor |
 |--------|--------|
 | **Data** | 2026-03-23 |
-| **Âmbito** | MissionAgent — streaming Dúvidas (`POST /api/aiox/doubts/chat/stream`, `streamAvailable`); smoke 29; OpenAPI/README/CHECKLIST |
-| **Comandos** | `npm test` → **29/29** pass; `npm run build` → OK (mesma data) |
+| **Âmbito** | MissionAgent — streaming Dúvidas (`POST /api/aiox/doubts/chat/stream`, `streamAvailable`); smoke 34; OpenAPI/README/CHECKLIST |
+| **Comandos** | `npm test` → **34/34** pass; `npm run build` → OK (mesma data) |
 
 ### Resultado
 
 - **Estado geral:** o checklist está **alinhado** com a implementação actual.
-- **Contagem de testes:** **29** casos em `test/api.smoke.test.mjs` — confere com a secção «Melhorias técnicas → Alta».
+- **Contagem de testes:** **34** casos em `test/api.smoke.test.mjs` — confere com a secção «Melhorias técnicas → Alta».
 - **Rotas / contrato:** `POST /api/aiox/doubts/chat/stream` (SSE) + `streamAvailable` em `GET /api/aiox/doubts` e `overview.doubts`; task-board inalterado; **`docs/openapi.yaml`** actualizado.
 - **Correcção aplicada:** linha «Motor LLM» em **Pendências conhecidas** mantém LLM opcional no painel Dúvidas vs. modelo no IDE.
 

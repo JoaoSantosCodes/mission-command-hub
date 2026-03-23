@@ -8,6 +8,7 @@ import {
   PanelLeft,
   PanelRight,
   RefreshCw,
+  SlidersHorizontal,
   Sparkles,
   SquareKanban,
   Sun,
@@ -40,6 +41,8 @@ type HubHeaderProps = {
   onOpenActivityDrawer: () => void;
   /** Painel lateral Dúvidas / chat local */
   onOpenDoubts?: () => void;
+  onOpenCustomization?: () => void;
+  customizationSyncLabel?: string;
   viewMode?: HubViewMode;
   onViewModeChange?: (mode: HubViewMode) => void;
 };
@@ -63,6 +66,8 @@ export function HubHeader({
   onOpenAgentsDrawer,
   onOpenActivityDrawer,
   onOpenDoubts,
+  onOpenCustomization,
+  customizationSyncLabel,
   viewMode = "hub",
   onViewModeChange,
 }: HubHeaderProps) {
@@ -74,6 +79,14 @@ export function HubHeader({
           Architecture Agents Hub
         </span>
       </div>
+      {customizationSyncLabel ? (
+        <div
+          className="hidden shrink-0 items-center rounded-full border border-border bg-secondary/30 px-2 py-1 text-[10px] font-medium text-muted-foreground sm:flex"
+          title="Estado de sincronização da personalização"
+        >
+          perfil: {customizationSyncLabel}
+        </div>
+      ) : null}
 
       <div
         className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-secondary/30 px-2 py-1 text-[10px] font-medium text-muted-foreground"
@@ -211,6 +224,17 @@ export function HubHeader({
             aria-label="Abrir dúvidas e ajuda"
           >
             <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        ) : null}
+        {onOpenCustomization ? (
+          <button
+            type="button"
+            onClick={onOpenCustomization}
+            className="rounded-md border border-border p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            title="Personalização de agentes e escritório"
+            aria-label="Abrir painel de personalização"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
           </button>
         ) : null}
         <button

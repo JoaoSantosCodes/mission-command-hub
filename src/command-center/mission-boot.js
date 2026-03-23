@@ -61,6 +61,7 @@ export function startMissionCommandCenter(opts) {
     ["[mission] Mascote + escritório: OK", "info"],
     ["[mission] Métricas + tempo: API /api/aiox/metrics", "info"],
     ["[mission] Toca num agente para abrir o Markdown", "agent"],
+    ["[mission] Alt+arrastar: secretária do agente · Shift+Alt: mobiliário (mesa, sofá, …)", "info"],
   ];
   let bi = 0;
   function bootStep() {
@@ -86,6 +87,7 @@ export function startMissionCommandCenter(opts) {
   const officeCanvas = document.getElementById("office-canvas");
   const onOfficeClick = (e) => {
     if (!officeCanvas) return;
+    if (office.consumeSuppressOfficeClick()) return;
     const rect = officeCanvas.getBoundingClientRect();
     const id = office.getAgentAtPoint(e.clientX - rect.left, e.clientY - rect.top);
     if (!id) return;

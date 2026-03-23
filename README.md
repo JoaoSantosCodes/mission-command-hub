@@ -71,7 +71,8 @@ npm run dev
 
 | Variável | Descrição |
 |----------|-----------|
-| `AIOX_CORE_PATH` | Caminho absoluto para a raiz do `aiox-core` (por defeito: `../aiox-core` relativo a `MissionAgent/`) |
+| `AIOX_CORE_PATH` | Raiz do **projeto AIOX** (pasta que contém `.aiox-core`; no monorepo costuma ser o clone `../aiox-core`) |
+| `AIOX_AGENTS_DIR` | (Opcional) Caminho absoluto à pasta dos `.md` dos agentes; quando definido, ignora `resource_locations.agents_dir` nos YAML |
 | `PORT` | Porta em **`npm start`** / processo Express isolado (por defeito: `8787`) |
 | `MISSION_EMBED_API` | `0` desactiva a API embebida no Vite (`dev` / `preview`); usa proxy para `8787` |
 | `MISSION_ACTIVITY_PATH` | Ficheiro JSON do feed (por defeito: `MissionAgent/.mission-agent/activity.json`) |
@@ -123,7 +124,7 @@ O servidor Express serve o `dist/` e a API nos mesmos endpoints `/api/*`.
 npm test
 ```
 
-Smoke da API (**29** testes Vitest + Supertest): `health`, 404/JSON inválido, métricas, tempo, `info` (incl. **`taskBoard`**), **`overview`**, `doubts` / `doubts/chat` / **`doubts/chat/stream`**, **`task-board`** GET/PUT/409, `agents`, `exec`, validação de `command`, GET/PUT agente ( **`revision`** + conflito **409** ), `MISSION_AGENT_EDIT`, caminhos mascarados, persistência do feed.
+Smoke da API (**34** testes Vitest + Supertest): `health`, 404/JSON inválido, métricas, tempo, `info` (incl. **`taskBoard`**), **`overview`**, `doubts` / `doubts/chat` / **`doubts/chat/stream`**, **`integrations-status`** (+ `validate=1`), **`task-board`** GET/PUT/409, `agents`, `exec`, validação de `command`, GET/PUT agente ( **`revision`** + conflito **409** ), `MISSION_AGENT_EDIT`, caminhos mascarados, persistência do feed.
 
 **CI:** o workflow [`.github/workflows/mission-agent-ci.yml`](./.github/workflows/mission-agent-ci.yml) corre `npm ci`, `npm test` e `npm run build` em cada push ou PR para `main` / `master` (quando o repositório Git tem a raiz em `MissionAgent/`).
 

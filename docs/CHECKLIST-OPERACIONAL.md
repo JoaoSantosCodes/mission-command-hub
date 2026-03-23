@@ -16,7 +16,7 @@ Lista curta para **arranque**, **PR**, **release** e **processo de equipa**. O i
 
 ## 2. Antes de commit / PR
 
-- [ ] `npm test` — **29** testes smoke a passar
+- [ ] `npm test` — **34** testes smoke a passar
 - [ ] `npm run build` — sem erros TypeScript / Vite
 - [ ] Sem segredos no commit (`.env` está no `.gitignore`; não commitar chaves)
 - [ ] Se alteraste API: `docs/openapi.yaml` actualizado
@@ -47,8 +47,31 @@ Marca quando implementares; detalhes em **[CHECKLIST.md](./CHECKLIST.md)** (tabe
 
 ## 5. Integrações (Cursor / equipa)
 
-- [ ] MCP **Notion** e **Figma** configurados no Cursor com tokens (fora do Git)
-- [ ] Leitura Figma validada antes de UI crítica (política de fidelidade)
+- [x] Painel **Integrações** valida env chaves no servidor via `GET /api/aiox/integrations-status?validate=1` (OpenAI/Notion/Figma) — funciona em qualquer IDE
+- [ ] MCP **Notion** e **Figma** configurados no Cursor com tokens (fora do Git) e “connect”/leitura validada
+
+---
+
+## 5.1 Aquário (Fish Food) — verificação de API / DB / MCP
+
+Objetivo: confirmar que o “Aquário Architecture Agents Hub” está a consumir/persistir corretamente e que os contratos e integrações externas (quando habilitadas) estão operacionais.
+
+- [x] API Aquário integrada (smoke + contrato)
+  - Smoke: `npm test` (inclui `GET /api/aiox/fish`, `POST /api/aiox/fish/consume`, `POST /api/aiox/fish/feed`)
+  - Contrato: `docs/openapi.yaml` em `/api/aiox/fish*`
+- [x] Persistência Aquário (sem DB): ficheiro local
+  - Por defeito: `MissionAgent/.mission-agent/fish-state.json`
+  - Override: `MISSION_FISH_PATH`
+  - Como verificar: `GET /api/aiox/fish` e confirmar que `food/maxFood/updatedAt` mudam após `feed/consume`
+- [ ] Banco/DB integrado (feed de actividade) — opcional
+  - Como verificar: `GET /api/aiox/info` devolve `activityBackend: "file" | "postgres"`
+  - Como habilitar: definir `DATABASE_URL` (se falhar, o serviço faz fallback para `file`)
+  - Estado no teu ambiente actual (verificado agora via `/api/aiox/info`): `file` (sem `DATABASE_URL` activo)
+- [ ] MCP Figma (fidelidade) — operacional no Cursor
+  - Como verificar: Cursor → Settings → MCP → servidor Figma → “connect”/leitura do ficheiro Figma
+- [ ] MCP Notion (base de conhecimento/processo) — operacional no Cursor
+  - Como verificar: Cursor → Settings → MCP → servidor Notion → “connect”/leitura de páginas
+  - Onde consultar o processo: `docs/INTEGRATIONS.md` (secção “Processo de equipa (Notion + contratos)”)
 
 ---
 

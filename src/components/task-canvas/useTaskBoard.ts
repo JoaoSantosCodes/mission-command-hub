@@ -210,6 +210,7 @@ export function useTaskBoard() {
     setTasks((prev) => {
       const task = prev.find((t) => t.id === id);
       if (!task) return prev;
+      const fromColumn = task.columnId;
       const others = prev.filter((t) => t.id !== id);
       const colTasks = others
         .filter((t) => t.columnId === toColumn)
@@ -222,6 +223,18 @@ export function useTaskBoard() {
         order: i,
       }));
       const rest = others.filter((t) => t.columnId !== toColumn);
+      if (fromColumn !== toColumn) {
+        window.dispatchEvent(
+          new CustomEvent("mission-task-token-spent", {
+            detail: {
+              from: fromColumn,
+              to: toColumn,
+              amount: toColumn === "done" ? 4 : toColumn === "doing" ? 2 : 1,
+              taskId: id,
+            },
+          })
+        );
+      }
       return [...rest, ...reordered];
     });
   }, []);

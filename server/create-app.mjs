@@ -25,6 +25,7 @@ import {
 } from "./lib/aiox-exec.mjs";
 import {
   callDoubtsChatCompletion,
+  getDoubtsLlmBaseUrl,
   isDoubtsLlmConfigured,
   streamDoubtsChatCompletion,
   validateDoubtsChatBody,
@@ -35,6 +36,11 @@ import {
   normalizeTaskBoardPayload,
   saveTaskBoardAtomic,
 } from "./lib/task-board-store.mjs";
+import {
+  loadCustomizationFromFile,
+  saveCustomizationAtomic,
+} from "./lib/customization-store.mjs";
+import { fishMood, loadFishState, saveFishState } from "./lib/fish-store.mjs";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -57,7 +63,7 @@ function resolveAgentMarkdownPath(agentsDir, idParam) {
 
 /**
  * @param {string} missionRoot Raiz do pacote MissionAgent
- * @param {{ activityLogPath?: string; taskBoardPath?: string; maskPathsInUi?: boolean }} [options]
+ * @param {{ activityLogPath?: string; taskBoardPath?: string; customizationPath?: string; maskPathsInUi?: boolean }} [options]
  */
 export async function createBridgeApp(missionRoot, options = {}) {
   const ROOT = path.resolve(missionRoot);
@@ -74,6 +80,16 @@ export async function createBridgeApp(missionRoot, options = {}) {
     (process.env.MISSION_TASK_BOARD_PATH
       ? path.resolve(process.env.MISSION_TASK_BOARD_PATH)
       : path.join(ROOT, ".mission-agent", "task-board.json"));
+
+  const customizationPath =
+    options.customizationPath ??
+    (process.env.MISSION_CUSTOMIZATION_PATH
+      ? path.resolve(process.env.MISSION_CUSTOMIZATION_PATH)
+      : path.join(ROOT, ".mission-agent", "customization.json"));
+
+  const fishStatePath = process.env.MISSION_FISH_PATH
+    ? path.resolve(process.env.MISSION_FISH_PATH)
+    : path.join(ROOT, ".mission-agent", "fish-state.json");
 
   const activity = await createActivityStoreAuto(activityLogPath);
 
@@ -266,6 +282,237 @@ export async function createBridgeApp(missionRoot, options = {}) {
     }
   });
 
+  /** Personalização (agentes + escritório) para sync híbrido local/servidor. */
+  app.get("/api/aiox/customization", (_req, res) => {
+    const { data, revision } = loadCustomizationFromFile(customizationPath);
+    res.json({ ok: true, data, revision });
+  });
+
+  app.put("/api/aiox/customization", taskBoardLimiter, (req, res) => {
+    const currentRev = loadCustomizationFromFile(customizationPath).revision;
+    const rawIfMatch = String(req.headers["if-match"] ?? "").trim();
+    const ifMatch = rawIfMatch.replace(/^W\//, "").replace(/^"(.*)"$/, "$1").trim();
+    if (ifMatch && ifMatch !== currentRev) {
+      return res.status(409).json({
+        ok: false,
+        error: "conflito: a personalização mudou no servidor. Recarrega antes de gravar.",
+        conflict: true,
+        revision: currentRev,
+      });
+    }
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const payload = {
+      agents: body.agents && typeof body.agents === "object" ? body.agents : {},
+      office: body.office && typeof body.office === "object" ? body.office : {},
+    };
+    try {
+      const revision = saveCustomizationAtomic(customizationPath, payload);
+      return res.json({ ok: true, revision });
+    } catch (e) {
+      logger.warn({ err: String(e?.message || e) }, "customization save failed");
+      return res.status(500).json({ ok: false, error: "falha ao gravar personalização" });
+    }
+  });
+
+  app.get("/api/aiox/fish", (_req, res) => {
+    const st = loadFishState(fishStatePath);
+    const mood = fishMood(st.food, st.maxFood);
+    res.json({ ok: true, ...st, mood });
+  });
+
+  app.post("/api/aiox/fish/consume", commandLimiter, async (req, res) => {
+    const amountRaw = Number(req.body?.amount);
+    const amount = Number.isFinite(amountRaw) ? Math.max(0, Math.min(50, Math.round(amountRaw))) : 0;
+    const source = String(req.body?.source ?? "consumo");
+    if (amount <= 0) return res.status(400).json({ ok: false, error: "amount inválido" });
+    const current = loadFishState(fishStatePath);
+    const next = saveFishState(fishStatePath, {
+      ...current,
+      food: current.food - amount,
+    });
+    try {
+      await activity.pushLog("@aquario", `Ração -${amount} (${source})`, "output", "bridge");
+    } catch {
+      /* ignore feed failure */
+    }
+    return res.json({ ok: true, ...next, mood: fishMood(next.food, next.maxFood) });
+  });
+
+  app.post("/api/aiox/fish/feed", commandLimiter, async (req, res) => {
+    const amountRaw = Number(req.body?.amount);
+    const amount = Number.isFinite(amountRaw) ? Math.max(1, Math.min(50, Math.round(amountRaw))) : 12;
+    const current = loadFishState(fishStatePath);
+    const next = saveFishState(fishStatePath, {
+      ...current,
+      food: current.food + amount,
+    });
+    try {
+      await activity.pushLog("@aquario", `Peixe alimentado +${amount}`, "output", "bridge");
+    } catch {
+      /* ignore feed failure */
+    }
+    return res.json({ ok: true, ...next, mood: fishMood(next.food, next.maxFood) });
+  });
+
+  const INTEGRATIONS_VALIDATE_TTL_MS = 45_000;
+  let integrationsValidationCache = null;
+  let integrationsValidationAt = 0;
+  let integrationsValidationPromise = null;
+
+  async function fetchWithTimeout(url, init, timeoutMs) {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...init, signal: controller.signal });
+      const text = await res.text();
+      let data = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = null;
+      }
+      return { ok: res.ok, status: res.status, data, text };
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  async function validateIntegrations() {
+    const openaiKey = String(process.env.OPENAI_API_KEY || process.env.MISSION_LLM_API_KEY || "");
+    const openaiKeyConfigured = openaiKey.trim().length >= 8;
+    const doubtsOptIn = process.env.MISSION_DOUBTS_LLM === "1";
+
+    const openaiBase = getDoubtsLlmBaseUrl();
+    const notionToken = String(process.env.NOTION_TOKEN || "").trim();
+    const figmaToken = String(process.env.FIGMA_ACCESS_TOKEN || "").trim();
+
+    const timeoutMs = Math.max(4_000, Math.min(10_000, Number(process.env.MISSION_INTEGRATIONS_TIMEOUT_MS) || 7_000));
+
+    async function validateOpenAI() {
+      if (!openaiKeyConfigured) return { openaiValidated: false, openaiError: "Sem OPENAI_API_KEY/MISSION_LLM_API_KEY" };
+      const r = await fetchWithTimeout(`${openaiBase}/v1/models`, { method: "GET", headers: { Authorization: `Bearer ${openaiKey}` } }, timeoutMs);
+      if (r.ok) return { openaiValidated: true };
+      const err = String(r.data?.error?.message || r.data?.message || r.text || `HTTP ${r.status}`).slice(0, 180);
+      return { openaiValidated: false, openaiError: err };
+    }
+
+    async function validateNotion() {
+      if (!notionToken) return { tokenValidated: false, tokenError: "Sem NOTION_TOKEN" };
+      const r = await fetchWithTimeout(
+        "https://api.notion.com/v1/users/me",
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${notionToken}`,
+            "Notion-Version": "2022-06-28",
+          },
+        },
+        timeoutMs
+      );
+      if (r.ok) return { tokenValidated: true };
+      const err = String(r.data?.message || r.text || `HTTP ${r.status}`).slice(0, 180);
+      return { tokenValidated: false, tokenError: err };
+    }
+
+    async function validateFigma() {
+      if (!figmaToken) return { tokenValidated: false, tokenError: "Sem FIGMA_ACCESS_TOKEN" };
+      const r = await fetchWithTimeout(
+        "https://api.figma.com/v1/me",
+        { method: "GET", headers: { Authorization: `Bearer ${figmaToken}` } },
+        timeoutMs
+      );
+      if (r.ok) return { tokenValidated: true };
+      const err = String(r.data?.error?.message || r.data?.message || r.text || `HTTP ${r.status}`).slice(0, 180);
+      return { tokenValidated: false, tokenError: err };
+    }
+
+    const [openaiRes, notionRes, figmaRes] = await Promise.allSettled([validateOpenAI(), validateNotion(), validateFigma()]);
+    const openaiOut = openaiRes.status === "fulfilled" ? openaiRes.value : { openaiValidated: false, openaiError: String(openaiRes.reason || "Erro").slice(0, 180) };
+    const notionOut = notionRes.status === "fulfilled" ? notionRes.value : { tokenValidated: false, tokenError: String(notionRes.reason || "Erro").slice(0, 180) };
+    const figmaOut = figmaRes.status === "fulfilled" ? figmaRes.value : { tokenValidated: false, tokenError: String(figmaRes.reason || "Erro").slice(0, 180) };
+
+    return {
+      doubts: {
+        doubtsOptIn,
+        openaiKeyConfigured,
+        openaiValidated: Boolean(openaiOut.openaiValidated),
+        openaiError: openaiOut.openaiValidated ? null : openaiOut.openaiError || null,
+      },
+      notion: notionOut,
+      figma: figmaOut,
+    };
+  }
+
+  app.get("/api/aiox/integrations-status", async (req, res) => {
+    const openaiKey = String(process.env.OPENAI_API_KEY || process.env.MISSION_LLM_API_KEY || "");
+    const openaiKeyConfigured = openaiKey.trim().length >= 8;
+    const doubtsOptIn = process.env.MISSION_DOUBTS_LLM === "1";
+    const wantValidate = String(req.query.validate ?? "").trim() === "1";
+
+    /** Base (sem chamadas externas) para não bloquear UI e para testes. */
+    const payload = {
+      ok: true,
+      generatedAt: new Date().toISOString(),
+      database: {
+        configured: Boolean(process.env.DATABASE_URL?.trim()),
+        activityBackend: activity.backend ?? "file",
+      },
+      exec: {
+        configured: isAioxExecConfigured(),
+      },
+      doubts: {
+        openaiKeyConfigured,
+        doubtsOptIn,
+        llmEnabled: isDoubtsLlmConfigured(),
+        streamAvailable: isDoubtsLlmConfigured(),
+      },
+      notion: {
+        tokenConfigured: Boolean(process.env.NOTION_TOKEN?.trim()),
+      },
+      figma: {
+        tokenConfigured: Boolean(process.env.FIGMA_ACCESS_TOKEN?.trim()),
+      },
+      fish: {
+        persistence: "file",
+        enabled: true,
+      },
+    };
+
+    if (!wantValidate) {
+      return res.json(payload);
+    }
+
+    if (!integrationsValidationCache || Date.now() - integrationsValidationAt > INTEGRATIONS_VALIDATE_TTL_MS) {
+      if (!integrationsValidationPromise) {
+        integrationsValidationPromise = validateIntegrations();
+      }
+      try {
+        integrationsValidationCache = await integrationsValidationPromise;
+        integrationsValidationAt = Date.now();
+      } finally {
+        integrationsValidationPromise = null;
+      }
+    }
+
+    const merged = {
+      ...payload,
+      doubts: {
+        ...payload.doubts,
+        ...integrationsValidationCache.doubts,
+      },
+      notion: {
+        ...payload.notion,
+        ...integrationsValidationCache.notion,
+      },
+      figma: {
+        ...payload.figma,
+        ...integrationsValidationCache.figma,
+      },
+    };
+
+    return res.json(merged);
+  });
+
   /** Capacidades do painel Dúvidas (notas locais vs LLM opcional no servidor). */
   app.get("/api/aiox/doubts", (_req, res) => {
     const docsUrl = process.env.MISSION_DOUBTS_HELP_URL?.trim() || null;
@@ -365,7 +612,8 @@ export async function createBridgeApp(missionRoot, options = {}) {
     if (!fs.existsSync(AIOX_ROOT)) {
       return res.status(503).json({
         ok: false,
-        error: "Repositório aiox-core não encontrado. Define AIOX_CORE_PATH ou coloca aiox-core ao lado de MissionAgent.",
+        error:
+          "Raiz do projeto AIOX não encontrada (pasta com .aiox-core). Define AIOX_CORE_PATH ou coloca o clone aiox-core ao lado de MissionAgent.",
       });
     }
     try {

@@ -92,6 +92,21 @@ describe("API smoke", () => {
     });
   });
 
+  it("GET /api/aiox/integrations-status", async () => {
+    const res = await request(app).get("/api/aiox/integrations-status").expect(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body).toHaveProperty("generatedAt");
+    expect(res.body).toHaveProperty("database");
+    expect(typeof res.body.database.configured).toBe("boolean");
+    expect(["file", "postgres"]).toContain(res.body.database.activityBackend);
+    expect(res.body).toHaveProperty("doubts");
+    expect(typeof res.body.doubts.llmEnabled).toBe("boolean");
+    expect(res.body).toHaveProperty("notion");
+    expect(typeof res.body.notion.tokenConfigured).toBe("boolean");
+    expect(res.body).toHaveProperty("figma");
+    expect(typeof res.body.figma.tokenConfigured).toBe("boolean");
+  });
+
   it("GET /api/aiox/overview — ponte + agentes + logs agregados", async () => {
     const res = await request(app).get("/api/aiox/overview").expect(200);
     expect(res.body.ok).toBe(true);
@@ -401,6 +416,44 @@ describe("API smoke", () => {
     const res = await request(maskedApp).get("/api/aiox/info").expect(200);
     expect(res.body.pathsMasked).toBe(true);
     expect(String(res.body.aioxRoot)).toMatch(/^…\//);
+  });
+
+  it("agentsDir segue resource_locations.agents_dir no YAML (projeto mínimo)", async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ma-aiox-yaml-"));
+    const prevAiox = process.env.AIOX_CORE_PATH;
+    const customRel = ".aiox-core/agents-custom";
+    try {
+      fs.mkdirSync(path.join(tmpRoot, ".aiox-core"), { recursive: true });
+      fs.writeFileSync(
+        path.join(tmpRoot, ".aiox-core", "framework-config.yaml"),
+        [
+          "metadata:",
+          '  name: "mission-smoke"',
+          '  framework_version: "1.0.0"',
+          "resource_locations:",
+          `  agents_dir: "${customRel}"`,
+          "",
+        ].join("\n"),
+        "utf8",
+      );
+      const agentsDir = path.join(tmpRoot, ".aiox-core", "agents-custom");
+      fs.mkdirSync(agentsDir, { recursive: true });
+      fs.writeFileSync(path.join(agentsDir, "yaml-smoke-agent.md"), "# YAML smoke\n", "utf8");
+
+      process.env.AIOX_CORE_PATH = tmpRoot;
+      const yamlApp = await createBridgeApp(MISSION_ROOT, bridgeOpts);
+      const res = await request(yamlApp).get("/api/aiox/info").expect(200);
+      expect(path.normalize(res.body.agentsDir)).toBe(path.normalize(agentsDir));
+      expect(res.body.agentCount).toBeGreaterThanOrEqual(1);
+    } finally {
+      if (prevAiox !== undefined) process.env.AIOX_CORE_PATH = prevAiox;
+      else delete process.env.AIOX_CORE_PATH;
+      try {
+        fs.rmSync(tmpRoot, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
+    }
   });
 
   it("feed persistido: nova instância lê o mesmo ficheiro", async () => {

@@ -1,5 +1,5 @@
 import type { TaskItem } from "@/components/task-canvas/types";
-import type { AioxExecResponse } from "@/types/hub";
+import type { AioxExecResponse, HubCustomizationPayload } from "@/types/hub";
 
 /** Erro sintético quando `PUT /api/aiox/task-board` devolve 409 (If-Match). */
 export const TASK_BOARD_CONFLICT_ERROR = "CONFLICT_TASK_BOARD";
@@ -353,6 +353,112 @@ export async function putTaskBoard(tasks: TaskItem[], ifMatchRevision: string): 
   }
   const revision = typeof data.revision === "string" ? data.revision : "0:0";
   return { revision };
+}
+
+export async function getCustomization(): Promise<{ data: HubCustomizationPayload; revision: string }> {
+  const d = await fetchJson<{ ok?: boolean; data?: HubCustomizationPayload; revision?: string }>(
+    "/api/aiox/customization"
+  );
+  return {
+    data: d.data ?? { agents: {}, office: {} },
+    revision: typeof d.revision === "string" ? d.revision : "0:0",
+  };
+}
+
+export async function putCustomization(
+  data: HubCustomizationPayload,
+  ifMatchRevision: string
+): Promise<{ revision: string }> {
+  let r: Response;
+  try {
+    r = await fetch("/api/aiox/customization", {
+      ...API_FETCH_INIT,
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "If-Match": ifMatchRevision,
+      },
+      body: JSON.stringify(data),
+    });
+  } catch (e) {
+    throw new Error(
+      e instanceof TypeError
+        ? "Sem ligação à API. Confirma que o servidor está a correr (ex.: npm run dev)."
+        : String(e)
+    );
+  }
+  const text = await r.text();
+  if (r.status === 409) throw new Error("CONFLICT_CUSTOMIZATION");
+  let body: { revision?: string; error?: string } = {};
+  try {
+    if (text) body = JSON.parse(text) as typeof body;
+  } catch {
+    /* ignore */
+  }
+  if (!r.ok) {
+    if (body.error) throw new Error(`${scopeForHttpStatus(r.status)}: ${body.error}`);
+    throw new Error(text ? `${scopeForHttpStatus(r.status)}: ${text}` : `${scopeForHttpStatus(r.status)} (${r.status})`);
+  }
+  return { revision: typeof body.revision === "string" ? body.revision : "0:0" };
+}
+
+export type FishState = {
+  ok: boolean;
+  food: number;
+  maxFood: number;
+  updatedAt: string;
+  mood: "feliz" | "normal" | "fome" | "critico";
+};
+
+export async function getFishState(): Promise<FishState> {
+  return fetchJson<FishState>("/api/aiox/fish");
+}
+
+export async function consumeFishFood(amount: number, source: string): Promise<FishState> {
+  const r = await fetch("/api/aiox/fish/consume", {
+    ...API_FETCH_INIT,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount, source }),
+  });
+  const text = await r.text();
+  if (!r.ok) throw new Error(text || "falha ao consumir ração");
+  return parseJsonOkBody<FishState>(text);
+}
+
+export async function feedFish(amount = 12): Promise<FishState> {
+  const r = await fetch("/api/aiox/fish/feed", {
+    ...API_FETCH_INIT,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount }),
+  });
+  const text = await r.text();
+  if (!r.ok) throw new Error(text || "falha ao alimentar peixe");
+  return parseJsonOkBody<FishState>(text);
+}
+
+export type IntegrationsStatus = {
+  ok: boolean;
+  generatedAt: string;
+  database: { configured: boolean; activityBackend: "file" | "postgres" | string };
+  exec: { configured: boolean };
+  doubts: {
+    openaiKeyConfigured: boolean;
+    doubtsOptIn: boolean;
+    llmEnabled: boolean;
+    streamAvailable?: boolean;
+    openaiValidated?: boolean;
+    openaiError?: string | null;
+  };
+  notion: { tokenConfigured: boolean; tokenValidated?: boolean; tokenError?: string | null };
+  figma: { tokenConfigured: boolean; tokenValidated?: boolean; tokenError?: string | null };
+  fish: { persistence: "file" | string; enabled: boolean };
+};
+
+export async function getIntegrationsStatus(opts?: { validate?: boolean }): Promise<IntegrationsStatus> {
+  const validate = opts?.validate ? "?validate=1" : "";
+  return fetchJson<IntegrationsStatus>(`/api/aiox/integrations-status${validate}`);
 }
 
 export async function putAgentMarkdown(

@@ -31,7 +31,9 @@ if (isProd && fs.existsSync(clientDist)) {
 const server = app.listen(PORT, () => {
   logger.info({ port: PORT, aioxRoot: AIOX_ROOT }, "mission-agent listening");
   if (!fs.existsSync(AIOX_ROOT)) {
-    logger.warn("aiox-core folder not found; set AIOX_CORE_PATH or place aiox-core next to MissionAgent");
+    logger.warn(
+      "AIOX project root not found; set AIOX_CORE_PATH to the folder that contains .aiox-core, or place aiox-core next to MissionAgent"
+    );
   }
 });
 

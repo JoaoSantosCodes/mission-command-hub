@@ -1,6 +1,6 @@
 # Architecture Agents Hub — melhorias e pendências
 
-Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-23 — Painel Dúvidas: **`POST /api/aiox/doubts/chat/stream`** (SSE) + UI em streaming; `streamAvailable` em **`GET /api/aiox/doubts`**; resto alinhado (task-board, Canvas); **`npm test` 29/29**, `npm run build` OK. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
+Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-23 — Painel Dúvidas: **`POST /api/aiox/doubts/chat/stream`** (SSE) + UI em streaming; `streamAvailable` em **`GET /api/aiox/doubts`**; resto alinhado (task-board, Canvas); **`npm test` 34/34**, `npm run build` OK. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
 
 ---
 
@@ -54,7 +54,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 ### Alta
 
-- [x] **Testes automatizados**: Vitest + Supertest — **29** casos em `test/api.smoke.test.mjs`: `health`, 404 rota API, POST JSON inválido, métricas, tempo, `info` (incl. **`taskBoard`**), **`overview`**, **`doubts`**, **`doubts/chat`** / **`doubts/chat/stream`** (503 / 400), **`task-board`** GET/PUT/409, agentes, `exec` 503/403, validação `command`, GET agente 404, **POST** criar agente + **409** duplicado, **DELETE** agente, **PUT** `.md` + **revision** / **409** conflito + 403 com `MISSION_AGENT_EDIT=0`, caminhos mascarados, persistência do feed (`npm test`)
+- [x] **Testes automatizados**: Vitest + Supertest — **34** casos em `test/api.smoke.test.mjs`: `health`, 404 rota API, POST JSON inválido, métricas, tempo, `info` (incl. **`taskBoard`**), **`overview`**, **`doubts`**, **`doubts/chat`** / **`doubts/chat/stream`** (503 / 400), **`integrations-status`**, **`task-board`** GET/PUT/409, agentes, `exec` 503/403, validação `command`, GET agente 404, **POST** criar agente + **409** duplicado, **DELETE** agente, **PUT** `.md` + **revision** / **409** conflito + 403 com `MISSION_AGENT_EDIT=0`, caminhos mascarados, persistência do feed (`npm test`)
 - [x] **Validação de entrada**: limite no servidor + `maxLength` no input e mensagens de erro alinhadas
 - [x] **Tratamento de erro HTTP** no cliente: rede (`TypeError`) vs 4xx/5xx com prefixos legíveis
 - [x] **Persistência do feed**: JSON em `MissionAgent/.mission-agent/activity.json` ou `MISSION_ACTIVITY_PATH`
@@ -110,7 +110,8 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 ## Integrações MCP / LLM / Notion / Figma
 
 - [x] **Documentação**: [docs/INTEGRATIONS.md](./INTEGRATIONS.md) (MCP hub + Notion/Figma/LLM no Cursor, processo Notion/Figma, diagrama); exemplo [docs/cursor-mcp.stack.example.json](./docs/cursor-mcp.stack.example.json); `.env.example` com placeholders comentados para chaves futuras
-- [ ] **Operacional**: configurar no Cursor os servidores MCP Notion e Figma com tokens (fora do Git); validar leitura de ficheiro Figma antes de UI crítica
+- [x] **Painel Integrações**: `GET /api/aiox/integrations-status` (com `validate=1`) valida env keys no servidor via HTTP leve e mostra “OK/falhou” (OpenAI/Notion/Figma)
+- [ ] **Operacional**: configurar no Cursor os servidores MCP Notion e Figma com tokens (fora do Git) e validar “connect”/leitura
 
 ---
 

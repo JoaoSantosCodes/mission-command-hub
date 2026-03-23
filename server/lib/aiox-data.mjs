@@ -4,13 +4,18 @@
 import fs from "fs";
 import path from "path";
 import { execFileSync } from "child_process";
+import { resolveAioxAgentsDir } from "./resolve-aiox-agents-dir.mjs";
 
-/** @param {string} missionRoot Raiz do pacote MissionAgent (pasta que contém server/) */
+/**
+ * @param {string} missionRoot Raiz do pacote MissionAgent (pasta que contém server/)
+ * @returns {{ AIOX_ROOT: string, AGENTS_DIR: string, AIOX_BIN: string }}
+ * `AIOX_ROOT` — raiz do **projeto AIOX** (pasta com `.aiox-core`), não o pacote npm em si.
+ */
 export function resolveAioxPaths(missionRoot) {
   const AIOX_ROOT = process.env.AIOX_CORE_PATH
     ? path.resolve(process.env.AIOX_CORE_PATH)
     : path.resolve(missionRoot, "..", "aiox-core");
-  const AGENTS_DIR = path.join(AIOX_ROOT, ".aiox-core", "development", "agents");
+  const AGENTS_DIR = resolveAioxAgentsDir(AIOX_ROOT);
   const AIOX_BIN = path.join(AIOX_ROOT, "bin", "aiox.js");
   return { AIOX_ROOT, AGENTS_DIR, AIOX_BIN };
 }

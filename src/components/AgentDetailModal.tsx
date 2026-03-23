@@ -3,6 +3,11 @@ import { HubMascot } from "@/components/HubMascot";
 import { AlertCircle, Loader2, Pencil, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { deleteAgent, fetchJson, putAgentMarkdown } from "@/lib/api";
 import { formatUserFacingError } from "@/lib/format-error";
+import {
+  pickDisplayName,
+  readAgentProfile,
+  writeAgentProfile,
+} from "@/lib/agent-profile-store";
 import type { AgentDetailResponse } from "@/types/hub";
 
 /** Erros em que faz sentido voltar a pedir quando a API estiver de pé. */
@@ -15,6 +20,144 @@ function isLikelyConnectionFailure(formattedMessage: string): boolean {
     m.includes("sem ligação à api") ||
     m.includes("erro de rede") ||
     m.includes("failed to fetch")
+  );
+}
+
+function charIndexForAgentId(agentId: string): number {
+  let h = 0;
+  for (let i = 0; i < agentId.length; i++) h = (h * 31 + agentId.charCodeAt(i)) >>> 0;
+  return h % 6;
+}
+
+function extractAgentSkills(content: string): string[] {
+  const lines = String(content || "").split(/\r?\n/);
+  const out: string[] = [];
+
+  // Heurística 1: bloco "skills:" em YAML/markdown com bullets.
+  let inSkills = false;
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      if (inSkills) break;
+      continue;
+    }
+    if (!inSkills && /^skills?\s*:\s*$/i.test(line)) {
+      inSkills = true;
+      continue;
+    }
+    if (inSkills) {
+      const m = line.match(/^[-*]\s+(.+)$/);
+      if (!m) {
+        if (/^[a-z0-9_-]+\s*:/i.test(line)) break;
+        continue;
+      }
+      out.push(m[1].replace(/^["']|["']$/g, "").trim());
+      if (out.length >= 12) break;
+    }
+  }
+  if (out.length) return out;
+
+  // Heurística 2: secções comuns em PT/EN.
+  const all = String(content || "");
+  const sec =
+    all.match(/(?:^|\n)#{1,4}\s*(?:skills?|compet[êe]ncias?)\s*\n([\s\S]{0,900})/i)?.[1] ??
+    all.match(/(?:^|\n)(?:skills?|compet[êe]ncias?)\s*:\s*\n([\s\S]{0,900})/i)?.[1] ??
+    "";
+  if (sec) {
+    for (const l of sec.split(/\r?\n/)) {
+      const m = l.trim().match(/^[-*]\s+(.+)$/);
+      if (!m) continue;
+      out.push(m[1].replace(/^["']|["']$/g, "").trim());
+      if (out.length >= 12) break;
+    }
+  }
+  if (out.length) return out;
+
+  // Heurística 3: inferência por palavras-chave do markdown.
+  const md = String(content || "").toLowerCase();
+  const keywordMap: Array<[RegExp, string]> = [
+    [/\b(typescript|ts)\b/, "TypeScript"],
+    [/\bjavascript|node\.?js|node\b/, "JavaScript/Node.js"],
+    [/\breact|next\.?js|vite\b/, "Front-end"],
+    [/\bexpress|fastify|nestjs|api\b/, "APIs"],
+    [/\bpostgres|postgresql|mysql|sqlite|sql\b/, "SQL/BD"],
+    [/\bredis|cache\b/, "Caching"],
+    [/\bdocker|kubernetes|k8s|devops|ci\/cd|github actions\b/, "DevOps"],
+    [/\baws|gcp|azure|cloud\b/, "Cloud"],
+    [/\bopenai|llm|rag|prompt\b/, "LLM/AI"],
+    [/\bqa|test|vitest|jest|cypress|playwright\b/, "Testes"],
+    [/\bsecurity|owasp|auth|jwt\b/, "Segurança"],
+    [/\bux|ui|figma|design system\b/, "UX/UI"],
+    [/\barchitecture|arquitetura|microservices|clean architecture\b/, "Arquitetura"],
+    [/\bnotion|swagger|openapi|documenta[cç][aã]o|documentation\b/, "Documentação"],
+    [/\banalysis|analyst|requisitos|product|po|pm\b/, "Produto/Análise"],
+  ];
+
+  const inferred: string[] = [];
+  for (const [re, label] of keywordMap) {
+    if (re.test(md)) inferred.push(label);
+    if (inferred.length >= 8) break;
+  }
+
+  return inferred;
+}
+
+function AgentFaceAvatar({
+  agentId,
+  avatarIndex,
+  offsetX = 0,
+  offsetY = 0,
+}: {
+  agentId: string;
+  avatarIndex?: number;
+  offsetX?: number;
+  offsetY?: number;
+}) {
+  const [failed, setFailed] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const charIndex = typeof avatarIndex === "number" ? avatarIndex : charIndexForAgentId(agentId);
+
+  useEffect(() => {
+    if (failed) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const img = new Image();
+    img.decoding = "async";
+    img.src = `/pixel-assets/characters/char_${charIndex}.png`;
+    img.onload = () => {
+      try {
+        const FRAME_W = 16;
+        const FACE_H = 16;
+        const pad = 1;
+        const cw = canvas.width;
+        const target = cw - pad * 2;
+        ctx.imageSmoothingEnabled = false;
+        ctx.clearRect(0, 0, cw, canvas.height);
+        ctx.drawImage(img, 0, 0, FRAME_W, FACE_H, pad + offsetX, pad + offsetY, target, target);
+      } catch {
+        setFailed(true);
+      }
+    };
+    img.onerror = () => setFailed(true);
+  }, [charIndex, failed, offsetX, offsetY]);
+
+  if (failed) {
+    return <HubMascot size="sm" className="h-14 w-14 rounded-lg" />;
+  }
+
+  return (
+    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-border bg-[#0a0e14]">
+      <canvas
+        ref={canvasRef}
+        width={56}
+        height={56}
+        aria-hidden
+        style={{ display: "block", width: "100%", height: "100%", imageRendering: "pixelated" }}
+      />
+    </div>
   );
 }
 
@@ -46,6 +189,10 @@ export function AgentDetailModal({
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [profileNameDraft, setProfileNameDraft] = useState("");
+  const [profileAvatarDraft, setProfileAvatarDraft] = useState(0);
+  const [profileAvatarOffsetXDraft, setProfileAvatarOffsetXDraft] = useState(0);
+  const [profileAvatarOffsetYDraft, setProfileAvatarOffsetYDraft] = useState(0);
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -87,6 +234,10 @@ export function AgentDetailModal({
       setLoadErr(null);
       setEditing(false);
       setDraft("");
+      setProfileNameDraft("");
+      setProfileAvatarDraft(0);
+      setProfileAvatarOffsetXDraft(0);
+      setProfileAvatarOffsetYDraft(0);
       setSaveErr(null);
       setLoading(false);
       return;
@@ -97,6 +248,10 @@ export function AgentDetailModal({
     setData(null);
     setEditing(false);
     setDraft("");
+    setProfileNameDraft("");
+    setProfileAvatarDraft(0);
+    setProfileAvatarOffsetXDraft(0);
+    setProfileAvatarOffsetYDraft(0);
     setSaveErr(null);
     void (async () => {
       try {
@@ -104,6 +259,13 @@ export function AgentDetailModal({
         if (seq === loadRequestSeq.current) {
           setData(j);
           setDraft(j.content);
+          const p = readAgentProfile(j.id);
+          setProfileNameDraft((p.displayName || j.title || j.id).trim());
+          setProfileAvatarDraft(
+            typeof p.avatarIndex === "number" ? p.avatarIndex : charIndexForAgentId(j.id)
+          );
+          setProfileAvatarOffsetXDraft(typeof p.avatarOffsetX === "number" ? p.avatarOffsetX : 0);
+          setProfileAvatarOffsetYDraft(typeof p.avatarOffsetY === "number" ? p.avatarOffsetY : 0);
         }
       } catch (e) {
         if (seq === loadRequestSeq.current) {
@@ -125,12 +287,24 @@ export function AgentDetailModal({
   const startEdit = () => {
     if (!data) return;
     setDraft(data.content);
+    const p = readAgentProfile(data.id);
+    setProfileNameDraft((p.displayName || data.title || data.id).trim());
+    setProfileAvatarDraft(typeof p.avatarIndex === "number" ? p.avatarIndex : charIndexForAgentId(data.id));
+    setProfileAvatarOffsetXDraft(typeof p.avatarOffsetX === "number" ? p.avatarOffsetX : 0);
+    setProfileAvatarOffsetYDraft(typeof p.avatarOffsetY === "number" ? p.avatarOffsetY : 0);
     setSaveErr(null);
     setEditing(true);
   };
 
   const cancelEdit = () => {
     if (data) setDraft(data.content);
+    if (data) {
+      const p = readAgentProfile(data.id);
+      setProfileNameDraft((p.displayName || data.title || data.id).trim());
+      setProfileAvatarDraft(typeof p.avatarIndex === "number" ? p.avatarIndex : charIndexForAgentId(data.id));
+      setProfileAvatarOffsetXDraft(typeof p.avatarOffsetX === "number" ? p.avatarOffsetX : 0);
+      setProfileAvatarOffsetYDraft(typeof p.avatarOffsetY === "number" ? p.avatarOffsetY : 0);
+    }
     setEditing(false);
     setSaveErr(null);
   };
@@ -140,8 +314,16 @@ export function AgentDetailModal({
     setSaving(true);
     setSaveErr(null);
     try {
-      await putAgentMarkdown(agentId, draft, data.revision);
+      if (draft !== data.content) {
+        await putAgentMarkdown(agentId, draft, data.revision);
+      }
       const j = await fetchJson<AgentDetailResponse>(`/api/aiox/agents/${encodeURIComponent(agentId)}`);
+      writeAgentProfile(j.id, {
+        displayName: profileNameDraft,
+        avatarIndex: profileAvatarDraft,
+        avatarOffsetX: profileAvatarOffsetXDraft,
+        avatarOffsetY: profileAvatarOffsetYDraft,
+      });
       setData(j);
       setDraft(j.content);
       setEditing(false);
@@ -174,7 +356,29 @@ export function AgentDetailModal({
 
   if (!agentId) return null;
 
-  const dirty = data !== null && draft !== data.content;
+  const storedProfile = data ? readAgentProfile(data.id) : {};
+  const persistedName = data ? pickDisplayName(data.id, data.title) : "";
+  const persistedAvatar =
+    data && typeof storedProfile.avatarIndex === "number"
+      ? storedProfile.avatarIndex
+      : data
+        ? charIndexForAgentId(data.id)
+        : 0;
+  const persistedOffsetX =
+    data && typeof storedProfile.avatarOffsetX === "number" ? storedProfile.avatarOffsetX : 0;
+  const persistedOffsetY =
+    data && typeof storedProfile.avatarOffsetY === "number" ? storedProfile.avatarOffsetY : 0;
+  const displayNameNow = editing ? profileNameDraft.trim() : persistedName;
+  const avatarNow = editing ? profileAvatarDraft : persistedAvatar;
+  const offsetXNow = editing ? profileAvatarOffsetXDraft : persistedOffsetX;
+  const offsetYNow = editing ? profileAvatarOffsetYDraft : persistedOffsetY;
+  const dirty =
+    data !== null &&
+    (draft !== data.content ||
+      profileNameDraft.trim() !== persistedName ||
+      profileAvatarDraft !== persistedAvatar ||
+      profileAvatarOffsetXDraft !== persistedOffsetX ||
+      profileAvatarOffsetYDraft !== persistedOffsetY);
   const showApiWarning = apiOnline === false;
   const showAutoRetryHint =
     loadErr != null && isLikelyConnectionFailure(formatUserFacingError(loadErr));
@@ -205,8 +409,8 @@ export function AgentDetailModal({
               </h2>
               <p className="truncate font-mono text-xs text-primary/90" title={data?.id ?? agentId}>
                 {data?.id ?? agentId}
-                {data?.title && data.title.trim() && data.title !== data.id ? (
-                  <span className="font-sans text-muted-foreground"> — {data.title}</span>
+                {displayNameNow && data?.id && displayNameNow !== data.id ? (
+                  <span className="font-sans text-muted-foreground"> — {displayNameNow}</span>
                 ) : null}
               </p>
               {data?.file ? (
@@ -340,6 +544,101 @@ export function AgentDetailModal({
             </div>
           ) : data ? (
             <>
+              {(() => {
+                const skills = extractAgentSkills(data.content);
+                return (
+              <section className="mb-4 rounded-xl border border-border bg-background/40 p-3 sm:p-4">
+                <div className="flex items-start gap-3">
+                  <AgentFaceAvatar
+                    agentId={data.id}
+                    avatarIndex={avatarNow}
+                    offsetX={offsetXNow}
+                    offsetY={offsetYNow}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Currículo do agente</p>
+                    <h3 className="truncate font-mono text-sm font-semibold text-foreground">
+                      {displayNameNow || data.id}
+                    </h3>
+                    <p className="truncate text-xs text-muted-foreground" title={data.id}>
+                      {data.id}
+                    </p>
+                  </div>
+                </div>
+                {editing ? (
+                  <>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Nome de exibição
+                      <input
+                        value={profileNameDraft}
+                        onChange={(e) => setProfileNameDraft(e.target.value)}
+                        placeholder={data.title || data.id}
+                        className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs normal-case text-foreground outline-none focus:border-primary"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Foto (avatar)
+                      <select
+                        value={profileAvatarDraft}
+                        onChange={(e) => setProfileAvatarDraft(Number(e.target.value))}
+                        className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs normal-case text-foreground outline-none focus:border-primary"
+                      >
+                        {Array.from({ length: 6 }, (_, i) => (
+                          <option key={i} value={i}>
+                            Rosto {i + 1}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Posição X ({profileAvatarOffsetXDraft})
+                      <input
+                        type="range"
+                        min={-6}
+                        max={6}
+                        step={1}
+                        value={profileAvatarOffsetXDraft}
+                        onChange={(e) => setProfileAvatarOffsetXDraft(Number(e.target.value))}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Posição Y ({profileAvatarOffsetYDraft})
+                      <input
+                        type="range"
+                        min={-6}
+                        max={6}
+                        step={1}
+                        value={profileAvatarOffsetYDraft}
+                        onChange={(e) => setProfileAvatarOffsetYDraft(Number(e.target.value))}
+                      />
+                    </label>
+                  </div>
+                  </>
+                ) : null}
+                <div className="mt-3">
+                  <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Skills</p>
+                  {skills.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {skills.map((s) => (
+                        <span
+                          key={s}
+                          className="rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary"
+                        >
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">Sem skills explícitas no bloco YAML/Markdown.</p>
+                  )}
+                </div>
+              </section>
+                );
+              })()}
+
               {saveErr ? (
                 <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   {formatUserFacingError(saveErr)}

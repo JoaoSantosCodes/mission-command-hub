@@ -32,6 +32,16 @@
   font-family: "Inter", sans-serif;
 }
 
+#mission-cc-root[data-office-theme="neon"] {
+  --bg-primary: #070b16;
+  --bg-mascot: #0a1020;
+  --bg-terminal: #090d15;
+  --bg-office: #091020;
+  --border-color: #1e2e5e;
+  --text-primary: #d6e4ff;
+  --text-dim: #6b7ba8;
+}
+
 #mission-cc-root *,
 #mission-cc-root *::before,
 #mission-cc-root *::after {
@@ -119,6 +129,59 @@
     text-shadow 0.3s;
 }
 
+#mission-cc-root .mascot-fish-hud {
+  width: calc(100% - 14px);
+  margin: 0 7px 8px;
+  padding: 7px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#mission-cc-root .mascot-fish-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#mission-cc-root .mascot-fish-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+#mission-cc-root .mascot-fish-value {
+  font-size: 10px;
+  color: var(--text-primary);
+}
+
+#mission-cc-root .mascot-fish-bar {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+#mission-cc-root .mascot-fish-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff4466 0%, #ffcc00 48%, #00ff66 100%);
+  transition: width 0.2s ease;
+}
+
+#mission-cc-root .mascot-feed-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 6px 9px;
+}
+
 #mission-cc-root #zone-terminal {
   grid-column: 1;
   grid-row: 2;
@@ -194,7 +257,101 @@
   background: var(--bg-office);
 }
 
-#mission-cc-root #office-canvas {
+#mission-cc-root .office-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+#mission-cc-root .office-toolbar-btn {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+#mission-cc-root .office-toolbar-btn:hover {
+  background: rgba(0, 221, 255, 0.08);
+  color: var(--text-primary);
+  border-color: rgba(0, 221, 255, 0.35);
+}
+
+#mission-cc-root .office-toolbar-theme {
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+#mission-cc-root .office-toolbar-sync {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-dim);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+#mission-cc-root .office-toolbar-theme select {
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  font-size: 10px;
+  padding: 4px 8px;
+}
+
+#mission-cc-root .office-canvas-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#mission-cc-root .office-main {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 8px;
+  padding: 8px;
+}
+
+#mission-cc-root .office-status-wrap {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+
+#mission-cc-root .office-status-wrap .team-status-panel {
+  width: 100%;
+  height: 100%;
+}
+
+#mission-cc-root .office-canvas-wrap #office-canvas {
   flex: 1;
   width: 100%;
   min-height: 0;
@@ -202,6 +359,31 @@
   cursor: pointer;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+#mission-cc-root .office-corner-hint {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: min(220px, 46vw);
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: rgba(10, 14, 26, 0.82);
+  border: 1px solid rgba(0, 221, 255, 0.22);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+#mission-cc-root .office-corner-hint-line {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  line-height: 1.35;
+  color: var(--text-dim);
 }
 
 #mission-cc-root #zone-mascot[data-emotion="idle"] {
@@ -247,5 +429,12 @@
 
   #mission-cc-root #mascot-label {
     font-size: 15px;
+  }
+
+  #mission-cc-root .office-main {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(220px, 1fr) minmax(180px, 44%);
+    gap: 6px;
+    padding: 6px;
   }
 }
