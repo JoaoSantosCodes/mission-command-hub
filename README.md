@@ -1,8 +1,52 @@
 # Architecture Agents Hub
 
-Se este projecto estiver dentro do monorepo **`AgentesMissao`**, o índice de pastas, validação e links para checklists está em **[`../docs/PROJETO-E-CHECKLIST.md`](../docs/PROJETO-E-CHECKLIST.md)**.
+<p align="center">
+  <img src="./docs/readme/mascote.png" width="160" height="160" alt="Mascote Architecture Agents Hub — robô arquitecto em pixel art" />
+</p>
 
 Hub funcional que combina a **UI** inspirada no `ai-orchestration-hub-main` com uma **ponte** ao repositório **`aiox-core`** no disco: lê definições de agentes (`.aiox-core/development/agents/*.md`), obtém a versão da CLI (`bin/aiox.js --version`) e regista comandos no feed de atividade (JSON no disco ou **PostgreSQL** opcional via `DATABASE_URL`, com fallback para ficheiro se a ligação falhar).
+
+> Se este projecto estiver dentro do monorepo **`AgentesMissao`**, o índice de pastas, validação e links para checklists está em **[`../docs/PROJETO-E-CHECKLIST.md`](../docs/PROJETO-E-CHECKLIST.md)**.
+
+---
+
+## Tour pela interface
+
+### Vista Hub — três colunas (agentes, área de trabalho, feed)
+
+Barra superior com **mascote**, estado **API ligada** (`/api`), comando global **`@hub`**, alternador de vistas e tema. Sidebar com projecto, caminho do `aiox-core`, lista de agentes **`.md`** e botão **+ Novo**. Centro: cartão **Estado da ponte** (versão CLI, pasta de agentes, polling, feed). À direita: **Feed de atividade**.
+
+| Tema escuro | Tema claro |
+|-------------|------------|
+| ![Vista Hub — tema escuro: sidebar, estado da ponte, feed](./docs/readme/hub-vista-escura.png) | ![Vista Hub — tema claro](./docs/readme/hub-vista-clara.png) |
+
+### Central de agentes — escritório isométrico
+
+Vista **monitor** no header: sala com agentes em mesas, registo de actividade, métricas e tempo via API (`/api/aiox/metrics`), clique num agente para abrir o Markdown.
+
+![Central de agentes — escritório pixel art, estado do hub e registo](./docs/readme/central-escritorio.png)
+
+### Definição do agente (modal)
+
+Ao escolher um agente na lista, abre-se o modal com o conteúdo **`.md`**, caminho do ficheiro e acções **Editar** / **Eliminar** (quando `MISSION_AGENT_EDIT` permite).
+
+![Modal Definição do agente — preview e edição do .md](./docs/readme/modal-definicao-agente.png)
+
+### Canvas de tarefas (Kanban modular)
+
+Vista **Kanban** no header: colunas **Backlog → Em curso → Revisão → Feito**, presets (ex.: Fluxo geral), **importar / exportar JSON**, persistência em `localStorage`.
+
+![Canvas modular — quatro colunas, módulo Fluxo geral](./docs/readme/canvas-tarefas-kanban.png)
+
+### Dúvidas & ajuda — Chat e FAQ
+
+Painel lateral (**ícone mensagem** ou **Ctrl+/**): notas de sessão, export **JSON** / **Markdown**, separadores **Chat** e **FAQ**. Com **`MISSION_DOUBTS_LLM=1`** e chave no servidor, mensagens usam **`POST /api/aiox/doubts/chat`**.
+
+![Canvas de tarefas com painel Dúvidas — separador Chat](./docs/readme/canvas-duvidas-chat.png)
+
+![Painel Dúvidas — separador FAQ (API, agentes, Notion/Figma, LLM)](./docs/readme/painel-duvidas-faq.png)
+
+---
 
 ## Requisitos
 
@@ -122,5 +166,7 @@ Ver **[docs/openapi.yaml](./docs/openapi.yaml)** (OpenAPI 3.0).
 ## Roadmap e pendências
 
 Ver **[CHECKLIST.md](./docs/CHECKLIST.md)** — melhorias técnicas, UX, integração com `aiox-core` e segurança. **Checklist operacional (arranque / PR / release):** **[CHECKLIST-OPERACIONAL.md](./docs/CHECKLIST-OPERACIONAL.md)**. Registo de validações: **[CHECKLIST-VALIDATION.md](./docs/CHECKLIST-VALIDATION.md)**.
+
+**Ficheiros deste tour:** [`docs/readme/`](./docs/readme/) (capturas exportadas a partir de `img/` no monorepo).
 
 Arranque rápido: **[`.env.ready`](./.env.ready)** → **`npm run env:init`** (ou automático no `postinstall`). Referência completa: **[.env.example](./.env.example)**.
