@@ -100,6 +100,8 @@ export function TaskCanvasView() {
     clearDone,
     replaceTasks,
     clearAll,
+    taskBoardSync,
+    taskBoardSyncHydrated,
   } = useTaskBoard();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -172,6 +174,11 @@ export function TaskCanvasView() {
             </p>
             <h1 className="mt-1 text-lg font-semibold tracking-tight text-foreground">Tarefas</h1>
             <p className="mt-1 max-w-2xl text-xs text-muted-foreground">{preset.description}</p>
+            {taskBoardSync && taskBoardSyncHydrated ? (
+              <p className="mt-1 max-w-2xl text-[10px] text-muted-foreground/90">
+                Sincronização com o servidor activa (`VITE_TASK_BOARD_SYNC`) — quadro em ficheiro na API.
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <input

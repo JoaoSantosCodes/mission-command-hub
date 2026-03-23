@@ -13,6 +13,8 @@ export type AioxInfo = {
   activityBackend?: "file" | "postgres";
   /** `false` quando `MISSION_AGENT_EDIT=0` — sem criar / editar / eliminar `.md` na API */
   agentEditAllowed?: boolean;
+  /** Quadro Kanban (Canvas): revisão e contagem persistidos em ficheiro no servidor */
+  taskBoard?: { revision: string; taskCount: number };
 };
 
 export type AioxExecResponse = {

@@ -1,6 +1,6 @@
 # Architecture Agents Hub — melhorias e pendências
 
-Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-23 — Canvas: **reordenar dentro da coluna** (zonas de drop entre cartões com ordenação **manual** e sem filtro; `moveTask` com índice); já documentados: filtro, ordenar, debounce/`beforeunload`; **`npm test` 25/25**, `npm run build` OK. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
+Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-23 — **`GET`/`PUT /api/aiox/task-board`** (ficheiro JSON no servidor, `If-Match`/`409`, `taskBoard` em `info`); UI opt-in **`VITE_TASK_BOARD_SYNC`**; Canvas com reordenar/filtro/debounce como antes; **`npm test` 28/28**, `npm run build` OK. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
 
 ---
 
@@ -38,9 +38,10 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 - [x] **Cliente / API**: se a resposta não for JSON (ex.: HTML `Cannot GET`), mensagem orientativa; **sem** prefixo "Pedido inválido" nesse caso; `vite.config.ts` com `preview.proxy` / `server.proxy` como fallback quando `MISSION_EMBED_API=0`
 - [x] **`npm run dev` / `preview`**: plugin Vite (`mission-api-plugin.mjs`) **embebe** `createBridgeApp` em `/api` (sem precisar de :8787); `MISSION_EMBED_API=0` volta ao proxy → 8787; **`dev:split`** mantém `concurrently`; **header** com indicador API ligada/offline; **modal de agente** com aviso, retry e UI melhorada
 - [x] **Canvas de tarefas modular** (`task-canvas/`): terceira vista no header (ícone Kanban); colunas fixas `todo`→`doing`→`review`→`done`; **presets** (Fluxo geral / Agentes / Entrega); drag-and-drop entre colunas + setas; **reordenar na coluna** por zonas entre cartões (só com ordenação **manual** e sem filtro; caso contrário `moveTask` sem índice / drop na coluna = fim da lista); persistência `localStorage` (`mission-agent-task-board-v1`) com **debounce** (~450 ms) e gravação em **`beforeunload`**; **filtro** por texto (título/nota); **ordenar** por coluna (manual / mais recentes / prioridade), preferência `mission-agent-task-canvas-sort`; **import/export JSON** + **limpar tudo** na barra
-- [x] **Refinamentos API**: `rate-limit-json` (429 em JSON + `retryAfterSec`); **404** JSON para `/api` desconhecido; **erros de parse JSON** / payload; `GET /agents` 500 só `{ ok, error }`; `readAgentFiles` com try/catch; cliente (`api.ts`) mensagens para **429**; smoke + OpenAPI (`components/schemas`, nota **Kanban só UI** em `info.description`)
+- [x] **Refinamentos API**: `rate-limit-json` (429 em JSON + `retryAfterSec`); **404** JSON para `/api` desconhecido; **erros de parse JSON** / payload; `GET /agents` 500 só `{ ok, error }`; `readAgentFiles` com try/catch; cliente (`api.ts`) mensagens para **429**; smoke + OpenAPI (`info.description`: Canvas local + opcional **`task-board`** REST)
 - [x] **Ambiente local**: [`.env.ready`](../.env.ready) versionado; `npm run env:init` + `postinstall`; **`dotenv`** + [`server/load-env.mjs`](../server/load-env.mjs) (Express e Vite embebido); `.env` e `.env.local` no `.gitignore`
-- [x] **`GET /api/aiox/overview`**: ponte + lista de agentes + logs + `activity.kindCounts` + `doubts.llmEnabled` num só pedido — o **polling** da app usa esta rota em vez de `info` + `agents` + `activity` em paralelo
+- [x] **`GET /api/aiox/overview`**: ponte + lista de agentes + logs + `activity.kindCounts` + `doubts.llmEnabled` num só pedido — o **polling** da app usa esta rota em vez de `info` + `agents` + `activity` em paralelo (`bridge.taskBoard` espelha `info`)
+- [x] **Canvas no servidor (opt-in)**: **`GET`/`PUT /api/aiox/task-board`** — ficheiro JSON (`MISSION_TASK_BOARD_PATH`, por defeito `.mission-agent/task-board.json`); **`If-Match`** com `revision` (mtime:size) e **409** em conflito; resumo em **`GET /api/aiox/info`** (`taskBoard.revision` / `taskCount`); cliente com **`VITE_TASK_BOARD_SYNC=1`** sincroniza após carga inicial (servidor prevalece se tiver tarefas; senão envia quadro local)
 - [x] **Feed**: campo opcional **`kind`** (`command` | `bridge` | `agent` | `cli`); coluna PostgreSQL `kind`; persistência JSON com escrita **atómica** (ficheiro temp + rename); ícones no painel de atividade
 - [x] **Agentes**: resposta GET com **`revision`** (`mtime:size`); PUT com **`If-Match`** / `revision` → **409** `conflict` se o `.md` mudou no disco
 - [x] **Canvas de tarefas**: campos opcionais **`priority`** e **`blocked`** (import/export e UI com etiqueta e toggle *Bloqueio*)
@@ -52,7 +53,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 ### Alta
 
-- [x] **Testes automatizados**: Vitest + Supertest — **25** casos em `test/api.smoke.test.mjs`: `health`, 404 rota API, POST JSON inválido, métricas, tempo, `info`, **`overview`**, **`doubts`**, **`doubts/chat`** (503 / 400), agentes, `exec` 503/403, validação `command`, GET agente 404, **POST** criar agente + **409** duplicado, **DELETE** agente, **PUT** `.md` + **revision** / **409** conflito + 403 com `MISSION_AGENT_EDIT=0`, caminhos mascarados, persistência do feed (`npm test`)
+- [x] **Testes automatizados**: Vitest + Supertest — **28** casos em `test/api.smoke.test.mjs`: `health`, 404 rota API, POST JSON inválido, métricas, tempo, `info` (incl. **`taskBoard`**), **`overview`**, **`doubts`**, **`doubts/chat`** (503 / 400), **`task-board`** GET/PUT/409, agentes, `exec` 503/403, validação `command`, GET agente 404, **POST** criar agente + **409** duplicado, **DELETE** agente, **PUT** `.md` + **revision** / **409** conflito + 403 com `MISSION_AGENT_EDIT=0`, caminhos mascarados, persistência do feed (`npm test`)
 - [x] **Validação de entrada**: limite no servidor + `maxLength` no input e mensagens de erro alinhadas
 - [x] **Tratamento de erro HTTP** no cliente: rede (`TypeError`) vs 4xx/5xx com prefixos legíveis
 - [x] **Persistência do feed**: JSON em `MissionAgent/.mission-agent/activity.json` ou `MISSION_ACTIVITY_PATH`
@@ -95,7 +96,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 | ~~Baixa~~ | ~~**Canvas de tarefas: export/import JSON**~~ | **Feito:** botões Importar / Exportar / Limpar tudo em `TaskCanvasView`; formato `{ version, exportedAt, tasks }` ou array |
 | ~~Baixa~~ | ~~**Canvas de tarefas: ordem dentro da coluna**~~ | **Feito:** zonas de inserção entre cartões com ordenação *Manual* e sem filtro; `moveTask(id, col, toIndex)` |
 | ~~Baixa~~ | ~~**Canvas de tarefas: pesquisa / filtro**~~ | **Feito:** campo *Filtrar* (título/nota); ordenação opcional; dados em `localStorage` só pelo estado do quadro (não pelo filtro) |
-| Média | **Canvas de tarefas: persistência no servidor** | API + sync multi-dispositivo; ver Pendências «Canvas de tarefas» |
+| ~~Média~~ | ~~**Canvas de tarefas: persistência no servidor**~~ | **Feito:** `GET`/`PUT /api/aiox/task-board`, ficheiro no processo Node, UI `VITE_TASK_BOARD_SYNC`. *Ainda sem* auth nem isolamento por utilizador (ver Pendências) |
 
 ---
 
@@ -129,7 +130,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 | Multi-utilizador | Feed persistido em ficheiro local; ainda sem isolamento por sessão/utilizador |
 | Nome npm | Pacote continua `mission-agent` (pasta `MissionAgent/`); mudança só relevante se publicar no npm |
 | Só UI sem API | Com API **embebida** no Vite, `/api` deve responder no **mesmo host/porta** do Vite. Se usares **`MISSION_EMBED_API=0`**, é preciso Express em **8787** (`preview:all`, `dev:split`, ou `build`+`start`) |
-| Canvas de tarefas | Só **localStorage** no browser; sem API, sem sync entre dispositivos — evoluir para backend seria feature nova |
+| Canvas de tarefas | Com **`VITE_TASK_BOARD_SYNC`**, o quadro sincroniza com ficheiro no servidor (mesma origem que a API). *Sem* utilizadores distintos nem quotas — não substitui backlog multi-equipa com auth |
 
 ---
 

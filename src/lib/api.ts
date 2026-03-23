@@ -1,4 +1,8 @@
+import type { TaskItem } from "@/components/task-canvas/types";
 import type { AioxExecResponse } from "@/types/hub";
+
+/** Erro sintético quando `PUT /api/aiox/task-board` devolve 409 (If-Match). */
+export const TASK_BOARD_CONFLICT_ERROR = "CONFLICT_TASK_BOARD";
 
 function scopeForHttpStatus(status: number): string {
   if (status === 429) return "Demasiados pedidos";
@@ -212,6 +216,63 @@ export async function postDoubtsChat(
     throw new Error("Resposta inválida do servidor (sem reply).");
   }
   return { ok: true, reply: data.reply };
+}
+
+export async function getTaskBoard(): Promise<{ tasks: TaskItem[]; revision: string }> {
+  const d = await fetchJson<{ ok?: boolean; tasks?: TaskItem[]; revision?: string }>("/api/aiox/task-board");
+  return {
+    tasks: Array.isArray(d.tasks) ? d.tasks : [],
+    revision: typeof d.revision === "string" ? d.revision : "0:0",
+  };
+}
+
+export async function putTaskBoard(tasks: TaskItem[], ifMatchRevision: string): Promise<{ revision: string }> {
+  let r: Response;
+  try {
+    r = await fetch("/api/aiox/task-board", {
+      ...API_FETCH_INIT,
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "If-Match": ifMatchRevision,
+      },
+      body: JSON.stringify({ tasks }),
+    });
+  } catch (e) {
+    throw new Error(
+      e instanceof TypeError
+        ? "Sem ligação à API. Confirma que o servidor está a correr (ex.: npm run dev)."
+        : String(e)
+    );
+  }
+  const text = await r.text();
+  if (r.status === 409) {
+    throw new Error(TASK_BOARD_CONFLICT_ERROR);
+  }
+  let data: { ok?: boolean; revision?: string; error?: string } = {};
+  try {
+    if (text) data = JSON.parse(text) as typeof data;
+  } catch {
+    /* ignore */
+  }
+  if (!r.ok) {
+    if (data.error) {
+      let msg = data.error;
+      const j = data as { retryAfterSec?: number };
+      if (r.status === 429 && typeof j.retryAfterSec === "number") {
+        msg += ` (repetir daqui a ~${j.retryAfterSec}s)`;
+      }
+      throw new Error(`${scopeForHttpStatus(r.status)}: ${msg}`);
+    }
+    const friendly = friendlyNonJsonErrorBody(text);
+    if (friendly !== text) {
+      throw new Error(friendly);
+    }
+    const scope = scopeForHttpStatus(r.status);
+    throw new Error(text ? `${scope}: ${text}` : `${scope} (${r.status})`);
+  }
+  const revision = typeof data.revision === "string" ? data.revision : "0:0";
+  return { revision };
 }
 
 export async function putAgentMarkdown(

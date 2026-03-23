@@ -9,14 +9,14 @@ Registo de auditorias cruzadas entre **`docs/CHECKLIST.md`** e o código / repos
 | Campo | Valor |
 |--------|--------|
 | **Data** | 2026-03-23 |
-| **Âmbito** | MissionAgent — Canvas: reordenar intra-coluna (zonas de drop, `manual` + sem filtro); checklist/README/operacional/monorepo índice; smoke + build (sem alteração de API) |
-| **Comandos** | `npm test` → **25/25** pass; `npm run build` → OK (mesma data) |
+| **Âmbito** | MissionAgent — `GET`/`PUT /api/aiox/task-board`, `taskBoard` em `info`, cliente `VITE_TASK_BOARD_SYNC`; smoke +28; OpenAPI/README/CHECKLIST |
+| **Comandos** | `npm test` → **28/28** pass; `npm run build` → OK (mesma data) |
 
 ### Resultado
 
 - **Estado geral:** o checklist está **alinhado** com a implementação actual.
-- **Contagem de testes:** **25** casos em `test/api.smoke.test.mjs` — confere com a secção «Melhorias técnicas → Alta».
-- **Rotas / contrato:** inalterado (Canvas só cliente). `server/create-app.mjs` inclui `GET /api/aiox/overview`, `GET/PUT /api/aiox/agents/:id` com **`revision`** e **409**; **`docs/openapi.yaml`** coerente com nota Kanban só UI.
+- **Contagem de testes:** **28** casos em `test/api.smoke.test.mjs` — confere com a secção «Melhorias técnicas → Alta».
+- **Rotas / contrato:** `GET`/`PUT /api/aiox/task-board` + `taskBoard` em `GET /api/aiox/info`; **`docs/openapi.yaml`** actualizado; `GET/PUT /api/aiox/agents/:id` inalterado.
 - **Correcção aplicada:** linha «Motor LLM» em **Pendências conhecidas** mantém LLM opcional no painel Dúvidas vs. modelo no IDE.
 
 ### Lacunas conhecidas (não são erros do checklist)

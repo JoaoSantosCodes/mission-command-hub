@@ -7,7 +7,7 @@ info:
 
     **Rotas não definidas** sob `/api` devolvem `404` com JSON `{ ok: false, error }`. **Rate limit** (`429`) devolve JSON com `retryAfterSec` opcional.
 
-    **UI — Canvas de tarefas (Kanban):** estado no cliente (`localStorage`); export/import JSON pode incluir `priority` e `blocked` por tarefa; sem sync entre dispositivos nem REST dedicado.
+    **UI — Canvas de tarefas (Kanban):** por defeito `localStorage`; export/import JSON pode incluir `priority` e `blocked`. Opcional: **`GET`/`PUT /api/aiox/task-board`** persistem o quadro em JSON no servidor (`MISSION_TASK_BOARD_PATH`; por defeito `.mission-agent/task-board.json`) quando a UI define **`VITE_TASK_BOARD_SYNC`**. `PUT` aceita cabeçalho **`If-Match`** com `revision` (mtime:size) — conflito **409**.
 servers:
   - url: http://127.0.0.1:8787
     description: Desenvolvimento (PORT por defeito)
@@ -86,6 +86,78 @@ paths:
                   agentEditAllowed:
                     type: boolean
                     description: "false quando MISSION_AGENT_EDIT=0 — sem criar/editar/eliminar agentes (.md) via API"
+                  taskBoard:
+                    type: object
+                    description: "Quadro Kanban persistido em ficheiro (mesmo caminho que GET task-board)"
+                    properties:
+                      revision:
+                        type: string
+                        description: "mtime:size do ficheiro (vazio = 0:0)"
+                      taskCount: { type: integer }
+  /api/aiox/task-board:
+    get:
+      summary: Quadro Kanban (Canvas) persistido no servidor
+      description: |
+        Ficheiro JSON por defeito em `MissionAgent/.mission-agent/task-board.json` (ou `MISSION_TASK_BOARD_PATH`).
+        A UI sincroniza só com `VITE_TASK_BOARD_SYNC=1` no build Vite.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, tasks, revision]
+                properties:
+                  ok: { type: boolean, example: true }
+                  tasks:
+                    type: array
+                    description: Tarefas validadas (colunas todo|doing|review|done)
+                    items: { type: object }
+                  revision:
+                    type: string
+                    description: "Usar em If-Match no PUT"
+    put:
+      summary: Gravar quadro Kanban no servidor
+      description: |
+        Corpo `{ "tasks": [ ... ] }` (ou array no topo). Máximo 2000 tarefas. Rate limit `TASK_BOARD_PUT_RATE_MAX` por IP/min (por defeito 45).
+        Com cabeçalho `If-Match` diferente da revisão actual do ficheiro → **409** `conflict`.
+      parameters:
+        - name: If-Match
+          in: header
+          required: false
+          schema: { type: string }
+          description: Revisão devolvida por GET (ou `0:0` se o ficheiro não existir)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [tasks]
+                  properties:
+                    tasks: { type: array, items: { type: object } }
+                - type: array
+                  description: Alternativa aceite — lista de tarefas
+                  items: { type: object }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, revision]
+                properties:
+                  ok: { type: boolean, example: true }
+                  revision: { type: string }
+        "400":
+          description: Payload inválido
+        "409":
+          description: Conflito (If-Match)
+        "429":
+          description: Rate limit
   /api/aiox/overview:
     get:
       summary: Vista agregada (ponte + lista de agentes + feed + contagens)

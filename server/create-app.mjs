@@ -24,6 +24,12 @@ import {
   runAioxSubcommand,
 } from "./lib/aiox-exec.mjs";
 import { callDoubtsChatCompletion, isDoubtsLlmConfigured } from "./lib/doubts-llm.mjs";
+import {
+  computeTaskBoardRevision,
+  loadTaskBoardFromFile,
+  normalizeTaskBoardPayload,
+  saveTaskBoardAtomic,
+} from "./lib/task-board-store.mjs";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -46,7 +52,7 @@ function resolveAgentMarkdownPath(agentsDir, idParam) {
 
 /**
  * @param {string} missionRoot Raiz do pacote MissionAgent
- * @param {{ activityLogPath?: string; maskPathsInUi?: boolean }} [options]
+ * @param {{ activityLogPath?: string; taskBoardPath?: string; maskPathsInUi?: boolean }} [options]
  */
 export async function createBridgeApp(missionRoot, options = {}) {
   const ROOT = path.resolve(missionRoot);
@@ -57,6 +63,12 @@ export async function createBridgeApp(missionRoot, options = {}) {
     (process.env.MISSION_ACTIVITY_PATH
       ? path.resolve(process.env.MISSION_ACTIVITY_PATH)
       : path.join(ROOT, ".mission-agent", "activity.json"));
+
+  const taskBoardPath =
+    options.taskBoardPath ??
+    (process.env.MISSION_TASK_BOARD_PATH
+      ? path.resolve(process.env.MISSION_TASK_BOARD_PATH)
+      : path.join(ROOT, ".mission-agent", "task-board.json"));
 
   const activity = await createActivityStoreAuto(activityLogPath);
 
@@ -107,7 +119,17 @@ export async function createBridgeApp(missionRoot, options = {}) {
     limit: Number(process.env.DOUBTS_CHAT_RATE_MAX || 20),
   });
 
+  const taskBoardLimiter = rateLimitJson({
+    windowMs: 60 * 1000,
+    limit: Number(process.env.TASK_BOARD_PUT_RATE_MAX || 45),
+  });
+
   const agentEditAllowed = process.env.MISSION_AGENT_EDIT !== "0";
+
+  function getTaskBoardSummary() {
+    const { tasks, revision } = loadTaskBoardFromFile(taskBoardPath);
+    return { revision, taskCount: tasks.length };
+  }
 
   const maskPaths = options.maskPathsInUi ?? shouldMaskPathsInUi();
 
@@ -172,6 +194,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       aioxExecAvailable: isAioxExecConfigured(),
       activityBackend: activity.backend ?? "file",
       agentEditAllowed,
+      taskBoard: getTaskBoardSummary(),
     };
   }
 
@@ -203,6 +226,38 @@ export async function createBridgeApp(missionRoot, options = {}) {
         llmEnabled: isDoubtsLlmConfigured(),
       },
     });
+  });
+
+  /** Quadro Kanban (Canvas): persistência opcional no servidor (ficheiro JSON). */
+  app.get("/api/aiox/task-board", (_req, res) => {
+    const { tasks, revision } = loadTaskBoardFromFile(taskBoardPath);
+    res.json({ ok: true, tasks, revision });
+  });
+
+  app.put("/api/aiox/task-board", taskBoardLimiter, (req, res) => {
+    const currentRev = computeTaskBoardRevision(taskBoardPath);
+    const rawIfMatch = String(req.headers["if-match"] ?? "").trim();
+    const ifMatch = rawIfMatch.replace(/^W\//, "").replace(/^"(.*)"$/, "$1").trim();
+    if (ifMatch && ifMatch !== currentRev) {
+      return res.status(409).json({
+        ok: false,
+        error: "conflito: o quadro mudou no servidor. Recarrega ou sincroniza.",
+        conflict: true,
+        revision: currentRev,
+      });
+    }
+    const normalized = normalizeTaskBoardPayload(req.body);
+    if ("error" in normalized) {
+      return res.status(400).json({ ok: false, error: normalized.error });
+    }
+    try {
+      saveTaskBoardAtomic(taskBoardPath, normalized.tasks);
+      const revision = computeTaskBoardRevision(taskBoardPath);
+      res.json({ ok: true, revision });
+    } catch (e) {
+      logger.warn({ err: String(e?.message || e) }, "task board save failed");
+      res.status(500).json({ ok: false, error: "falha ao gravar o quadro" });
+    }
   });
 
   /** Capacidades do painel Dúvidas (notas locais vs LLM opcional no servidor). */

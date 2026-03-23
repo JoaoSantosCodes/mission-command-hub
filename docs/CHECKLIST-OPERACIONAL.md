@@ -16,7 +16,7 @@ Lista curta para **arranque**, **PR**, **release** e **processo de equipa**. O i
 
 ## 2. Antes de commit / PR
 
-- [ ] `npm test` — **25** testes smoke a passar
+- [ ] `npm test` — **28** testes smoke a passar
 - [ ] `npm run build` — sem erros TypeScript / Vite
 - [ ] Sem segredos no commit (`.env` está no `.gitignore`; não commitar chaves)
 - [ ] Se alteraste API: `docs/openapi.yaml` actualizado
@@ -41,7 +41,7 @@ Marca quando implementares; detalhes em **[CHECKLIST.md](./CHECKLIST.md)** (tabe
 - [ ] **LLM:** streaming, quotas/custos, política de dados explícita (além do chat actual)
 - [ ] **Base de conhecimento:** indexação `docs/` ou Notion para respostas contextualizadas no hub
 - [ ] **Testes de UI** (opcional): E2E ou smoke do painel Dúvidas (`DoubtsChatPanel`) ou do canvas (`TaskCanvasView`)
-- [ ] **Canvas de tarefas:** persistência no servidor / sync multi-dispositivo (filtro, ordenação local e **reordenar na coluna** com ordenação manual já em **[CHECKLIST.md](./CHECKLIST.md)** — roadmap)
+- [ ] **Canvas de tarefas:** quotas / auth / multi-utilizador (persistência ficheiro + `VITE_TASK_BOARD_SYNC` já em **[CHECKLIST.md](./CHECKLIST.md)**)
 
 ---
 

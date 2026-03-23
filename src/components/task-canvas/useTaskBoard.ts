@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getTaskBoard, putTaskBoard, TASK_BOARD_CONFLICT_ERROR } from "@/lib/api";
 import type { ColumnId, TaskItem, TaskPriority } from "./types";
 
 const STORAGE_KEY = "mission-agent-task-board-v1";
 /** Evita escritas em disco a cada tecla; flush em `beforeunload`. */
 const PERSIST_DEBOUNCE_MS = 450;
+
+/** Com `VITE_TASK_BOARD_SYNC=1`, o quadro sincroniza com `GET`/`PUT /api/aiox/task-board` (ficheiro no servidor). */
+const TASK_BOARD_SYNC =
+  import.meta.env.VITE_TASK_BOARD_SYNC === "1" || import.meta.env.VITE_TASK_BOARD_SYNC === "true";
 
 type Persisted = {
   tasks: TaskItem[];
@@ -82,13 +87,77 @@ function newId() {
 
 export function useTaskBoard() {
   const [tasks, setTasks] = useState<TaskItem[]>(load);
+  const [syncHydrated, setSyncHydrated] = useState(!TASK_BOARD_SYNC);
   const tasksRef = useRef(tasks);
+  const serverRevRef = useRef<string | null>(null);
   tasksRef.current = tasks;
+
+  /** Sincronização inicial com o servidor (opt-in). Servidor vence quando tem tarefas; senão envia-se o quadro local. */
+  useEffect(() => {
+    if (!TASK_BOARD_SYNC) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await getTaskBoard();
+        if (cancelled) return;
+        const local = load();
+        serverRevRef.current = r.revision;
+        if (r.tasks.length === 0 && local.length > 0) {
+          const put = await putTaskBoard(local, r.revision);
+          serverRevRef.current = put.revision;
+          setTasks(local);
+        } else if (r.tasks.length > 0) {
+          setTasks(r.tasks);
+          save(r.tasks);
+          serverRevRef.current = r.revision;
+        }
+      } catch {
+        /* offline: mantém estado inicial */
+      } finally {
+        if (!cancelled) setSyncHydrated(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const id = window.setTimeout(() => save(tasks), PERSIST_DEBOUNCE_MS);
     return () => window.clearTimeout(id);
   }, [tasks]);
+
+  useEffect(() => {
+    if (!TASK_BOARD_SYNC || !syncHydrated) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const rev = serverRevRef.current;
+        if (rev === null || cancelled) return;
+        try {
+          const { revision } = await putTaskBoard(tasksRef.current, rev);
+          if (cancelled) return;
+          serverRevRef.current = revision;
+        } catch (e) {
+          if (e instanceof Error && e.message === TASK_BOARD_CONFLICT_ERROR) {
+            try {
+              const next = await getTaskBoard();
+              if (cancelled) return;
+              serverRevRef.current = next.revision;
+              setTasks(next.tasks);
+              save(next.tasks);
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+      })();
+    }, PERSIST_DEBOUNCE_MS + 120);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [tasks, syncHydrated]);
 
   useEffect(() => {
     const flush = () => save(tasksRef.current);
@@ -195,5 +264,8 @@ export function useTaskBoard() {
     clearDone,
     replaceTasks,
     clearAll,
+    /** `true` quando `VITE_TASK_BOARD_SYNC` está activo e a carga inicial do servidor terminou. */
+    taskBoardSync: TASK_BOARD_SYNC,
+    taskBoardSyncHydrated: syncHydrated,
   };
 }

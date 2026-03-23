@@ -12,15 +12,22 @@ const MISSION_ROOT = path.resolve(__dirname, "..");
 
 describe("API smoke", () => {
   const tmpActivity = path.join(os.tmpdir(), `ma-smoke-${process.pid}-${Date.now()}.json`);
+  const tmpTaskBoard = path.join(os.tmpdir(), `ma-tb-${process.pid}-${Date.now()}.json`);
+  const bridgeOpts = { activityLogPath: tmpActivity, taskBoardPath: tmpTaskBoard };
   let app;
 
   beforeAll(async () => {
-    app = await createBridgeApp(MISSION_ROOT, { activityLogPath: tmpActivity });
+    app = await createBridgeApp(MISSION_ROOT, bridgeOpts);
   });
 
   afterAll(() => {
     try {
       fs.unlinkSync(tmpActivity);
+    } catch {
+      /* ignore */
+    }
+    try {
+      fs.unlinkSync(tmpTaskBoard);
     } catch {
       /* ignore */
     }
@@ -79,6 +86,10 @@ describe("API smoke", () => {
     expect(["file", "postgres"]).toContain(res.body.activityBackend);
     expect(res.body).toHaveProperty("agentEditAllowed");
     expect(typeof res.body.agentEditAllowed).toBe("boolean");
+    expect(res.body.taskBoard).toMatchObject({
+      revision: expect.any(String),
+      taskCount: expect.any(Number),
+    });
   });
 
   it("GET /api/aiox/overview — ponte + agentes + logs agregados", async () => {
@@ -93,6 +104,49 @@ describe("API smoke", () => {
       kindCounts: expect.any(Object),
     });
     expect(res.body.doubts).toMatchObject({ llmEnabled: expect.any(Boolean) });
+    expect(res.body.bridge.taskBoard).toMatchObject({
+      revision: expect.any(String),
+      taskCount: expect.any(Number),
+    });
+  });
+
+  it("GET /api/aiox/task-board", async () => {
+    const res = await request(app).get("/api/aiox/task-board").expect(200);
+    expect(res.body.ok).toBe(true);
+    expect(Array.isArray(res.body.tasks)).toBe(true);
+    expect(typeof res.body.revision).toBe("string");
+  });
+
+  it("PUT /api/aiox/task-board grava e GET relê", async () => {
+    const tasks = [
+      {
+        id: "smoke-tb-1",
+        title: "Smoke task",
+        columnId: "todo",
+        order: 0,
+        createdAt: Date.now(),
+      },
+    ];
+    const r0 = await request(app).get("/api/aiox/task-board").expect(200);
+    const put = await request(app)
+      .put("/api/aiox/task-board")
+      .set("If-Match", r0.body.revision)
+      .send({ tasks })
+      .expect(200);
+    expect(put.body.ok).toBe(true);
+    expect(typeof put.body.revision).toBe("string");
+    const r1 = await request(app).get("/api/aiox/task-board").expect(200);
+    expect(r1.body.tasks).toHaveLength(1);
+    expect(r1.body.tasks[0].id).toBe("smoke-tb-1");
+  });
+
+  it("PUT /api/aiox/task-board → 409 com If-Match inválido", async () => {
+    const res = await request(app)
+      .put("/api/aiox/task-board")
+      .set("If-Match", "9999999999999:1")
+      .send({ tasks: [] });
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ ok: false, conflict: true });
   });
 
   it("GET /api/aiox/doubts", async () => {
@@ -121,7 +175,7 @@ describe("API smoke", () => {
     const prevK = process.env.OPENAI_API_KEY;
     process.env.MISSION_DOUBTS_LLM = "1";
     process.env.OPENAI_API_KEY = "sk-test-key-for-smoke-minimum-8";
-    const appLlm = await createBridgeApp(MISSION_ROOT, { activityLogPath: tmpActivity });
+    const appLlm = await createBridgeApp(MISSION_ROOT, bridgeOpts);
     const res = await request(appLlm)
       .post("/api/aiox/doubts/chat")
       .set("Content-Type", "application/json")
@@ -151,7 +205,7 @@ describe("API smoke", () => {
     const prevS = process.env.AIOX_EXEC_SECRET;
     process.env.ENABLE_AIOX_CLI_EXEC = "1";
     process.env.AIOX_EXEC_SECRET = "testsecret12";
-    const execApp = await createBridgeApp(MISSION_ROOT, { activityLogPath: tmpActivity });
+    const execApp = await createBridgeApp(MISSION_ROOT, bridgeOpts);
     const res = await request(execApp).post("/api/aiox/exec").send({ subcommand: "info", confirm: "wrong" });
     expect(res.status).toBe(403);
     process.env.ENABLE_AIOX_CLI_EXEC = prevE;
@@ -195,7 +249,7 @@ describe("API smoke", () => {
     const prevEdit = process.env.MISSION_AGENT_EDIT;
     process.env.AIOX_CORE_PATH = tmpRoot;
     delete process.env.MISSION_AGENT_EDIT;
-    const editApp = await createBridgeApp(MISSION_ROOT, { activityLogPath: tmpActivity });
+    const editApp = await createBridgeApp(MISSION_ROOT, bridgeOpts);
     try {
       const getRes = await request(editApp).get("/api/aiox/agents/edit-smoke").expect(200);
       expect(typeof getRes.body.revision).toBe("string");
@@ -224,7 +278,7 @@ describe("API smoke", () => {
     const prevEdit = process.env.MISSION_AGENT_EDIT;
     process.env.AIOX_CORE_PATH = tmpRoot;
     delete process.env.MISSION_AGENT_EDIT;
-    const editApp = await createBridgeApp(MISSION_ROOT, { activityLogPath: tmpActivity });
+    const editApp = await createBridgeApp(MISSION_ROOT, bridgeOpts);
     try {
       const res = await request(editApp)
         .put("/api/aiox/agents/conflict-smoke")
@@ -245,7 +299,7 @@ describe("API smoke", () => {
     const prevEdit = process.env.MISSION_AGENT_EDIT;
     process.env.AIOX_CORE_PATH = tmpRoot;
     delete process.env.MISSION_AGENT_EDIT;
-    const postApp = await createBridgeApp(MISSION_ROOT, { activityLogPath: tmpActivity });
+    const postApp = await createBridgeApp(MISSION_ROOT, bridgeOpts);
     try {
       const res = await request(postApp).post("/api/aiox/agents").send({ id: "create-smoke-agent" });
       expect(res.status).toBe(201);
@@ -269,7 +323,7 @@ describe("API smoke", () => {
     const prevEdit = process.env.MISSION_AGENT_EDIT;
     delete process.env.MISSION_AGENT_EDIT;
     process.env.AIOX_CORE_PATH = tmpRoot;
-    const dupApp = await createBridgeApp(MISSION_ROOT, { activityLogPath: tmpActivity });
+    const dupApp = await createBridgeApp(MISSION_ROOT, bridgeOpts);
     try {
       const res = await request(dupApp).post("/api/aiox/agents").send({ id: "dup-agent" });
       expect(res.status).toBe(409);
@@ -292,7 +346,7 @@ describe("API smoke", () => {
     const prevEdit = process.env.MISSION_AGENT_EDIT;
     process.env.AIOX_CORE_PATH = tmpRoot;
     delete process.env.MISSION_AGENT_EDIT;
-    const delApp = await createBridgeApp(MISSION_ROOT, { activityLogPath: tmpActivity });
+    const delApp = await createBridgeApp(MISSION_ROOT, bridgeOpts);
     try {
       const res = await request(delApp).delete("/api/aiox/agents/delete-smoke");
       expect(res.status).toBe(200);
@@ -314,7 +368,7 @@ describe("API smoke", () => {
     const prevEdit = process.env.MISSION_AGENT_EDIT;
     process.env.AIOX_CORE_PATH = tmpRoot;
     process.env.MISSION_AGENT_EDIT = "0";
-    const editApp = await createBridgeApp(MISSION_ROOT, { activityLogPath: tmpActivity });
+    const editApp = await createBridgeApp(MISSION_ROOT, bridgeOpts);
     try {
       const res = await request(editApp).put("/api/aiox/agents/edit-off").send({ content: "# y\n" });
       expect(res.status).toBe(403);
@@ -327,7 +381,7 @@ describe("API smoke", () => {
 
   it("GET /api/aiox/info pode mascarar caminhos", async () => {
     const maskedApp = await createBridgeApp(MISSION_ROOT, {
-      activityLogPath: tmpActivity,
+      ...bridgeOpts,
       maskPathsInUi: true,
     });
     const res = await request(maskedApp).get("/api/aiox/info").expect(200);
@@ -337,10 +391,11 @@ describe("API smoke", () => {
 
   it("feed persistido: nova instância lê o mesmo ficheiro", async () => {
     const persistPath = path.join(os.tmpdir(), `ma-persist-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+    const tbPath = path.join(os.tmpdir(), `ma-tb-persist-${Date.now()}.json`);
     try {
-      const app1 = await createBridgeApp(MISSION_ROOT, { activityLogPath: persistPath });
+      const app1 = await createBridgeApp(MISSION_ROOT, { activityLogPath: persistPath, taskBoardPath: tbPath });
       await request(app1).post("/api/aiox/command").send({ command: "persist-smoke-unique" }).expect(200);
-      const app2 = await createBridgeApp(MISSION_ROOT, { activityLogPath: persistPath });
+      const app2 = await createBridgeApp(MISSION_ROOT, { activityLogPath: persistPath, taskBoardPath: tbPath });
       const res = await request(app2).get("/api/aiox/activity").expect(200);
       const hit = res.body.logs.some(
         (l) => typeof l.action === "string" && l.action.includes("persist-smoke-unique")
@@ -349,6 +404,11 @@ describe("API smoke", () => {
     } finally {
       try {
         fs.unlinkSync(persistPath);
+      } catch {
+        /* ignore */
+      }
+      try {
+        fs.unlinkSync(tbPath);
       } catch {
         /* ignore */
       }
