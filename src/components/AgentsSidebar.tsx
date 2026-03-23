@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { HubMascot } from "@/components/HubMascot";
 import { TeamStatusOverview } from "@/components/TeamStatusOverview";
-import { Bot, Database, FileText, FolderKanban, LayoutList, Plus } from "lucide-react";
+import { Bot, BookOpen, Database, FileText, FolderKanban, LayoutList, Layers, Plus, Sparkles, Terminal } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { ActivityEntry, AgentRow, AioxInfo } from "@/types/hub";
 import { MobileDrawer } from "@/components/MobileDrawer";
 import {
@@ -243,91 +244,73 @@ export function AgentsSidebar({
                 <Database className="h-3.5 w-3.5 text-primary" aria-hidden />
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Integrações</p>
               </div>
-              <div className="mt-3 space-y-2">
-                <IntegrationRow
-                  label="DB / Feed"
-                  ok={integrations?.database.activityBackend === "postgres"}
+              <div className="mt-3 grid grid-cols-1 gap-2">
+                <IntegrationServiceCard
+                  icon={Database}
+                  name="DB / FEED"
+                  status={integrations?.database.activityBackend === "postgres" ? "OK" : "PENDENTE"}
+                  statusTone={integrations?.database.activityBackend === "postgres" ? "ok" : "pending"}
                   value={integrations?.database.activityBackend ?? "—"}
-                  hint={integrations?.database.configured ? "DATABASE_URL activo" : "Ficheiro JSON (fallback)"}
+                  hint={integrations?.database.activityBackend === "postgres" ? undefined : integrations?.database.configured ? "DB env ok, mas fallback em runtime" : "Sem DATABASE_URL (fallback para ficheiro)"}
                 />
-                <IntegrationRow
-                  label="CLI aiox"
-                  ok={integrations?.exec.configured === true}
-                  value={integrations?.exec.configured ? "OK" : "—"}
+                <IntegrationServiceCard
+                  icon={Terminal}
+                  name="CLI AIOX"
+                  status={integrations?.exec.configured === true ? "OK" : "PENDENTE"}
+                  statusTone={integrations?.exec.configured === true ? "ok" : "pending"}
+                  value={integrations?.exec.configured === true ? "ENABLE_AIOX_CLI_EXEC=1" : "—"}
                 />
-                <IntegrationRow
-                  label="OpenIA (Dúvidas)"
-                  ok={integrations?.doubts.llmEnabled === true && integrations?.doubts.openaiValidated === true}
+                <IntegrationServiceCard
+                  icon={Sparkles}
+                  name="OPENAI (DÚVIDAS)"
+                  status={integrations?.doubts.llmEnabled === true && integrations?.doubts.openaiValidated === true ? "OK" : "PENDENTE"}
+                  statusTone={integrations?.doubts.llmEnabled === true && integrations?.doubts.openaiValidated === true ? "ok" : "pending"}
                   value={
-                    integrations
-                      ? integrations.doubts.llmEnabled
-                        ? integrations.doubts.openaiValidated
-                          ? "OK"
-                          : "falhou"
-                        : "desligado"
-                      : "—"
+                    integrations?.doubts.llmEnabled
+                      ? integrations?.doubts.openaiValidated
+                        ? "Validação OK"
+                        : "Falhou validação"
+                      : "Desligado (opt-in)"
                   }
                   hint={
                     integrations?.doubts.llmEnabled && integrations?.doubts.openaiValidated === false
-                      ? String(integrations.doubts.openaiError ?? "Erro ao validar OpenAI").slice(0, 80)
+                      ? String(integrations.doubts.openaiError ?? "Erro ao validar OpenAI").slice(0, 90)
                       : integrations?.doubts.doubtsOptIn
                         ? "MISSION_DOUBTS_LLM=1"
-                        : "MISSION_DOUBTS_LLM!=1"
+                        : "Definir MISSION_DOUBTS_LLM=1 + key"
                   }
                 />
-                <IntegrationRow
-                  label="OpenAI key"
-                  ok={integrations?.doubts.openaiValidated === true}
-                  value={
-                    integrations
-                      ? integrations.doubts.openaiValidated
-                        ? "OK"
-                        : integrations.doubts.openaiKeyConfigured
-                          ? "falhou"
-                          : "—"
-                      : "—"
-                  }
-                  hint={
-                    integrations?.doubts.openaiValidated === false
-                      ? String(integrations.doubts.openaiError ?? "Erro ao validar OpenAI").slice(0, 80)
-                      : undefined
-                  }
-                />
-                <IntegrationRow
-                  label="MCP Notion (token)"
-                  ok={integrations?.notion.tokenValidated === true}
-                  value={
-                    integrations
-                      ? integrations.notion.tokenValidated
-                        ? "OK"
-                        : integrations.notion.tokenConfigured
-                          ? "falhou"
-                          : "—"
-                      : "—"
-                  }
+                <IntegrationServiceCard
+                  icon={BookOpen}
+                  name="NOTION (MCP)"
+                  status={integrations?.notion.tokenValidated === true ? "OK" : "PENDENTE"}
+                  statusTone={integrations?.notion.tokenValidated === true ? "ok" : "pending"}
+                  value={integrations?.notion.tokenConfigured ? "Token presente" : "Sem token"}
                   hint={
                     integrations?.notion.tokenValidated === false
-                      ? String(integrations.notion.tokenError ?? "Erro ao validar Notion").slice(0, 80)
+                      ? String(integrations.notion.tokenError ?? "Token não válido").slice(0, 90)
                       : undefined
                   }
                 />
-                <IntegrationRow
-                  label="MCP Figma (token)"
-                  ok={integrations?.figma.tokenValidated === true}
-                  value={
-                    integrations
-                      ? integrations.figma.tokenValidated
-                        ? "OK"
-                        : integrations.figma.tokenConfigured
-                          ? "falhou"
-                          : "—"
-                      : "—"
-                  }
+                <IntegrationServiceCard
+                  icon={Layers}
+                  name="FIGMA (MCP)"
+                  status={integrations?.figma.tokenValidated === true ? "OK" : "PENDENTE"}
+                  statusTone={integrations?.figma.tokenValidated === true ? "ok" : "pending"}
+                  value={integrations?.figma.tokenConfigured ? "Token presente" : "Sem token"}
                   hint={
                     integrations?.figma.tokenValidated === false
-                      ? String(integrations.figma.tokenError ?? "Erro ao validar Figma").slice(0, 80)
+                      ? String(integrations.figma.tokenError ?? "Token não válido").slice(0, 90)
                       : undefined
                   }
+                />
+                <IntegrationServiceCard
+                  icon={Database}
+                  name="FISH (persistência)"
+                  status={integrations?.fish.enabled ? "OK" : "PENDENTE"}
+                  statusTone={integrations?.fish.enabled ? "ok" : "pending"}
+                  value={integrations?.fish.persistence ?? "file"}
+                  hint="Persistência local (sem chamadas externas)."
                 />
               </div>
             </div>
@@ -362,27 +345,42 @@ export function AgentsSidebar({
   );
 }
 
-function IntegrationRow({
-  label,
-  ok,
+function IntegrationServiceCard({
+  icon: Icon,
+  name,
+  status,
+  statusTone,
   value,
   hint,
 }: {
-  label: string;
-  ok?: boolean;
+  icon: LucideIcon;
+  name: string;
+  status: "OK" | "PENDENTE";
+  statusTone: "ok" | "pending";
   value: string;
   hint?: string;
 }) {
-  const tone = ok === true ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground";
-  const badge = ok === true ? "bg-emerald-500/10 text-emerald-600 ring-emerald-500/25" : "bg-muted/40 text-muted-foreground";
+  const badge =
+    statusTone === "ok"
+      ? "bg-emerald-500/10 text-emerald-700 ring-emerald-500/25 dark:text-emerald-400"
+      : "bg-amber-500/10 text-amber-700 ring-amber-500/25 dark:text-amber-400";
+
   return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-        {hint ? <p className="mt-1 text-[10px] text-muted-foreground">{hint}</p> : null}
-      </div>
-      <div className={`shrink-0 rounded-full border border-border px-2.5 py-1 text-[10px] font-mono ${badge}`}>
-        <span className={tone}>{value}</span>
+    <div className="rounded-xl border border-border/80 bg-card/80 p-3 shadow-sm transition-all hover:border-primary/30 hover:bg-card">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 ring-1 ring-primary/25" aria-hidden>
+          <Icon className="h-[18px] w-[18px] text-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-foreground">{name}</p>
+          </div>
+          <div className={`mt-1 inline-flex rounded-full border border-border px-2 py-1 text-[10px] font-mono ${badge}`}>
+            {status}
+          </div>
+          <p className="mt-1 line-clamp-1 text-[10px] leading-snug text-muted-foreground font-mono">{value}</p>
+          {hint ? <p className="mt-1 line-clamp-2 text-[10px] leading-snug text-muted-foreground">{hint}</p> : null}
+        </div>
       </div>
     </div>
   );
