@@ -278,8 +278,8 @@ export function AgentsSidebar({
                     <AlertTriangle className="h-3 w-3" aria-hidden />
                     Alertas ativos ({integrations.alerts.length})
                   </p>
-                  <p className="mt-1 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
-                    {integrations.alerts[0]}
+                  <p className="mt-1 line-clamp-3 text-[10px] leading-snug text-muted-foreground">
+                    {integrations.alerts.slice(0, 2).join(" | ")}
                   </p>
                 </div>
               ) : null}

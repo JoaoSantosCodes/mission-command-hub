@@ -316,6 +316,29 @@ paths:
                 properties:
                   ok: { type: boolean, example: true }
                   generatedAt: { type: string, format: date-time }
+                  summary:
+                    type: object
+                    properties:
+                      okCount: { type: integer }
+                      total: { type: integer }
+                      healthScore: { type: integer, minimum: 0, maximum: 100 }
+                  alerts:
+                    type: array
+                    description: Alertas operacionais derivados do estado atual.
+                    items: { type: string }
+                  history:
+                    type: array
+                    description: Últimos snapshots de saúde (persistidos no servidor quando validate=1).
+                    items:
+                      type: object
+                      properties:
+                        generatedAt: { type: string, format: date-time }
+                        healthScore: { type: integer, minimum: 0, maximum: 100 }
+                        okCount: { type: integer }
+                        total: { type: integer }
+                        alerts:
+                          type: array
+                          items: { type: string }
                   database:
                     type: object
                     properties:
