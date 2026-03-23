@@ -1,0 +1,6 @@
+Sprites in this folder are from the Pixel Agents project (MIT License).
+Copyright (c) 2026 Pablo De Lucca
+Source: https://github.com (pixel-agents) — see pixel-agents-main/LICENSE
+
+Included: floors, characters, and selected furniture PNGs from webview-ui/public/assets
+(DESK, COFFEE, BOOKSHELF, SOFA, COFFEE_TABLE, WHITEBOARD, PLANT, BIN, POT, CACTUS).
