@@ -47,7 +47,7 @@ Marca quando implementares; detalhes em **[CHECKLIST.md](./CHECKLIST.md)** (tabe
 
 ## 5. Integrações (Cursor / equipa)
 
-- [x] Painel **Integrações** valida env chaves no servidor via `GET /api/aiox/integrations-status?validate=1` (OpenAI/Notion/Figma) — funciona em qualquer IDE
+- [x] Painel **Integrações** (cards por serviço) valida env chaves no servidor via `GET /api/aiox/integrations-status?validate=1` (OpenAI/Notion/Figma) — funciona em qualquer IDE
 - [ ] MCP **Notion** e **Figma** configurados no Cursor com tokens (fora do Git) e “connect”/leitura validada
 
 ---
