@@ -14,7 +14,7 @@ Hub funcional que combina a **UI** inspirada no `ai-orchestration-hub-main` com 
 
 ### Vista Hub — três colunas (agentes, área de trabalho, feed)
 
-Barra superior com **mascote**, estado **API ligada** (`/api`), comando global **`@hub`**, alternador de vistas e tema. Sidebar com projecto, caminho do `aiox-core`, lista de agentes **`.md`** e botão **+ Novo**. A tab **Integrações** mostra cards por serviço com status **OK/Pendente**. Centro: cartão **Estado da ponte** (versão CLI, pasta de agentes, polling, feed). À direita: **Feed de atividade**.
+Barra superior com **mascote**, estado **API ligada** (`/api`), comando global **`@hub`**, alternador de vistas e tema. Sidebar com projecto, caminho do `aiox-core`, lista de agentes **`.md`** e botão **+ Novo**. A tab **Integrações** mostra cards por serviço com status **OK/Pendente**. Centro: cartão **Estado da ponte** (versão CLI, pasta de agentes, polling, feed). À direita: **Feed de atividade**. As abas partilham o mesmo feed e refletem eventos de equipa (ex.: mudanças no Task Canvas) quase em tempo real.
 
 | Tema escuro | Tema claro |
 |-------------|------------|
@@ -124,7 +124,7 @@ O servidor Express serve o `dist/` e a API nos mesmos endpoints `/api/*`.
 npm test
 ```
 
-Smoke da API (**34** testes Vitest + Supertest): `health`, 404/JSON inválido, métricas, tempo, `info` (incl. **`taskBoard`**), **`overview`**, `doubts` / `doubts/chat` / **`doubts/chat/stream`**, **`integrations-status`** (+ `validate=1`), **`task-board`** GET/PUT/409, `agents`, `exec`, validação de `command`, GET/PUT agente ( **`revision`** + conflito **409** ), `MISSION_AGENT_EDIT`, caminhos mascarados, persistência do feed.
+Smoke da API (**36** testes Vitest + Supertest): `health`, 404/JSON inválido, métricas, tempo, `info` (incl. **`taskBoard`**), **`overview`**, `doubts` / `doubts/chat` / **`doubts/chat/stream`**, **`integrations-status`** (+ `validate=1`), **`task-board`** GET/PUT/409, `agents`, `exec`, validação de `command`, **`activity/event`**, GET/PUT agente ( **`revision`** + conflito **409** ), `MISSION_AGENT_EDIT`, caminhos mascarados, persistência do feed.
 
 **CI:** o workflow [`.github/workflows/mission-agent-ci.yml`](./.github/workflows/mission-agent-ci.yml) corre `npm ci`, `npm test` e `npm run build` em cada push ou PR para `main` / `master` (quando o repositório Git tem a raiz em `MissionAgent/`).
 

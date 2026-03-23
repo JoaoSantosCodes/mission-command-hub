@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HubMascot } from "@/components/HubMascot";
 import { TeamStatusOverview } from "@/components/TeamStatusOverview";
 import { Bot, BookOpen, Database, FileText, FolderKanban, LayoutList, Layers, Plus, Sparkles, Terminal } from "lucide-react";
@@ -49,6 +49,10 @@ export function AgentsSidebar({
 }: AgentsSidebarProps) {
   const [sideTab, setSideTab] = useState<"team" | "list" | "integrations">("team");
   const [profileTick, setProfileTick] = useState(0);
+  const latestTeamActivity = useMemo(
+    () => logs.find((l) => l.kind === "command" || l.kind === "agent" || l.kind === "bridge") ?? logs[0] ?? null,
+    [logs]
+  );
 
   useEffect(() => {
     const onChanged = () => setProfileTick((v) => v + 1);
@@ -167,6 +171,15 @@ export function AgentsSidebar({
             Integrações
           </button>
         </div>
+        {latestTeamActivity ? (
+          <div className="mb-2 rounded-md border border-border/80 bg-background/60 px-2.5 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Última atividade</p>
+            <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-foreground/90">{latestTeamActivity.action}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              {latestTeamActivity.agent} · {latestTeamActivity.timestamp}
+            </p>
+          </div>
+        ) : null}
         {sideTab === "team" ? (
           <TeamStatusOverview
             agents={agents}

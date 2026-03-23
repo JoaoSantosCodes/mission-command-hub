@@ -802,6 +802,24 @@ export async function createBridgeApp(missionRoot, options = {}) {
     res.json({ logs: activity.getLogs() });
   });
 
+  /** Evento de atividade genérico (ex.: Task Canvas) para sincronizar feed e abas. */
+  app.post("/api/aiox/activity/event", commandLimiter, async (req, res) => {
+    const agent = String(req.body?.agent ?? "@mission-hub").trim().slice(0, 64) || "@mission-hub";
+    const action = String(req.body?.action ?? "").trim().slice(0, 240);
+    const type = String(req.body?.type ?? "output").trim().slice(0, 24) || "output";
+    const kind = String(req.body?.kind ?? "bridge").trim().slice(0, 24) || "bridge";
+    if (!action) {
+      return res.status(400).json({ ok: false, error: "action vazio" });
+    }
+    try {
+      await activity.pushLog(agent, action, type, kind);
+      return res.json({ ok: true });
+    } catch (e) {
+      logger.warn({ err: String(e?.message || e) }, "activity event pushLog failed");
+      return res.status(500).json({ ok: false, error: "falha ao registar atividade" });
+    }
+  });
+
   app.post("/api/aiox/exec", aioxExecLimiter, async (req, res) => {
     if (!isAioxExecConfigured()) {
       return res.status(503).json({

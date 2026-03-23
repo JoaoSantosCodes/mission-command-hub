@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getTaskBoard, putTaskBoard, TASK_BOARD_CONFLICT_ERROR } from "@/lib/api";
+import { getTaskBoard, postActivityEvent, putTaskBoard, TASK_BOARD_CONFLICT_ERROR } from "@/lib/api";
 import type { ColumnId, TaskItem, TaskPriority } from "./types";
 
 const STORAGE_KEY = "mission-agent-task-board-v1";
@@ -267,16 +267,70 @@ export function useTaskBoard() {
     setTasks([]);
   }, []);
 
+  const publishTeamActivity = useCallback((action: string) => {
+    window.dispatchEvent(
+      new CustomEvent("mission-team-activity", {
+        detail: { action, source: "task-canvas" },
+      })
+    );
+    void postActivityEvent({
+      agent: "@task-canvas",
+      action,
+      type: "output",
+      kind: "bridge",
+    }).catch(() => void 0);
+  }, []);
+
+  const addTaskWithActivity = useCallback(
+    (columnId: ColumnId, title: string) => {
+      addTask(columnId, title);
+      const t = title.trim();
+      if (t) publishTeamActivity(`Criou tarefa em ${columnId}: ${t.slice(0, 80)}`);
+    },
+    [addTask, publishTeamActivity]
+  );
+
+  const moveTaskWithActivity = useCallback(
+    (id: string, toColumn: ColumnId, toIndex?: number) => {
+      const from = tasksRef.current.find((t) => t.id === id)?.columnId;
+      moveTask(id, toColumn, toIndex);
+      if (from && from !== toColumn) {
+        publishTeamActivity(`Moveu tarefa ${id} de ${from} para ${toColumn}`);
+      }
+    },
+    [moveTask, publishTeamActivity]
+  );
+
+  const removeTaskWithActivity = useCallback(
+    (id: string) => {
+      removeTask(id);
+      publishTeamActivity(`Removeu tarefa ${id}`);
+    },
+    [removeTask, publishTeamActivity]
+  );
+
+  const clearDoneWithActivity = useCallback(() => {
+    const doneCount = tasksRef.current.filter((t) => t.columnId === "done").length;
+    clearDone();
+    if (doneCount > 0) publishTeamActivity(`Limpeza de concluídas: ${doneCount} tarefa(s)`);
+  }, [clearDone, publishTeamActivity]);
+
+  const clearAllWithActivity = useCallback(() => {
+    const count = tasksRef.current.length;
+    clearAll();
+    if (count > 0) publishTeamActivity(`Limpeza total do quadro: ${count} tarefa(s) removida(s)`);
+  }, [clearAll, publishTeamActivity]);
+
   return {
     tasks,
     tasksByColumn,
-    addTask,
+    addTask: addTaskWithActivity,
     updateTask,
-    removeTask,
-    moveTask,
-    clearDone,
+    removeTask: removeTaskWithActivity,
+    moveTask: moveTaskWithActivity,
+    clearDone: clearDoneWithActivity,
     replaceTasks,
-    clearAll,
+    clearAll: clearAllWithActivity,
     /** `true` quando `VITE_TASK_BOARD_SYNC` está activo e a carga inicial do servidor terminou. */
     taskBoardSync: TASK_BOARD_SYNC,
     taskBoardSyncHydrated: syncHydrated,

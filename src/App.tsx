@@ -212,6 +212,15 @@ export default function App() {
   }, [docVisible, refresh]);
 
   useEffect(() => {
+    const onTeamActivity = () => {
+      // Força sincronização imediata entre abas após eventos de tarefas/atividade.
+      void refresh({ silent: true });
+    };
+    window.addEventListener("mission-team-activity", onTeamActivity as EventListener);
+    return () => window.removeEventListener("mission-team-activity", onTeamActivity as EventListener);
+  }, [refresh]);
+
+  useEffect(() => {
     const onTaskTokenSpent = (evt: Event) => {
       const d = (evt as CustomEvent<{ amount?: number; to?: string }>).detail;
       const amount = Number(d?.amount ?? 0);

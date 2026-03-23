@@ -703,6 +703,47 @@ paths:
                     type: array
                     items:
                       type: object
+  /api/aiox/activity/event:
+    post:
+      summary: "Regista evento de atividade (ex.: Task Canvas) no feed"
+      description: |
+        Permite que módulos da UI publiquem eventos de equipa no feed central.
+        Usado para refletir ações entre abas sem esperar só pelo polling.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                agent:
+                  type: string
+                  description: "Identificador do emissor (ex.: @task-canvas)"
+                action:
+                  type: string
+                  description: "Texto curto do evento"
+                type:
+                  type: string
+                  description: "Tipo visual da entrada (default output)"
+                kind:
+                  type: string
+                  description: "Kind semântico (default bridge)"
+      responses:
+        "200":
+          description: Evento registado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+        "400":
+          description: action vazio
+        "429":
+          description: Rate limit
+        "500":
+          description: Falha ao gravar no feed
   /api/aiox/exec:
     post:
       summary: Executa aiox doctor ou aiox info (opt-in; confirmação obrigatória)

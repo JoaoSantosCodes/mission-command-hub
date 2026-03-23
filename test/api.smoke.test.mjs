@@ -263,6 +263,25 @@ describe("API smoke", () => {
     expect(String(res.body.error)).toContain("longo");
   });
 
+  it("POST /api/aiox/activity/event rejeita action vazia", async () => {
+    const res = await request(app).post("/api/aiox/activity/event").send({ action: "   " }).expect(400);
+    expect(res.body.ok).toBe(false);
+    expect(typeof res.body.error).toBe("string");
+  });
+
+  it("POST /api/aiox/activity/event registra no feed", async () => {
+    const action = `smoke-activity-${Date.now()}`;
+    const post = await request(app)
+      .post("/api/aiox/activity/event")
+      .send({ agent: "@task-canvas", action, type: "output", kind: "bridge" })
+      .expect(200);
+    expect(post.body.ok).toBe(true);
+
+    const get = await request(app).get("/api/aiox/activity").expect(200);
+    expect(Array.isArray(get.body.logs)).toBe(true);
+    expect(get.body.logs.some((l) => l.action === action)).toBe(true);
+  });
+
   it("GET /api/aiox/agents/:id — 404 para agente inexistente", async () => {
     const res = await request(app).get("/api/aiox/agents/nonexistent_agent_xyz_123");
     expect(res.status).toBe(404);

@@ -462,6 +462,41 @@ export async function getIntegrationsStatus(opts?: { validate?: boolean }): Prom
   return fetchJson<IntegrationsStatus>(`/api/aiox/integrations-status${validate}`);
 }
 
+export async function postActivityEvent(payload: {
+  agent?: string;
+  action: string;
+  type?: string;
+  kind?: string;
+}): Promise<{ ok: boolean }> {
+  let r: Response;
+  try {
+    r = await fetch("/api/aiox/activity/event", {
+      ...API_FETCH_INIT,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    throw new Error(
+      e instanceof TypeError
+        ? "Sem ligação à API. Confirma que o servidor está a correr (ex.: npm run dev)."
+        : String(e)
+    );
+  }
+  const text = await r.text();
+  if (!r.ok) {
+    let err = text || "falha ao registar atividade";
+    try {
+      const j = text ? (JSON.parse(text) as { error?: string }) : {};
+      if (j.error) err = j.error;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(err);
+  }
+  return parseJsonOkBody<{ ok: boolean }>(text);
+}
+
 export async function putAgentMarkdown(
   id: string,
   content: string,
