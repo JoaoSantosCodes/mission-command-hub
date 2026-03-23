@@ -10,6 +10,16 @@ Hub funcional que combina a **UI** inspirada no `ai-orchestration-hub-main` com 
 
 ---
 
+## Estado atual (resumo)
+
+- **Integrações em cards:** tab dedicada na sidebar com serviços por cartão e estados **OK/Pendente**.
+- **Validação real no servidor:** `GET /api/aiox/integrations-status?validate=1` faz checks HTTP leves para OpenAI, Notion e Figma.
+- **Saúde das integrações:** score global (%) + `ok/total` + hora da última validação.
+- **Sincronização entre abas:** ações no Task Canvas publicam eventos em `POST /api/aiox/activity/event` e atualizam feed/estado sem esperar só pelo polling.
+- **Aquário visual:** permanece na vista **Central de agentes** (Command Center), com persistência em ficheiro.
+
+---
+
 ## Tour pela interface
 
 ### Vista Hub — três colunas (agentes, área de trabalho, feed)
@@ -77,9 +87,13 @@ npm run dev
 | `MISSION_EMBED_API` | `0` desactiva a API embebida no Vite (`dev` / `preview`); usa proxy para `8787` |
 | `MISSION_ACTIVITY_PATH` | Ficheiro JSON do feed (por defeito: `MissionAgent/.mission-agent/activity.json`) |
 | `MISSION_TASK_BOARD_PATH` | Ficheiro JSON do quadro Kanban (por defeito: `MissionAgent/.mission-agent/task-board.json`; rotas `GET`/`PUT /api/aiox/task-board`) |
+| `MISSION_FISH_PATH` | Ficheiro JSON do aquário (por defeito: `MissionAgent/.mission-agent/fish-state.json`) |
 | `TASK_BOARD_PUT_RATE_MAX` | Máximo de `PUT /api/aiox/task-board` por IP por minuto (por defeito `45`) |
 | `DATABASE_URL` | (Opcional) URI PostgreSQL; activa persistência do feed na tabela `mission_activity_log` |
 | `PG_POOL_MAX` | (Opcional) Máximo de ligações no pool `pg` (por defeito: `10`) |
+| `NOTION_TOKEN` | (Opcional) Token para validar integração Notion no endpoint `integrations-status` |
+| `FIGMA_ACCESS_TOKEN` | (Opcional) Token para validar integração Figma no endpoint `integrations-status` |
+| `MISSION_INTEGRATIONS_TIMEOUT_MS` | (Opcional) Timeout por validação externa (OpenAI/Notion/Figma) em `integrations-status` |
 | `WEATHER_LOCATION` | Cidade para `GET /api/aiox/weather` (widget na **Central**; wttr.in) |
 | `MISSION_AGENT_EDIT` | `0` desactiva **criar / editar / eliminar** ficheiros de agente (`POST`/`PUT`/`DELETE` `/api/aiox/agents…` e botões na UI); omitir = permitir |
 | `AGENT_EDIT_RATE_MAX` | Máximo de `PUT` por agente por IP/min (por defeito `30`) |
