@@ -7,7 +7,10 @@ type TaskColumnProps = {
   def: ColumnDef;
   tasks: TaskItem[];
   onAdd: (columnId: ColumnId, title: string) => void;
-  onUpdate: (id: string, patch: Partial<Pick<TaskItem, "title" | "note">>) => void;
+  onUpdate: (
+    id: string,
+    patch: Partial<Pick<TaskItem, "title" | "note" | "priority" | "blocked">>
+  ) => void;
   onRemove: (id: string) => void;
   onMove: (id: string, to: ColumnId) => void;
 };

@@ -26,3 +26,6 @@ export type BoardPreset = {
   description: string;
   columns: ColumnDef[];
 };
+
+/** Vista do quadro: ordem manual (drag), data ou prioridade. */
+export type CanvasSortMode = "manual" | "createdDesc" | "priorityAsc";

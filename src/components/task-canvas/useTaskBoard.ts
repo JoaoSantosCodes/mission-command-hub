@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ColumnId, TaskItem, TaskPriority } from "./types";
 
 const STORAGE_KEY = "mission-agent-task-board-v1";
+/** Evita escritas em disco a cada tecla; flush em `beforeunload`. */
+const PERSIST_DEBOUNCE_MS = 450;
 
 type Persisted = {
   tasks: TaskItem[];
@@ -80,10 +82,19 @@ function newId() {
 
 export function useTaskBoard() {
   const [tasks, setTasks] = useState<TaskItem[]>(load);
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
 
   useEffect(() => {
-    save(tasks);
+    const id = window.setTimeout(() => save(tasks), PERSIST_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
   }, [tasks]);
+
+  useEffect(() => {
+    const flush = () => save(tasksRef.current);
+    window.addEventListener("beforeunload", flush);
+    return () => window.removeEventListener("beforeunload", flush);
+  }, []);
 
   const addTask = useCallback((columnId: ColumnId, title: string) => {
     const t = title.trim();

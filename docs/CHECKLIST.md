@@ -1,6 +1,6 @@
 # Architecture Agents Hub — melhorias e pendências
 
-Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-23 — `overview` API, feed `kind`, revisão/409 em agentes, activity atómico, Kanban priority/blocked, UI Hub + checklist/OpenAPI/README alinhados; **`npm test` 25/25**, `npm run build` OK. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
+Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-23 — Canvas: **filtro** (título/nota), **ordenar** (manual / data / prioridade, preferência em `localStorage`), **persistência do quadro com debounce** + flush em `beforeunload`; resto alinhado com revisão anterior; **`npm test` 25/25**, `npm run build` OK. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
 
 ---
 
@@ -37,7 +37,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 - [x] **Modal de agente** (`AgentDetailModal`): contexto "Architecture Agents Hub" + título **Definição do agente** + id do `.md` em mono; erros sem prefixo `Error:` (`formatUserFacingError`); barra de erro global idem
 - [x] **Cliente / API**: se a resposta não for JSON (ex.: HTML `Cannot GET`), mensagem orientativa; **sem** prefixo "Pedido inválido" nesse caso; `vite.config.ts` com `preview.proxy` / `server.proxy` como fallback quando `MISSION_EMBED_API=0`
 - [x] **`npm run dev` / `preview`**: plugin Vite (`mission-api-plugin.mjs`) **embebe** `createBridgeApp` em `/api` (sem precisar de :8787); `MISSION_EMBED_API=0` volta ao proxy → 8787; **`dev:split`** mantém `concurrently`; **header** com indicador API ligada/offline; **modal de agente** com aviso, retry e UI melhorada
-- [x] **Canvas de tarefas modular** (`task-canvas/`): terceira vista no header (ícone Kanban); colunas fixas `todo`→`doing`→`review`→`done`; **presets** (Fluxo geral / Agentes / Entrega); drag-and-drop + setas; persistência `localStorage` (`mission-agent-task-board-v1`); **import/export JSON** + **limpar tudo** na barra
+- [x] **Canvas de tarefas modular** (`task-canvas/`): terceira vista no header (ícone Kanban); colunas fixas `todo`→`doing`→`review`→`done`; **presets** (Fluxo geral / Agentes / Entrega); drag-and-drop + setas; persistência `localStorage` (`mission-agent-task-board-v1`) com **debounce** (~450 ms) e gravação em **`beforeunload`**; **filtro** por texto (título/nota); **ordenar** por coluna (manual / mais recentes / prioridade), preferência `mission-agent-task-canvas-sort`; **import/export JSON** + **limpar tudo** na barra
 - [x] **Refinamentos API**: `rate-limit-json` (429 em JSON + `retryAfterSec`); **404** JSON para `/api` desconhecido; **erros de parse JSON** / payload; `GET /agents` 500 só `{ ok, error }`; `readAgentFiles` com try/catch; cliente (`api.ts`) mensagens para **429**; smoke + OpenAPI (`components/schemas`, nota **Kanban só UI** em `info.description`)
 - [x] **Ambiente local**: [`.env.ready`](../.env.ready) versionado; `npm run env:init` + `postinstall`; **`dotenv`** + [`server/load-env.mjs`](../server/load-env.mjs) (Express e Vite embebido); `.env` e `.env.local` no `.gitignore`
 - [x] **`GET /api/aiox/overview`**: ponte + lista de agentes + logs + `activity.kindCounts` + `doubts.llmEnabled` num só pedido — o **polling** da app usa esta rota em vez de `info` + `agents` + `activity` em paralelo
@@ -94,7 +94,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 | ~~Baixa~~ | ~~**Importar histórico JSON** + copiar mensagem~~ | **Feito:** `Importar` (array ou `{ messages }`), botão copiar por bolha, `maxLength` na nota |
 | ~~Baixa~~ | ~~**Canvas de tarefas: export/import JSON**~~ | **Feito:** botões Importar / Exportar / Limpar tudo em `TaskCanvasView`; formato `{ version, exportedAt, tasks }` ou array |
 | Baixa | **Canvas de tarefas: ordem dentro da coluna** | Arrastar cartão para posição (hoje o drop coloca no fim; `moveTask` já aceita índice) |
-| Baixa | **Canvas de tarefas: pesquisa / filtro** | Filtrar por título ou nota sem alterar `localStorage` até limpar filtro |
+| ~~Baixa~~ | ~~**Canvas de tarefas: pesquisa / filtro**~~ | **Feito:** campo *Filtrar* (título/nota); ordenação opcional; dados em `localStorage` só pelo estado do quadro (não pelo filtro) |
 | Média | **Canvas de tarefas: persistência no servidor** | API + sync multi-dispositivo; ver Pendências «Canvas de tarefas» |
 
 ---

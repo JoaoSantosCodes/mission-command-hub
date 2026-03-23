@@ -34,7 +34,7 @@ Ao escolher um agente na lista, abre-se o modal com o conteúdo **`.md`**, camin
 
 ### Canvas de tarefas (Kanban modular)
 
-Vista **Kanban** no header: colunas **Backlog → Em curso → Revisão → Feito**, presets (ex.: Fluxo geral), **importar / exportar JSON**, persistência em `localStorage`.
+Vista **Kanban** no header: colunas **Backlog → Em curso → Revisão → Feito**, presets (ex.: Fluxo geral), **filtrar** por texto (título ou nota), **ordenar** cada coluna (ordem do quadro, data ou prioridade — a preferência de ordenação fica em `localStorage`), **importar / exportar JSON**, persistência do quadro em `localStorage` com escrita **debounced** e gravação ao fechar o separador.
 
 ![Canvas modular — quatro colunas, módulo Fluxo geral](./docs/readme/canvas-tarefas-kanban.png)
 
@@ -91,7 +91,7 @@ npm run dev
 | `MISSION_DOUBTS_LLM` | `1` para activar a rota de chat (ainda exige chave ≥8 caracteres). Pré-definido em `.env.ready` |
 | `MISSION_LLM_BASE_URL` / `MISSION_LLM_MODEL` | Endpoint OpenAI-compatible e modelo (pré-definidos em `.env.ready`) |
 
-**Vistas no header:** **Hub** (três colunas), **Central** (ícone monitor — layout tipo [OpenClaw Command Center](../openclaw-command-center-main/README.md): canvas + terminal + agentes), **Canvas de tarefas** (ícone Kanban — quadro local com presets, `localStorage`, import/export JSON, sem backend). **Dúvidas** (ícone mensagem) abre painel com FAQ + chat de notas de sessão; **GET `/api/aiox/doubts`** e opcionalmente **POST `/api/aiox/doubts/chat`** com `MISSION_DOUBTS_LLM=1` + chave (ver `.env.example`); atalho **Ctrl+/** (**Cmd+/** no Mac); import/export JSON, Markdown, copiar e limpar (ver `CHECKLIST.md` → Melhorias).
+**Vistas no header:** **Hub** (três colunas), **Central** (ícone monitor — layout tipo [OpenClaw Command Center](../openclaw-command-center-main/README.md): canvas + terminal + agentes), **Canvas de tarefas** (ícone Kanban — quadro local: presets, filtro, ordenação, `mission-agent-task-board-v1` + `mission-agent-task-canvas-sort` + preset em `mission-agent-task-preset`, import/export JSON, sem backend). **Dúvidas** (ícone mensagem) abre painel com FAQ + chat de notas de sessão; **GET `/api/aiox/doubts`** e opcionalmente **POST `/api/aiox/doubts/chat`** com `MISSION_DOUBTS_LLM=1` + chave (ver `.env.example`); atalho **Ctrl+/** (**Cmd+/** no Mac); import/export JSON, Markdown, copiar e limpar (ver `CHECKLIST.md` → Melhorias).
 
 **Tema:** o botão sol/lua no header alterna claro/escuro; a preferência fica em `localStorage` (`mission-agent-theme`). Em ecrãs estreitos, usa os ícones no header ou os botões no rodapé do resumo para abrir **agentes** e **atividade** em gavetas.
 
