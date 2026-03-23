@@ -16,7 +16,7 @@ Lista curta para **arranque**, **PR**, **release** e **processo de equipa**. O i
 
 ## 2. Antes de commit / PR
 
-- [ ] `npm test` — **23** testes smoke a passar
+- [ ] `npm test` — **25** testes smoke a passar
 - [ ] `npm run build` — sem erros TypeScript / Vite
 - [ ] Sem segredos no commit (`.env` está no `.gitignore`; não commitar chaves)
 - [ ] Se alteraste API: `docs/openapi.yaml` actualizado

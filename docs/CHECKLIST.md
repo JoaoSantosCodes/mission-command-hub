@@ -1,6 +1,6 @@
 # Architecture Agents Hub — melhorias e pendências
 
-Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-23 — Validação monorepo (`npm test` / `npm run build`); índice na raiz em **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; ver **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
+Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-23 — `overview` API, feed `kind`, revisão/409 em agentes, activity atómico, Kanban priority/blocked, UI Hub + checklist/OpenAPI/README alinhados; **`npm test` 25/25**, `npm run build` OK. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
 
 ---
 
@@ -40,6 +40,11 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 - [x] **Canvas de tarefas modular** (`task-canvas/`): terceira vista no header (ícone Kanban); colunas fixas `todo`→`doing`→`review`→`done`; **presets** (Fluxo geral / Agentes / Entrega); drag-and-drop + setas; persistência `localStorage` (`mission-agent-task-board-v1`); **import/export JSON** + **limpar tudo** na barra
 - [x] **Refinamentos API**: `rate-limit-json` (429 em JSON + `retryAfterSec`); **404** JSON para `/api` desconhecido; **erros de parse JSON** / payload; `GET /agents` 500 só `{ ok, error }`; `readAgentFiles` com try/catch; cliente (`api.ts`) mensagens para **429**; smoke + OpenAPI (`components/schemas`, nota **Kanban só UI** em `info.description`)
 - [x] **Ambiente local**: [`.env.ready`](../.env.ready) versionado; `npm run env:init` + `postinstall`; **`dotenv`** + [`server/load-env.mjs`](../server/load-env.mjs) (Express e Vite embebido); `.env` e `.env.local` no `.gitignore`
+- [x] **`GET /api/aiox/overview`**: ponte + lista de agentes + logs + `activity.kindCounts` + `doubts.llmEnabled` num só pedido — o **polling** da app usa esta rota em vez de `info` + `agents` + `activity` em paralelo
+- [x] **Feed**: campo opcional **`kind`** (`command` | `bridge` | `agent` | `cli`); coluna PostgreSQL `kind`; persistência JSON com escrita **atómica** (ficheiro temp + rename); ícones no painel de atividade
+- [x] **Agentes**: resposta GET com **`revision`** (`mtime:size`); PUT com **`If-Match`** / `revision` → **409** `conflict` se o `.md` mudou no disco
+- [x] **Canvas de tarefas**: campos opcionais **`priority`** e **`blocked`** (import/export e UI com etiqueta e toggle *Bloqueio*)
+- [x] **UI vista Hub**: cartão *Estado da ponte* (grelha de métricas, badge ponte OK/atenção, botão sincronizar); sidebar de agentes com ícone/cor; feed vazio com instruções; mascote no header/sidebar/modal (ficheiro em `public/`)
 
 ---
 
@@ -47,7 +52,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 ### Alta
 
-- [x] **Testes automatizados**: Vitest + Supertest — **23** casos em `test/api.smoke.test.mjs`: `health`, 404 rota API, POST JSON inválido, métricas, tempo, `info`, **`doubts`**, **`doubts/chat`** (503 / 400), agentes, `exec` 503/403, validação `command`, GET agente 404, **POST** criar agente + **409** duplicado, **DELETE** agente, **PUT** `.md` + 403 com `MISSION_AGENT_EDIT=0`, caminhos mascarados, persistência do feed (`npm test`)
+- [x] **Testes automatizados**: Vitest + Supertest — **25** casos em `test/api.smoke.test.mjs`: `health`, 404 rota API, POST JSON inválido, métricas, tempo, `info`, **`overview`**, **`doubts`**, **`doubts/chat`** (503 / 400), agentes, `exec` 503/403, validação `command`, GET agente 404, **POST** criar agente + **409** duplicado, **DELETE** agente, **PUT** `.md` + **revision** / **409** conflito + 403 com `MISSION_AGENT_EDIT=0`, caminhos mascarados, persistência do feed (`npm test`)
 - [x] **Validação de entrada**: limite no servidor + `maxLength` no input e mensagens de erro alinhadas
 - [x] **Tratamento de erro HTTP** no cliente: rede (`TypeError`) vs 4xx/5xx com prefixos legíveis
 - [x] **Persistência do feed**: JSON em `MissionAgent/.mission-agent/activity.json` ou `MISSION_ACTIVITY_PATH`

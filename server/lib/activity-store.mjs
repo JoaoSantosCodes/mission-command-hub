@@ -1,12 +1,14 @@
 /**
  * Feed de atividade persistido em JSON (sobrevive a restarts do processo).
  */
+import crypto from "node:crypto";
 import fs from "fs";
 import path from "path";
 import { logger } from "./logger.mjs";
 
 export const ACTIVITY_MAX_ENTRIES = 200;
 
+/** @param {unknown} x */
 function isEntry(x) {
   return (
     x &&
@@ -14,7 +16,8 @@ function isEntry(x) {
     typeof x.timestamp === "string" &&
     typeof x.agent === "string" &&
     typeof x.action === "string" &&
-    typeof x.type === "string"
+    typeof x.type === "string" &&
+    (x.kind === undefined || typeof x.kind === "string")
   );
 }
 
@@ -34,7 +37,10 @@ function saveActivityLog(filePath, logs) {
   const dir = path.dirname(filePath);
   fs.mkdirSync(dir, { recursive: true });
   const trimmed = logs.slice(0, ACTIVITY_MAX_ENTRIES);
-  fs.writeFileSync(filePath, JSON.stringify({ version: 1, logs: trimmed }, null, 0), "utf8");
+  const payload = JSON.stringify({ version: 1, logs: trimmed }, null, 0);
+  const tmp = path.join(dir, `.activity-${crypto.randomBytes(8).toString("hex")}.tmp`);
+  fs.writeFileSync(tmp, payload, "utf8");
+  fs.renameSync(tmp, filePath);
 }
 
 /**
@@ -51,7 +57,13 @@ export function createActivityStore(filePath) {
     }
   }
 
-  async function pushLog(agent, action, type = "output") {
+  /**
+   * @param {string} agent
+   * @param {string} action
+   * @param {string} [type]
+   * @param {string} [kind] command | bridge | agent | cli (semântica; `type` mantém compat.)
+   */
+  async function pushLog(agent, action, type = "output", kind) {
     const now = new Date();
     const timestamp = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
     const entry = {
@@ -60,6 +72,7 @@ export function createActivityStore(filePath) {
       agent,
       action,
       type,
+      ...(kind ? { kind } : {}),
     };
     logs.unshift(entry);
     if (logs.length > ACTIVITY_MAX_ENTRIES) logs.length = ACTIVITY_MAX_ENTRIES;

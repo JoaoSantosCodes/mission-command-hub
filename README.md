@@ -121,7 +121,7 @@ O servidor Express serve o `dist/` e a API nos mesmos endpoints `/api/*`.
 npm test
 ```
 
-Smoke da API (**23** testes Vitest + Supertest): `health`, 404/JSON inválido, métricas, tempo, `info`, `doubts` / `doubts/chat`, `agents`, `exec`, validação de `command`, GET/PUT agente, `MISSION_AGENT_EDIT`, caminhos mascarados, persistência do feed.
+Smoke da API (**25** testes Vitest + Supertest): `health`, 404/JSON inválido, métricas, tempo, `info`, **`overview`**, `doubts` / `doubts/chat`, `agents`, `exec`, validação de `command`, GET/PUT agente ( **`revision`** + conflito **409** ), `MISSION_AGENT_EDIT`, caminhos mascarados, persistência do feed.
 
 **CI:** o workflow [`.github/workflows/mission-agent-ci.yml`](./.github/workflows/mission-agent-ci.yml) corre `npm ci`, `npm test` e `npm run build` em cada push ou PR para `main` / `master` (quando o repositório Git tem a raiz em `MissionAgent/`).
 

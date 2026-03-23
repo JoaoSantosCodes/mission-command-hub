@@ -2,6 +2,7 @@ import type { AioxExecResponse } from "@/types/hub";
 
 function scopeForHttpStatus(status: number): string {
   if (status === 429) return "Demasiados pedidos";
+  if (status === 409) return "Conflito";
   if (status >= 500) return "Erro no servidor";
   if (status >= 400) return "Pedido inválido";
   return "Erro HTTP";
@@ -215,16 +216,21 @@ export async function postDoubtsChat(
 
 export async function putAgentMarkdown(
   id: string,
-  content: string
+  content: string,
+  revision?: string | null
 ): Promise<{ ok: boolean; id: string; bytes: number }> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (revision) {
+    headers["If-Match"] = revision;
+  }
   const r = await fetch(`/api/aiox/agents/${encodeURIComponent(id)}`, {
     ...API_FETCH_INIT,
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content }),
+    headers,
+    body: JSON.stringify({ content, ...(revision ? { revision } : {}) }),
   });
   const text = await r.text();
-  let data: { ok?: boolean; id?: string; bytes?: number; error?: string } = {};
+  let data: { ok?: boolean; id?: string; bytes?: number; error?: string; conflict?: boolean } = {};
   try {
     if (text) data = JSON.parse(text) as typeof data;
   } catch {
@@ -233,9 +239,12 @@ export async function putAgentMarkdown(
   if (!r.ok) {
     if (data.error) {
       let msg = data.error;
-      const j = data as { retryAfterSec?: number };
+      const j = data as { retryAfterSec?: number; conflict?: boolean };
       if (r.status === 429 && typeof j.retryAfterSec === "number") {
         msg += ` (repetir daqui a ~${j.retryAfterSec}s)`;
+      }
+      if (r.status === 409 && j.conflict) {
+        msg += " Recarrega o agente para ver a versão no disco.";
       }
       throw new Error(`${scopeForHttpStatus(r.status)}: ${msg}`);
     }

@@ -140,7 +140,7 @@ export function AgentDetailModal({
     setSaving(true);
     setSaveErr(null);
     try {
-      await putAgentMarkdown(agentId, draft);
+      await putAgentMarkdown(agentId, draft, data.revision);
       const j = await fetchJson<AgentDetailResponse>(`/api/aiox/agents/${encodeURIComponent(agentId)}`);
       setData(j);
       setDraft(j.content);
@@ -192,8 +192,8 @@ export function AgentDetailModal({
         aria-label="Fechar"
         onClick={onClose}
       />
-      <div className="relative z-10 flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-primary/[0.06] ring-1 ring-primary/10">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-gradient-to-r from-card via-card to-secondary/20 px-4 py-3.5">
+      <div className="relative z-10 flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-primary/[0.08] ring-1 ring-primary/15">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-gradient-to-br from-primary/[0.1] via-card to-secondary/25 px-4 py-4 sm:px-5">
           <div className="flex min-w-0 flex-1 items-start gap-3">
             <HubMascot size="sm" className="mt-0.5 hidden sm:inline-flex" />
             <div className="min-w-0 flex-1">
@@ -360,7 +360,7 @@ export function AgentDetailModal({
                   aria-label="Conteúdo Markdown do agente"
                 />
               ) : (
-                <pre className="whitespace-pre-wrap break-words rounded-lg border border-border/60 bg-background/50 p-3 font-mono text-[11px] leading-relaxed text-foreground">
+                <pre className="whitespace-pre-wrap break-words rounded-xl border border-border/70 bg-muted/20 p-4 font-mono text-[11px] leading-relaxed text-foreground shadow-inner dark:bg-background/40">
                   {data.content}
                 </pre>
               )}

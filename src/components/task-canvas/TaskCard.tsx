@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, GripVertical, Trash2 } from "lucide-react";
+import { Ban, ChevronLeft, ChevronRight, GripVertical, Trash2 } from "lucide-react";
 import type { ColumnId, TaskItem } from "./types";
 
 const COL_ORDER: ColumnId[] = ["todo", "doing", "review", "done"];
 
 type TaskCardProps = {
   task: TaskItem;
-  onUpdate: (id: string, patch: Partial<Pick<TaskItem, "title" | "note">>) => void;
+  onUpdate: (id: string, patch: Partial<Pick<TaskItem, "title" | "note" | "priority" | "blocked">>) => void;
   onRemove: (id: string) => void;
   onMove: (id: string, to: ColumnId) => void;
 };
@@ -92,13 +92,26 @@ export function TaskCard({ task, onUpdate, onRemove, onMove }: TaskCardProps) {
             </>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="w-full text-left text-sm font-medium leading-snug text-foreground hover:text-primary"
-              >
-                {task.title}
-              </button>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="min-w-0 flex-1 text-left text-sm font-medium leading-snug text-foreground hover:text-primary"
+                >
+                  {task.title}
+                </button>
+                {task.blocked ? (
+                  <span className="inline-flex shrink-0 items-center gap-0.5 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                    <Ban className="h-2.5 w-2.5" aria-hidden />
+                    Bloqueada
+                  </span>
+                ) : null}
+                {task.priority ? (
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[9px] font-medium uppercase text-muted-foreground">
+                    {task.priority}
+                  </span>
+                ) : null}
+              </div>
               {task.note ? (
                 <p className="whitespace-pre-wrap text-[11px] leading-relaxed text-muted-foreground">{task.note}</p>
               ) : null}
@@ -107,7 +120,19 @@ export function TaskCard({ task, onUpdate, onRemove, onMove }: TaskCardProps) {
         </div>
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2">
-        <div className="flex gap-0.5">
+        <div className="flex flex-wrap items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => onUpdate(task.id, { blocked: !task.blocked })}
+            className={`rounded px-1.5 py-1 text-[10px] font-medium ${
+              task.blocked
+                ? "bg-amber-500/15 text-amber-800 dark:text-amber-300"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+            title={task.blocked ? "Desmarcar bloqueio" : "Marcar como bloqueada"}
+          >
+            Bloqueio
+          </button>
           <button
             type="button"
             disabled={!canLeft}

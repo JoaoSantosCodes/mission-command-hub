@@ -1,3 +1,18 @@
+import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  BookOpen,
+  CheckCircle2,
+  Clock,
+  Database,
+  FolderOpen,
+  Layers,
+  RefreshCw,
+  Sparkles,
+  Terminal,
+  Timer,
+} from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { AioxInfo } from "@/types/hub";
 import { POLL_INTERVAL_MS } from "@/constants";
@@ -10,16 +25,52 @@ type MainWorkspaceProps = {
   onRefresh: () => void;
 };
 
+function StatTile({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: LucideIcon;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex gap-3 rounded-xl border border-border/80 bg-background/50 p-3 shadow-sm shadow-black/[0.03] dark:shadow-black/20">
+      <div
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 ring-1 ring-primary/20"
+        aria-hidden
+      >
+        <Icon className="h-[18px] w-[18px] text-primary" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+        <div className="mt-1 text-sm leading-snug text-foreground">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export function MainWorkspace({ info, agentsCount, timeLabel, onRefresh }: MainWorkspaceProps) {
   const docsUrl = import.meta.env.VITE_AIOX_DOCS_URL?.trim();
+  const agentsErr = info?.agentsError?.trim();
+  const bridgeHealthy = Boolean(info?.aioxExists !== false && !agentsErr);
+  const versionLine = info?.version ?? info?.versionError ?? "—";
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <div className="shrink-0 border-b border-border px-4 pb-0 pt-3">
-        <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Área de trabalho</h2>
-        <p className="pb-3 text-[11px] text-muted-foreground">
-          A CLI no repositório aiox-core é a fonte de verdade — este hub lista agentes no disco e regista comandos.
-        </p>
+      <div className="shrink-0 border-b border-border bg-card/30 px-4 pb-3 pt-3">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 ring-1 ring-primary/25">
+            <Layers className="h-4 w-4 text-primary" aria-hidden />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Área de trabalho</h2>
+            <p className="mt-1 max-w-prose text-[12px] leading-relaxed text-muted-foreground">
+              A CLI no repositório <span className="font-mono text-foreground/90">aiox-core</span> é a fonte de verdade —
+              este hub lista agentes no disco e regista comandos no feed.
+            </p>
+          </div>
+        </div>
       </div>
       <main
         id="conteudo-principal"
@@ -32,66 +83,115 @@ export function MainWorkspace({ info, agentsCount, timeLabel, onRefresh }: MainW
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="h-full overflow-y-auto scrollbar-thin p-4"
+            className="h-full overflow-y-auto scrollbar-thin p-4 sm:p-5"
           >
-            <div className="mx-auto max-w-3xl space-y-4 rounded-lg border border-border bg-card/40 p-4">
-              <h3 className="text-sm font-medium text-foreground">Estado da ponte</h3>
-              <ul className="space-y-2 text-xs text-muted-foreground">
-                <li>
-                  <span className="text-foreground">Versão CLI:</span>{" "}
-                  <span className="font-mono text-[11px]">{info?.version ?? info?.versionError ?? "—"}</span>
-                </li>
-                <li>
-                  <span className="text-foreground">Agentes (.md):</span> {agentsCount}
-                </li>
-                <li>
-                  <span className="text-foreground">Pasta:</span>{" "}
-                  <span className="break-all font-mono text-[10px]">{info?.agentsDir ?? "—"}</span>
-                </li>
-                <li>
-                  <span className="text-foreground">Erro agentes:</span> {info?.agentsError ?? "—"}
-                </li>
-                <li>
-                  <span className="text-foreground">Última sincronização:</span> {timeLabel}
-                </li>
-                <li>
-                  <span className="text-foreground">Polling (separador visível):</span>{" "}
-                  <span className="font-mono text-[10px]">{Math.round(POLL_INTERVAL_MS / 1000)}s</span>
-                </li>
-                <li>
-                  <span className="text-foreground">Feed de atividade:</span>{" "}
-                  <span className="font-mono text-[10px]">
-                    {info?.activityBackend === "postgres"
-                      ? "PostgreSQL"
-                      : info?.activityBackend === "file"
-                        ? "Ficheiro JSON"
-                        : "—"}
-                  </span>
-                </li>
-              </ul>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                No repositório <code className="rounded bg-muted px-1 font-mono text-[10px]">aiox-core</code>:{" "}
-                <code className="rounded bg-muted px-1 font-mono text-[10px]">npx aiox-core doctor</code>
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Documentação externa:{" "}
-                {docsUrl ? (
-                  <a
-                    href={docsUrl}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="font-medium text-primary underline-offset-2 hover:underline"
-                  >
-                    abrir link
-                  </a>
-                ) : (
-                  <span className="text-[10px]">
-                    define <span className="font-mono">VITE_AIOX_DOCS_URL</span> no <span className="font-mono">.env</span>{" "}
-                    (ex.: README ou pasta docs do aiox-core).
-                  </span>
-                )}
-              </p>
-              {info?.aioxExecAvailable ? <AioxCliPanel onRan={onRefresh} /> : null}
+            <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-lg shadow-black/[0.04] ring-1 ring-border/60 dark:bg-card/90 dark:shadow-black/30">
+              {/* Cabeçalho do card — separado do corpo */}
+              <div className="border-b border-border bg-gradient-to-br from-primary/[0.12] via-card to-card px-4 py-4 sm:px-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/90">Monitorização</p>
+                    <h3 className="mt-1 text-base font-semibold tracking-tight text-foreground">Estado da ponte</h3>
+                    <p className="mt-1 max-w-xl text-[11px] text-muted-foreground">
+                      Ligação ao disco e à API local; actualiza quando sincronizas ou envias comandos.
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+                        bridgeHealthy
+                          ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                          : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                      }`}
+                    >
+                      {bridgeHealthy ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      ) : (
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      )}
+                      {bridgeHealthy ? "Ponte OK" : "Rever configuração"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onRefresh()}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-secondary"
+                      title="Pedir estado actualizado ao servidor"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                      Sincronizar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 p-4 sm:p-5">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <StatTile icon={Terminal} label="Versão CLI">
+                    <span className="font-mono text-[13px] text-primary">{versionLine}</span>
+                  </StatTile>
+                  <StatTile icon={Sparkles} label="Agentes (.md)">
+                    <span className="tabular-nums">{agentsCount}</span>
+                  </StatTile>
+                  <StatTile icon={FolderOpen} label="Pasta de agentes">
+                    <span className="break-all font-mono text-[11px] leading-snug text-muted-foreground">
+                      {info?.agentsDir ?? "—"}
+                    </span>
+                  </StatTile>
+                  <StatTile icon={agentsErr ? AlertTriangle : CheckCircle2} label="Leitura no disco">
+                    <span className={agentsErr ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}>
+                      {agentsErr || "Sem erros"}
+                    </span>
+                  </StatTile>
+                  <StatTile icon={Clock} label="Última sincronização">
+                    <span className="font-mono text-[12px]">{timeLabel}</span>
+                  </StatTile>
+                  <StatTile icon={Timer} label="Polling (separador visível)">
+                    <span className="font-mono text-[12px]">{Math.round(POLL_INTERVAL_MS / 1000)}s</span>
+                  </StatTile>
+                  <StatTile icon={Database} label="Feed de atividade">
+                    <span className="font-mono text-[11px]">
+                      {info?.activityBackend === "postgres"
+                        ? "PostgreSQL"
+                        : info?.activityBackend === "file"
+                          ? "Ficheiro JSON"
+                          : "—"}
+                    </span>
+                  </StatTile>
+                </div>
+
+                <div className="rounded-xl border border-dashed border-border/80 bg-muted/25 px-4 py-3 dark:bg-muted/15">
+                  <div className="flex items-start gap-2">
+                    <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+                    <div className="space-y-2 text-[11px] leading-relaxed text-muted-foreground">
+                      <p>
+                        No repositório <code className="rounded bg-muted px-1 font-mono text-[10px]">aiox-core</code> corre{" "}
+                        <code className="rounded bg-muted px-1 font-mono text-[10px]">npx aiox-core doctor</code> para
+                        diagnóstico.
+                      </p>
+                      <p>
+                        Documentação externa:{" "}
+                        {docsUrl ? (
+                          <a
+                            href={docsUrl}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="font-medium text-primary underline-offset-2 hover:underline"
+                          >
+                            abrir link
+                          </a>
+                        ) : (
+                          <span className="text-[10px]">
+                            define <span className="font-mono">VITE_AIOX_DOCS_URL</span> no{" "}
+                            <span className="font-mono">.env</span>.
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {info?.aioxExecAvailable ? <AioxCliPanel onRan={onRefresh} /> : null}
+              </div>
             </div>
           </motion.div>
         </AnimatePresence>

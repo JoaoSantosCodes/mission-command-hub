@@ -7,7 +7,7 @@ info:
 
     **Rotas não definidas** sob `/api` devolvem `404` com JSON `{ ok: false, error }`. **Rate limit** (`429`) devolve JSON com `retryAfterSec` opcional.
 
-    **UI — Canvas de tarefas (Kanban):** não faz parte deste contrato. Estado no cliente (`localStorage`), com export/import JSON no browser; sem endpoints REST nem sync entre dispositivos.
+    **UI — Canvas de tarefas (Kanban):** estado no cliente (`localStorage`); export/import JSON pode incluir `priority` e `blocked` por tarefa; sem sync entre dispositivos nem REST dedicado.
 servers:
   - url: http://127.0.0.1:8787
     description: Desenvolvimento (PORT por defeito)
@@ -86,6 +86,43 @@ paths:
                   agentEditAllowed:
                     type: boolean
                     description: "false quando MISSION_AGENT_EDIT=0 — sem criar/editar/eliminar agentes (.md) via API"
+  /api/aiox/overview:
+    get:
+      summary: Vista agregada (ponte + lista de agentes + feed + contagens)
+      description: |
+        Um único pedido em substituição de `GET /api/aiox/info` + `GET /api/aiox/agents` + `GET /api/aiox/activity` para o polling da UI.
+        `activity.kindCounts` agrega entradas do feed por campo `kind` (ou `type` em entradas antigas).
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  generatedAt: { type: string, format: date-time }
+                  bridge:
+                    description: Mesmo objecto que `/api/aiox/info`
+                    type: object
+                  agents:
+                    type: array
+                    items: { type: object }
+                  agentsError: { type: string, nullable: true }
+                  logs:
+                    type: array
+                    description: Mesmo formato que `/api/aiox/activity` → logs
+                  activity:
+                    type: object
+                    properties:
+                      backend: { type: string, enum: [file, postgres] }
+                      kindCounts:
+                        type: object
+                        additionalProperties: { type: integer }
+                  doubts:
+                    type: object
+                    properties:
+                      llmEnabled: { type: boolean }
   /api/aiox/doubts:
     get:
       summary: Capacidades do painel Dúvidas & ajuda (UI)
@@ -242,6 +279,9 @@ paths:
                   file: { type: string }
                   title: { type: string }
                   content: { type: string }
+                  revision:
+                    type: string
+                    description: "mtime:size — enviar no PUT (If-Match ou body.revision) para detectar alterações externas"
         "400":
           description: id inválido
         "404":
@@ -253,11 +293,17 @@ paths:
       description: |
         Escreve o ficheiro `.md` em `.aiox-core/development/agents/{id}.md`.
         Desactivar com `MISSION_AGENT_EDIT=0`.
+        Se enviares `If-Match` ou `revision` no corpo com o valor de `GET` (campo `revision`), o servidor devolve **409** se o ficheiro mudou no disco entretanto.
       parameters:
         - name: id
           in: path
           required: true
           schema: { type: string }
+        - name: If-Match
+          in: header
+          required: false
+          schema: { type: string }
+          description: Valor igual a `revision` do GET (opcional mas recomendado)
       requestBody:
         required: true
         content:
@@ -269,6 +315,9 @@ paths:
                 content:
                   type: string
                   description: Texto completo UTF-8 (máx. 512 KiB)
+                revision:
+                  type: string
+                  description: Alternativa ao cabeçalho If-Match
       responses:
         "200":
           description: Gravado
@@ -286,6 +335,8 @@ paths:
           description: Edição desactivada (MISSION_AGENT_EDIT=0)
         "404":
           description: Agente não encontrado
+        "409":
+          description: Conflito — `revision` desactualizada (ficheiro alterado fora da UI)
         "413":
           description: Conteúdo demasiado grande
         "429":

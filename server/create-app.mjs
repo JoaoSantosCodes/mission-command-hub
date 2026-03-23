@@ -29,6 +29,12 @@ const isProd = process.env.NODE_ENV === "production";
 
 const AGENT_FILE_MAX_BYTES = 512 * 1024;
 
+/** Revisão fraca para detecção de conflito (mtime + tamanho). */
+function computeAgentRevision(filePath) {
+  const st = fs.statSync(filePath);
+  return `${st.mtimeMs}:${st.size}`;
+}
+
 function resolveAgentMarkdownPath(agentsDir, idParam) {
   const base = String(idParam ?? "").replace(/\.md$/i, "");
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(base)) return null;
@@ -150,10 +156,11 @@ export async function createBridgeApp(missionRoot, options = {}) {
     }
   });
 
-  app.get("/api/aiox/info", (_req, res) => {
+  /** @param {ReturnType<typeof readAgentFiles> | null} [cachedAgents] resultado em cache de `readAgentFiles` */
+  function buildBridgePayload(cachedAgents) {
     const v = getAioxVersion(AIOX_ROOT, AIOX_BIN);
-    const agentsResult = readAgentFiles(AGENTS_DIR);
-    res.json({
+    const agentsResult = cachedAgents ?? readAgentFiles(AGENTS_DIR);
+    return {
       aioxRoot: maskPaths ? maskAbsolutePath(AIOX_ROOT) : AIOX_ROOT,
       aioxExists: fs.existsSync(AIOX_ROOT),
       agentsDir: maskPaths ? maskAbsolutePath(AGENTS_DIR) : AGENTS_DIR,
@@ -165,6 +172,36 @@ export async function createBridgeApp(missionRoot, options = {}) {
       aioxExecAvailable: isAioxExecConfigured(),
       activityBackend: activity.backend ?? "file",
       agentEditAllowed,
+    };
+  }
+
+  app.get("/api/aiox/info", (_req, res) => {
+    res.json(buildBridgePayload());
+  });
+
+  /** Vista agregada: ponte + lista de agentes + feed + contagens por `kind` (um pedido em vez de três). */
+  app.get("/api/aiox/overview", (_req, res) => {
+    const agentsResult = readAgentFiles(AGENTS_DIR);
+    const logs = activity.getLogs();
+    const kindCounts = {};
+    for (const e of logs) {
+      const k = e.kind || e.type || "unknown";
+      kindCounts[k] = (kindCounts[k] || 0) + 1;
+    }
+    res.json({
+      ok: true,
+      generatedAt: new Date().toISOString(),
+      bridge: buildBridgePayload(agentsResult),
+      agents: agentsResult.ok ? agentsResult.agents : [],
+      agentsError: agentsResult.ok ? null : agentsResult.error,
+      logs,
+      activity: {
+        backend: activity.backend ?? "file",
+        kindCounts,
+      },
+      doubts: {
+        llmEnabled: isDoubtsLlmConfigured(),
+      },
     });
   });
 
@@ -303,7 +340,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       return res.status(500).json({ ok: false, error: "falha ao criar ficheiro do agente" });
     }
     try {
-      await activity.pushLog("@mission-hub", `Criou agente ${id} (${bytes} bytes)`, "command");
+      await activity.pushLog("@mission-hub", `Criou agente ${id} (${bytes} bytes)`, "command", "agent");
     } catch (e) {
       logger.warn({ err: String(e?.message || e) }, "activity pushLog after agent create failed");
     }
@@ -338,6 +375,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       file: path.basename(resolved),
       title,
       content: raw,
+      revision: computeAgentRevision(resolved),
     });
   });
 
@@ -366,6 +404,25 @@ export async function createBridgeApp(missionRoot, options = {}) {
         error: `conteúdo demasiado grande (máx. ${AGENT_FILE_MAX_BYTES} bytes)`,
       });
     }
+    let currentRev;
+    try {
+      currentRev = computeAgentRevision(resolved);
+    } catch {
+      return res.status(404).json({ ok: false, error: "agente não encontrado" });
+    }
+    const ifMatch = String(req.headers["if-match"] ?? "").replace(/^W\//, "").replace(/^"|"$/g, "").trim();
+    const bodyRev =
+      typeof req.body?.revision === "string" ? req.body.revision.trim() : "";
+    const clientRev = ifMatch || bodyRev;
+    if (clientRev && clientRev !== currentRev) {
+      return res.status(409).json({
+        ok: false,
+        error:
+          "O ficheiro foi alterado no disco desde a última leitura. Recarrega o agente antes de gravar.",
+        conflict: true,
+        revision: currentRev,
+      });
+    }
     try {
       fs.writeFileSync(resolved, content, "utf8");
     } catch (e) {
@@ -377,7 +434,8 @@ export async function createBridgeApp(missionRoot, options = {}) {
       await activity.pushLog(
         "@mission-hub",
         `Gravou definição do agente ${id} (${bytes} bytes)`,
-        "command"
+        "command",
+        "agent"
       );
     } catch (e) {
       logger.warn({ err: String(e?.message || e) }, "activity pushLog after agent edit failed");
@@ -408,7 +466,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       return res.status(500).json({ ok: false, error: "falha ao eliminar ficheiro do agente" });
     }
     try {
-      await activity.pushLog("@mission-hub", `Eliminou agente ${id}`, "command");
+      await activity.pushLog("@mission-hub", `Eliminou agente ${id}`, "command", "agent");
     } catch (e) {
       logger.warn({ err: String(e?.message || e) }, "activity pushLog after agent delete failed");
     }
@@ -442,7 +500,8 @@ export async function createBridgeApp(missionRoot, options = {}) {
       await activity.pushLog(
         "@aiox-cli",
         `exec ${sub} → exit ${result.exitCode}${result.timedOut ? " (timeout)" : ""}`,
-        "output"
+        "output",
+        "cli"
       );
     } catch (e) {
       activityLogged = false;
@@ -472,11 +531,12 @@ export async function createBridgeApp(missionRoot, options = {}) {
       });
     }
     try {
-      await activity.pushLog("@aiox-master", `> ${cmd}`, "command");
+      await activity.pushLog("@aiox-master", `> ${cmd}`, "command", "command");
       await activity.pushLog(
         "@mission-hub",
         `Encaminhamento local: "${cmd.slice(0, 120)}${cmd.length > 120 ? "…" : ""}"`,
-        "output"
+        "output",
+        "bridge"
       );
     } catch (e) {
       logger.warn({ err: String(e?.message || e) }, "activity pushLog failed");

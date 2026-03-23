@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ColumnId, TaskItem } from "./types";
+import type { ColumnId, TaskItem, TaskPriority } from "./types";
 
 const STORAGE_KEY = "mission-agent-task-board-v1";
 
@@ -35,6 +35,8 @@ function save(tasks: TaskItem[]) {
 
 const COL_IDS = new Set<ColumnId>(["todo", "doing", "review", "done"]);
 
+const PRIORITIES = new Set<TaskPriority>(["low", "medium", "high", "urgent"]);
+
 export function parseTaskBoardJson(raw: unknown): TaskItem[] | null {
   let arr: unknown[];
   if (Array.isArray(raw)) arr = raw;
@@ -53,7 +55,12 @@ export function parseTaskBoardJson(raw: unknown): TaskItem[] | null {
     const createdAt =
       typeof o.createdAt === "number" && Number.isFinite(o.createdAt) ? o.createdAt : Date.now();
     const note = typeof o.note === "string" && o.note.trim() ? o.note.trim() : undefined;
-    out.push({ id, title, columnId: columnId as ColumnId, order, createdAt, note });
+    const priority =
+      typeof o.priority === "string" && PRIORITIES.has(o.priority as TaskPriority)
+        ? (o.priority as TaskPriority)
+        : undefined;
+    const blocked = o.blocked === true;
+    out.push({ id, title, columnId: columnId as ColumnId, order, createdAt, note, priority, blocked });
   }
   return out;
 }
@@ -95,20 +102,25 @@ export function useTaskBoard() {
     });
   }, []);
 
-  const updateTask = useCallback((id: string, patch: Partial<Pick<TaskItem, "title" | "note">>) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== id) return t;
-        const title = patch.title !== undefined ? patch.title.trim() : t.title;
-        if (!title) return t;
-        return {
-          ...t,
-          title,
-          note: patch.note !== undefined ? patch.note : t.note,
-        };
-      })
-    );
-  }, []);
+  const updateTask = useCallback(
+    (id: string, patch: Partial<Pick<TaskItem, "title" | "note" | "priority" | "blocked">>) => {
+      setTasks((prev) =>
+        prev.map((t) => {
+          if (t.id !== id) return t;
+          const title = patch.title !== undefined ? patch.title.trim() : t.title;
+          if (!title) return t;
+          return {
+            ...t,
+            title,
+            note: patch.note !== undefined ? patch.note : t.note,
+            priority: patch.priority !== undefined ? patch.priority : t.priority,
+            blocked: patch.blocked !== undefined ? patch.blocked : t.blocked,
+          };
+        })
+      );
+    },
+    []
+  );
 
   const removeTask = useCallback((id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));

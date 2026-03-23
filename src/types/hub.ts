@@ -34,6 +34,8 @@ export type ActivityEntry = {
   agent: string;
   action: string;
   type: string;
+  /** Semântica: command | bridge | agent | cli (opcional em entradas antigas). */
+  kind?: string;
 };
 
 export type AgentDetailResponse = {
@@ -41,6 +43,25 @@ export type AgentDetailResponse = {
   file: string;
   title: string;
   content: string;
+  /** `mtime:size` — enviar em `If-Match` ou `revision` no PUT para evitar sobrescrever alterações externas. */
+  revision: string;
+};
+
+/** Resposta de `GET /api/aiox/overview` — ponte + agentes + feed num só pedido. */
+export type AioxOverviewResponse = {
+  ok: true;
+  generatedAt: string;
+  bridge: AioxInfo;
+  agents: AgentRow[];
+  agentsError: string | null;
+  logs: ActivityEntry[];
+  activity: {
+    backend: string;
+    kindCounts: Record<string, number>;
+  };
+  doubts: {
+    llmEnabled: boolean;
+  };
 };
 
 /** Resposta de `GET /api/aiox/doubts` — estado do painel Dúvidas vs. futuro LLM no servidor. */

@@ -6,7 +6,7 @@ import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { fetchJson, postCommand } from "@/lib/api";
 import { formatUserFacingError } from "@/lib/format-error";
 import { POLL_INTERVAL_MS } from "@/constants";
-import type { ActivityEntry, AgentRow, AioxInfo } from "@/types/hub";
+import type { ActivityEntry, AgentRow, AioxInfo, AioxOverviewResponse } from "@/types/hub";
 import { SkipLink } from "@/components/SkipLink";
 import { CommandCenterView } from "@/components/CommandCenterView";
 import { HubHeader, type HubViewMode } from "@/components/HubHeader";
@@ -49,14 +49,10 @@ export default function App() {
     const silent = opts?.silent ?? false;
     try {
       if (!silent) setRefreshing(true);
-      const [i, a, act] = await Promise.all([
-        fetchJson<AioxInfo>("/api/aiox/info"),
-        fetchJson<{ agents: AgentRow[] }>("/api/aiox/agents"),
-        fetchJson<{ logs: ActivityEntry[] }>("/api/aiox/activity"),
-      ]);
-      setInfo(i);
-      setAgents(a.agents);
-      setLogs(act.logs);
+      const o = await fetchJson<AioxOverviewResponse>("/api/aiox/overview");
+      setInfo(o.bridge);
+      setAgents(o.agents);
+      setLogs(o.logs);
       setLastSynced(new Date());
       setErr(null);
       setApiOnline(true);

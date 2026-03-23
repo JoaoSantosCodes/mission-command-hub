@@ -1,6 +1,25 @@
-import { PanelRightClose, PanelRightOpen } from "lucide-react";
+import {
+  FileText,
+  Inbox,
+  MessageSquare,
+  PanelRightClose,
+  PanelRightOpen,
+  Shell,
+  Sparkles,
+  Terminal,
+} from "lucide-react";
 import type { ActivityEntry } from "@/types/hub";
 import { MobileDrawer } from "@/components/MobileDrawer";
+
+function FeedKindIcon({ kind, type }: { kind?: string; type: string }) {
+  const k = (kind || type || "").toLowerCase();
+  const cls = "h-3.5 w-3.5 shrink-0 text-primary/85";
+  if (k === "agent") return <FileText className={cls} aria-hidden />;
+  if (k === "cli") return <Shell className={cls} aria-hidden />;
+  if (k === "command") return <Terminal className={cls} aria-hidden />;
+  if (k === "bridge") return <Sparkles className={cls} aria-hidden />;
+  return <MessageSquare className={cls} aria-hidden />;
+}
 
 type ActivityPanelProps = {
   logs: ActivityEntry[];
@@ -10,16 +29,40 @@ type ActivityPanelProps = {
   onMobileClose: () => void;
 };
 
+function ActivityEmptyState() {
+  return (
+    <div className="rounded-xl border border-dashed border-border/90 bg-muted/20 px-3 py-6 text-center dark:bg-muted/10">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
+        <Inbox className="h-6 w-6 text-primary" aria-hidden />
+      </div>
+      <p className="mt-3 text-xs font-medium text-foreground">Ainda sem eventos</p>
+      <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+        Usa o comando <span className="font-mono text-foreground/90">@hub</span> na barra superior. Cada envio válido
+        aparece aqui com agente e hora.
+      </p>
+      <ul className="mt-4 space-y-2 text-left text-[10px] text-muted-foreground">
+        <li className="flex gap-2">
+          <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" aria-hidden />
+          <span>Dica: o feed pode usar ficheiro JSON ou PostgreSQL (ver Estado da ponte).</span>
+        </li>
+      </ul>
+    </div>
+  );
+}
+
 function ActivityFeedList({ logs }: { logs: ActivityEntry[] }) {
   if (logs.length === 0) {
-    return <p className="text-[11px] text-muted-foreground">Sem eventos — envia um comando acima.</p>;
+    return <ActivityEmptyState />;
   }
   return (
     <ul className="space-y-1">
       {logs.map((log) => (
-        <li key={log.id} className="rounded-md border border-border bg-background/50 p-2.5">
+        <li key={log.id} className="rounded-lg border border-border/90 bg-background/60 p-2.5 shadow-sm">
           <div className="mb-1 flex items-center gap-2">
-            <span className="font-mono text-[10px] text-primary">{log.agent}</span>
+            <FeedKindIcon kind={log.kind} type={log.type} />
+            <span className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-medium text-primary">
+              {log.agent}
+            </span>
             <span className="ml-auto font-mono text-[10px] text-muted-foreground">{log.timestamp}</span>
           </div>
           <p className="text-[11px] leading-relaxed text-foreground">{log.action}</p>

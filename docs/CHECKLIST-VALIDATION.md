@@ -9,15 +9,15 @@ Registo de auditorias cruzadas entre **`docs/CHECKLIST.md`** e o código / repos
 | Campo | Valor |
 |--------|--------|
 | **Data** | 2026-03-23 |
-| **Âmbito** | MissionAgent — API, smoke tests, build; índice monorepo em `AgentesMissao/docs/PROJETO-E-CHECKLIST.md` |
-| **Comandos** | `npm test` → **23/23** pass; `npm run build` → OK (mesma data) |
+| **Âmbito** | MissionAgent — overview API, feed `kind`, revisão agente, escrita atómica activity JSON, Kanban priority/blocked, smoke + build |
+| **Comandos** | `npm test` → **25/25** pass; `npm run build` → OK (mesma data) |
 
 ### Resultado
 
 - **Estado geral:** o checklist está **alinhado** com a implementação actual.
-- **Contagem de testes:** **23** casos em `test/api.smoke.test.mjs` — confere com a secção «Melhorias técnicas → Alta».
-- **Rotas documentadas:** `GET/POST` em `/api/aiox/doubts` e `/api/aiox/doubts/chat` presentes em `server/create-app.mjs`.
-- **Correcção aplicada:** linha «Motor LLM» em **Pendências conhecidas** foi ajustada (LLM opcional no painel Dúvidas vs. modelo no IDE).
+- **Contagem de testes:** **25** casos em `test/api.smoke.test.mjs` — confere com a secção «Melhorias técnicas → Alta».
+- **Rotas / contrato:** `server/create-app.mjs` inclui `GET /api/aiox/overview`, `GET/PUT /api/aiox/agents/:id` com **`revision`** e **409**; **`docs/openapi.yaml`** actualizado (overview, revision, conflito, nota Kanban priority/blocked).
+- **Correcção aplicada:** linha «Motor LLM» em **Pendências conhecidas** mantém LLM opcional no painel Dúvidas vs. modelo no IDE.
 
 ### Lacunas conhecidas (não são erros do checklist)
 

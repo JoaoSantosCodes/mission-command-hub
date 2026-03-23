@@ -1,6 +1,8 @@
 /** Identificadores estáveis de coluna (presets só mudam títulos). */
 export type ColumnId = "todo" | "doing" | "review" | "done";
 
+export type TaskPriority = "low" | "medium" | "high" | "urgent";
+
 export type TaskItem = {
   id: string;
   title: string;
@@ -8,6 +10,10 @@ export type TaskItem = {
   columnId: ColumnId;
   order: number;
   createdAt: number;
+  /** Opcional — export/import JSON e UI futura. */
+  priority?: TaskPriority;
+  /** Bloqueada (ex.: dependência externa) — só metadados no cliente. */
+  blocked?: boolean;
 };
 
 export type BoardPresetId = "standard" | "agents" | "delivery";
