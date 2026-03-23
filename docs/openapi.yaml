@@ -7,7 +7,7 @@ info:
 
     **Rotas não definidas** sob `/api` devolvem `404` com JSON `{ ok: false, error }`. **Rate limit** (`429`) devolve JSON com `retryAfterSec` opcional.
 
-    **UI — Canvas de tarefas (Kanban):** não faz parte deste contrato. É só cliente (`localStorage` no browser, sem endpoints REST); não há sincronização com o servidor.
+    **UI — Canvas de tarefas (Kanban):** não faz parte deste contrato. Estado no cliente (`localStorage`), com export/import JSON no browser; sem endpoints REST nem sync entre dispositivos.
 servers:
   - url: http://127.0.0.1:8787
     description: Desenvolvimento (PORT por defeito)

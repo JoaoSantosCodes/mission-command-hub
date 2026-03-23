@@ -1,3 +1,4 @@
+import { HubMascot } from "@/components/HubMascot";
 import { Bot, FolderKanban, LayoutList, Plus } from "lucide-react";
 import type { AgentRow, AioxInfo } from "@/types/hub";
 import { MobileDrawer } from "@/components/MobileDrawer";
@@ -37,7 +38,7 @@ export function AgentsSidebar({
           Projetos
         </div>
         <div className="flex items-center gap-2 rounded-md bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary">
-          <div className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
+          <HubMascot size="sm" />
           Architecture Agents Hub
         </div>
         <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">

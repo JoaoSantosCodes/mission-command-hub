@@ -33,6 +33,40 @@ function save(tasks: TaskItem[]) {
   }
 }
 
+const COL_IDS = new Set<ColumnId>(["todo", "doing", "review", "done"]);
+
+export function parseTaskBoardJson(raw: unknown): TaskItem[] | null {
+  let arr: unknown[];
+  if (Array.isArray(raw)) arr = raw;
+  else if (raw && typeof raw === "object" && Array.isArray((raw as Persisted).tasks)) {
+    arr = (raw as Persisted).tasks;
+  } else return null;
+  const out: TaskItem[] = [];
+  for (const item of arr) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const id = typeof o.id === "string" ? o.id : "";
+    const title = typeof o.title === "string" ? o.title.trim() : "";
+    const columnId = o.columnId;
+    if (!id || !title || typeof columnId !== "string" || !COL_IDS.has(columnId as ColumnId)) continue;
+    const order = typeof o.order === "number" && Number.isFinite(o.order) ? o.order : out.length;
+    const createdAt =
+      typeof o.createdAt === "number" && Number.isFinite(o.createdAt) ? o.createdAt : Date.now();
+    const note = typeof o.note === "string" && o.note.trim() ? o.note.trim() : undefined;
+    out.push({ id, title, columnId: columnId as ColumnId, order, createdAt, note });
+  }
+  return out;
+}
+
+export function exportTaskBoardBlob(tasks: TaskItem[]) {
+  const payload = {
+    version: 1 as const,
+    exportedAt: new Date().toISOString(),
+    tasks,
+  };
+  return new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+}
+
 function newId() {
   return `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -120,6 +154,14 @@ export function useTaskBoard() {
     setTasks((prev) => prev.filter((t) => t.columnId !== "done"));
   }, []);
 
+  const replaceTasks = useCallback((next: TaskItem[]) => {
+    setTasks(next);
+  }, []);
+
+  const clearAll = useCallback(() => {
+    setTasks([]);
+  }, []);
+
   return {
     tasks,
     tasksByColumn,
@@ -128,5 +170,7 @@ export function useTaskBoard() {
     removeTask,
     moveTask,
     clearDone,
+    replaceTasks,
+    clearAll,
   };
 }

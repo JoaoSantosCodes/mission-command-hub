@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { HubMascot } from "@/components/HubMascot";
 import { AlertCircle, Loader2, Pencil, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { deleteAgent, fetchJson, putAgentMarkdown } from "@/lib/api";
 import { formatUserFacingError } from "@/lib/format-error";
@@ -193,25 +194,28 @@ export function AgentDetailModal({
       />
       <div className="relative z-10 flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-primary/[0.06] ring-1 ring-primary/10">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-gradient-to-r from-card via-card to-secondary/20 px-4 py-3.5">
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              Architecture Agents Hub
-            </p>
-            <h2 id="agent-modal-title" className="mt-0.5 truncate text-base font-semibold tracking-tight text-foreground">
-              Definição do agente
-            </h2>
-            <p className="truncate font-mono text-xs text-primary/90" title={data?.id ?? agentId}>
-              {data?.id ?? agentId}
-              {data?.title && data.title.trim() && data.title !== data.id ? (
-                <span className="font-sans text-muted-foreground"> — {data.title}</span>
-              ) : null}
-            </p>
-            {data?.file ? (
-              <p className="truncate text-[11px] text-muted-foreground">
-                {data.file}
-                {canEdit ? " · YAML / skill no bloco do agente" : null}
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <HubMascot size="sm" className="mt-0.5 hidden sm:inline-flex" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Architecture Agents Hub
               </p>
-            ) : null}
+              <h2 id="agent-modal-title" className="mt-0.5 truncate text-base font-semibold tracking-tight text-foreground">
+                Definição do agente
+              </h2>
+              <p className="truncate font-mono text-xs text-primary/90" title={data?.id ?? agentId}>
+                {data?.id ?? agentId}
+                {data?.title && data.title.trim() && data.title !== data.id ? (
+                  <span className="font-sans text-muted-foreground"> — {data.title}</span>
+                ) : null}
+              </p>
+              {data?.file ? (
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {data.file}
+                  {canEdit ? " · YAML / skill no bloco do agente" : null}
+                </p>
+              ) : null}
+            </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
             {canEdit && data && !loading ? (

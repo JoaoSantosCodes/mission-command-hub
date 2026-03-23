@@ -8,8 +8,8 @@ Registo de auditorias cruzadas entre **`docs/CHECKLIST.md`** e o código / repos
 
 | Campo | Valor |
 |--------|--------|
-| **Data** | 2026-03-22 |
-| **Âmbito** | MissionAgent — API, UI Dúvidas, env (`.env.ready`, `load-env`), testes `api.smoke.test.mjs`, CI, roadmap |
+| **Data** | 2026-03-23 |
+| **Âmbito** | MissionAgent — API, smoke tests, build; índice monorepo em `AgentesMissao/docs/PROJETO-E-CHECKLIST.md` |
 | **Comandos** | `npm test` → **23/23** pass; `npm run build` → OK (mesma data) |
 
 ### Resultado
@@ -31,6 +31,12 @@ Registo de auditorias cruzadas entre **`docs/CHECKLIST.md`** e o código / repos
 
 - Após alterações em **`server/create-app.mjs`**, **`DoubtsChatPanel`**, ou **`.env.ready` / OpenAPI**.
 - Ou em cada **release** / **sprint** (alinhado ao ponto 3 de «Como usar» no `CHECKLIST.md`).
+
+### Auditoria anterior
+
+| Data | Âmbito | Comandos |
+|------|--------|----------|
+| 2026-03-22 | MissionAgent — API, UI Dúvidas, env, CI, roadmap | `npm test` **23/23**; `npm run build` OK |
 
 ---
 

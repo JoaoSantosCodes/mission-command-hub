@@ -1,6 +1,6 @@
 # Architecture Agents Hub — melhorias e pendências
 
-Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-22 — validação executada (`npm test` + `npm run build` OK); registo em **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
+Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-23 — Validação monorepo (`npm test` / `npm run build`); índice na raiz em **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; ver **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
 
 ---
 
@@ -37,7 +37,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 - [x] **Modal de agente** (`AgentDetailModal`): contexto "Architecture Agents Hub" + título **Definição do agente** + id do `.md` em mono; erros sem prefixo `Error:` (`formatUserFacingError`); barra de erro global idem
 - [x] **Cliente / API**: se a resposta não for JSON (ex.: HTML `Cannot GET`), mensagem orientativa; **sem** prefixo "Pedido inválido" nesse caso; `vite.config.ts` com `preview.proxy` / `server.proxy` como fallback quando `MISSION_EMBED_API=0`
 - [x] **`npm run dev` / `preview`**: plugin Vite (`mission-api-plugin.mjs`) **embebe** `createBridgeApp` em `/api` (sem precisar de :8787); `MISSION_EMBED_API=0` volta ao proxy → 8787; **`dev:split`** mantém `concurrently`; **header** com indicador API ligada/offline; **modal de agente** com aviso, retry e UI melhorada
-- [x] **Canvas de tarefas modular** (`task-canvas/`): terceira vista no header (ícone Kanban); colunas fixas `todo`→`doing`→`review`→`done`; **presets** (Fluxo geral / Agentes / Entrega); drag-and-drop + setas; persistência `localStorage` (`mission-agent-task-board-v1`)
+- [x] **Canvas de tarefas modular** (`task-canvas/`): terceira vista no header (ícone Kanban); colunas fixas `todo`→`doing`→`review`→`done`; **presets** (Fluxo geral / Agentes / Entrega); drag-and-drop + setas; persistência `localStorage` (`mission-agent-task-board-v1`); **import/export JSON** + **limpar tudo** na barra
 - [x] **Refinamentos API**: `rate-limit-json` (429 em JSON + `retryAfterSec`); **404** JSON para `/api` desconhecido; **erros de parse JSON** / payload; `GET /agents` 500 só `{ ok, error }`; `readAgentFiles` com try/catch; cliente (`api.ts`) mensagens para **429**; smoke + OpenAPI (`components/schemas`, nota **Kanban só UI** em `info.description`)
 - [x] **Ambiente local**: [`.env.ready`](../.env.ready) versionado; `npm run env:init` + `postinstall`; **`dotenv`** + [`server/load-env.mjs`](../server/load-env.mjs) (Express e Vite embebido); `.env` e `.env.local` no `.gitignore`
 
@@ -87,6 +87,10 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 | ~~Baixa~~ | ~~**Exportar histórico do painel Dúvidas**~~ | **Feito:** botões JSON + Markdown em `DoubtsChatPanel` |
 | ~~Baixa~~ | ~~**Atalho de teclado** para Dúvidas~~ | **Feito:** `Ctrl+/` / `Cmd+/` toggle global (ignorado dentro de `input`/`textarea`/contenteditable) |
 | ~~Baixa~~ | ~~**Importar histórico JSON** + copiar mensagem~~ | **Feito:** `Importar` (array ou `{ messages }`), botão copiar por bolha, `maxLength` na nota |
+| ~~Baixa~~ | ~~**Canvas de tarefas: export/import JSON**~~ | **Feito:** botões Importar / Exportar / Limpar tudo em `TaskCanvasView`; formato `{ version, exportedAt, tasks }` ou array |
+| Baixa | **Canvas de tarefas: ordem dentro da coluna** | Arrastar cartão para posição (hoje o drop coloca no fim; `moveTask` já aceita índice) |
+| Baixa | **Canvas de tarefas: pesquisa / filtro** | Filtrar por título ou nota sem alterar `localStorage` até limpar filtro |
+| Média | **Canvas de tarefas: persistência no servidor** | API + sync multi-dispositivo; ver Pendências «Canvas de tarefas» |
 
 ---
 
@@ -128,6 +132,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 - Registo de auditorias (datas, contagem de testes, lacunas): **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
 - Em cada revisão formal, actualizar a linha **Última revisão** no topo deste ficheiro e o registo em `CHECKLIST-VALIDATION.md`.
+- Checklist **accionável** (arranque, PR, release, roadmap aberto): **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**.
 
 ---
 

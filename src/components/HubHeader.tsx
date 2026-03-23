@@ -1,6 +1,5 @@
 import type { FormEvent } from "react";
 import {
-  Bot,
   LayoutGrid,
   Loader2,
   MessageCircle,
@@ -14,6 +13,7 @@ import {
   Sun,
   Terminal,
 } from "lucide-react";
+import { HubMascot } from "@/components/HubMascot";
 import { MAX_COMMAND_CHARS } from "@/constants";
 import type { ThemeMode } from "@/hooks/useTheme";
 
@@ -69,9 +69,7 @@ export function HubHeader({
   return (
     <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border bg-card/80 px-3 py-2.5 sm:gap-4 sm:px-4">
       <div className="flex shrink-0 items-center gap-2" title="Architecture Agents Hub">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/20">
-          <Bot className="h-4 w-4 text-primary" aria-hidden />
-        </div>
+        <HubMascot size="md" className="shadow-sm" />
         <span className="max-w-[11rem] truncate text-xs font-semibold tracking-tight text-foreground sm:max-w-none sm:text-sm">
           Architecture Agents Hub
         </span>
