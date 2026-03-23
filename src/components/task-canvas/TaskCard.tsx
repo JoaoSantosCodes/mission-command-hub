@@ -8,7 +8,7 @@ type TaskCardProps = {
   task: TaskItem;
   onUpdate: (id: string, patch: Partial<Pick<TaskItem, "title" | "note" | "priority" | "blocked">>) => void;
   onRemove: (id: string) => void;
-  onMove: (id: string, to: ColumnId) => void;
+  onMove: (id: string, to: ColumnId, toIndex?: number) => void;
 };
 
 export function TaskCard({ task, onUpdate, onRemove, onMove }: TaskCardProps) {

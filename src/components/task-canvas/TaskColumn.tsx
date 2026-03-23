@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Plus } from "lucide-react";
 import type { ColumnDef, ColumnId, TaskItem } from "./types";
 import { TaskCard } from "./TaskCard";
@@ -6,19 +6,59 @@ import { TaskCard } from "./TaskCard";
 type TaskColumnProps = {
   def: ColumnDef;
   tasks: TaskItem[];
+  /** Só com ordenação *manual* e sem filtro de texto: zonas entre cartões para `toIndex`. */
+  reorderEnabled: boolean;
   onAdd: (columnId: ColumnId, title: string) => void;
   onUpdate: (
     id: string,
     patch: Partial<Pick<TaskItem, "title" | "note" | "priority" | "blocked">>
   ) => void;
   onRemove: (id: string) => void;
-  onMove: (id: string, to: ColumnId) => void;
+  onMove: (id: string, to: ColumnId, toIndex?: number) => void;
 };
 
-export function TaskColumn({ def, tasks, onAdd, onUpdate, onRemove, onMove }: TaskColumnProps) {
+function InsertDropZone({
+  insertIndex,
+  columnId,
+  onMove,
+}: {
+  insertIndex: number;
+  columnId: ColumnId;
+  onMove: TaskColumnProps["onMove"];
+}) {
+  return (
+    <div
+      className="min-h-[8px] shrink-0 rounded-md border border-transparent transition-colors hover:border-primary/35 hover:bg-primary/10"
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = "move";
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = e.dataTransfer.getData("text/task-id");
+        if (!id) return;
+        onMove(id, columnId, insertIndex);
+      }}
+      title="Largar para inserir nesta posição"
+      aria-label={`Inserir tarefa na posição ${insertIndex + 1}`}
+    />
+  );
+}
+
+export function TaskColumn({
+  def,
+  tasks,
+  reorderEnabled,
+  onAdd,
+  onUpdate,
+  onRemove,
+  onMove,
+}: TaskColumnProps) {
   const [draft, setDraft] = useState("");
 
-  const onDrop = (e: React.DragEvent) => {
+  const onDropColumn = (e: React.DragEvent) => {
     e.preventDefault();
     const id = e.dataTransfer.getData("text/task-id");
     if (!id) return;
@@ -32,7 +72,7 @@ export function TaskColumn({ def, tasks, onAdd, onUpdate, onRemove, onMove }: Ta
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
       }}
-      onDrop={onDrop}
+      onDrop={onDropColumn}
       aria-labelledby={`col-${def.id}`}
     >
       <header className="shrink-0 border-b border-border/60 px-3 py-3 sm:px-4">
@@ -43,9 +83,21 @@ export function TaskColumn({ def, tasks, onAdd, onUpdate, onRemove, onMove }: Ta
         <p className="mt-1 font-mono text-[10px] text-muted-foreground/80">{tasks.length} tarefas</p>
       </header>
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3 sm:p-4">
-        {tasks.map((t) => (
-          <TaskCard key={t.id} task={t} onUpdate={onUpdate} onRemove={onRemove} onMove={onMove} />
-        ))}
+        {reorderEnabled ? (
+          <>
+            <InsertDropZone insertIndex={0} columnId={def.id} onMove={onMove} />
+            {tasks.map((t, i) => (
+              <Fragment key={t.id}>
+                <TaskCard task={t} onUpdate={onUpdate} onRemove={onRemove} onMove={onMove} />
+                <InsertDropZone insertIndex={i + 1} columnId={def.id} onMove={onMove} />
+              </Fragment>
+            ))}
+          </>
+        ) : (
+          tasks.map((t) => (
+            <TaskCard key={t.id} task={t} onUpdate={onUpdate} onRemove={onRemove} onMove={onMove} />
+          ))
+        )}
         <form
           className="mt-1 flex gap-2"
           onSubmit={(e) => {

@@ -34,7 +34,7 @@ Ao escolher um agente na lista, abre-se o modal com o conteúdo **`.md`**, camin
 
 ### Canvas de tarefas (Kanban modular)
 
-Vista **Kanban** no header: colunas **Backlog → Em curso → Revisão → Feito**, presets (ex.: Fluxo geral), **filtrar** por texto (título ou nota), **ordenar** cada coluna (ordem do quadro, data ou prioridade — a preferência de ordenação fica em `localStorage`), **importar / exportar JSON**, persistência do quadro em `localStorage` com escrita **debounced** e gravação ao fechar o separador.
+Vista **Kanban** no header: colunas **Backlog → Em curso → Revisão → Feito**, presets (ex.: Fluxo geral), **filtrar** por texto (título ou nota), **ordenar** cada coluna (ordem do quadro, data ou prioridade — a preferência de ordenação fica em `localStorage`). Com ordenação **manual** e sem filtro, aparecem **zonas entre cartões** para **reordenar dentro da coluna** (arrastar e largar). **Importar / exportar JSON**, persistência do quadro em `localStorage` com escrita **debounced** e gravação ao fechar o separador.
 
 ![Canvas modular — quatro colunas, módulo Fluxo geral](./docs/readme/canvas-tarefas-kanban.png)
 

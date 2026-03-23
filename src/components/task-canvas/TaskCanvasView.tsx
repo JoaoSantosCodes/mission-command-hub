@@ -108,6 +108,9 @@ export function TaskCanvasView() {
     [tasksByColumn, search, sortMode]
   );
 
+  /** Índices de drop batem com a lista visível; só é seguro com ordem manual e sem filtro. */
+  const reorderEnabled = sortMode === "manual" && !search.trim();
+
   const persistPreset = (id: BoardPresetId) => {
     setPresetId(id);
     try {
@@ -235,6 +238,7 @@ export function TaskCanvasView() {
                 onChange={(e) => persistSort(e.target.value as CanvasSortMode)}
                 className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-normal normal-case text-foreground outline-none focus:border-primary"
                 aria-label="Ordenação das tarefas em cada coluna"
+                title="Com «Manual», aparecem zonas entre cartões para reordenar na coluna. Com filtro ou outra ordenação, o arrastar entre colunas continua a funcionar."
               >
                 <option value="manual">Manual (ordem do quadro)</option>
                 <option value="createdDesc">Data (mais recentes)</option>
@@ -275,10 +279,11 @@ export function TaskCanvasView() {
               key={col.id}
               def={col}
               tasks={displayByColumn[col.id]}
+              reorderEnabled={reorderEnabled}
               onAdd={addTask}
               onUpdate={updateTask}
               onRemove={removeTask}
-              onMove={(id, to) => moveTask(id, to)}
+              onMove={(id, to, toIndex) => moveTask(id, to, toIndex)}
             />
           ))}
         </div>

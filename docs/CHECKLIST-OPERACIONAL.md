@@ -41,7 +41,7 @@ Marca quando implementares; detalhes em **[CHECKLIST.md](./CHECKLIST.md)** (tabe
 - [ ] **LLM:** streaming, quotas/custos, política de dados explícita (além do chat actual)
 - [ ] **Base de conhecimento:** indexação `docs/` ou Notion para respostas contextualizadas no hub
 - [ ] **Testes de UI** (opcional): E2E ou smoke do painel Dúvidas (`DoubtsChatPanel`) ou do canvas (`TaskCanvasView`)
-- [ ] **Canvas de tarefas:** ordem intra-coluna por drag, pesquisa, ou backend (ver **[CHECKLIST.md](./CHECKLIST.md)** — roadmap canvas)
+- [ ] **Canvas de tarefas:** persistência no servidor / sync multi-dispositivo (filtro, ordenação local e **reordenar na coluna** com ordenação manual já em **[CHECKLIST.md](./CHECKLIST.md)** — roadmap)
 
 ---
 
