@@ -240,10 +240,25 @@ export function AgentsSidebar({
         ) : (
           <div className="space-y-3">
             <div className="rounded-xl border border-border/80 bg-background/50 p-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
                 <Database className="h-3.5 w-3.5 text-primary" aria-hidden />
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Integrações</p>
+                </div>
+                <span className="rounded-full border border-border bg-primary/10 px-2 py-1 text-[10px] font-mono text-primary">
+                  {integrations?.summary?.healthScore ?? 0}%
+                </span>
               </div>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Saúde geral:{" "}
+                <span className="font-mono text-foreground">
+                  {integrations?.summary ? `${integrations.summary.okCount}/${integrations.summary.total}` : "—"}
+                </span>{" "}
+                · atualizado{" "}
+                <span className="font-mono text-foreground">
+                  {integrations?.generatedAt ? new Date(integrations.generatedAt).toLocaleTimeString("pt-PT") : "—"}
+                </span>
+              </p>
               <div className="mt-3 grid grid-cols-1 gap-2">
                 <IntegrationServiceCard
                   icon={Database}

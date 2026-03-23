@@ -73,6 +73,15 @@ export default function App() {
   const [fishFood, setFishFood] = useState<{ food: number; maxFood: number; mood: "feliz" | "normal" | "fome" | "critico" } | null>(null);
   const [integrations, setIntegrations] = useState<import("@/lib/api").IntegrationsStatus | null>(null);
 
+  const refreshIntegrations = useCallback(async () => {
+    try {
+      const s = await getIntegrationsStatus({ validate: true });
+      setIntegrations(s);
+    } catch {
+      // Sem integração disponível; mantemos o estado anterior.
+    }
+  }, []);
+
   const refresh = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = opts?.silent ?? false;
     try {
@@ -94,17 +103,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Atualiza estado de integrações (API / DB / LLM / tokens).
-    // Não bloqueia o refresh da UI principal.
-    void (async () => {
-      try {
-        const s = await getIntegrationsStatus({ validate: true });
-        setIntegrations(s);
-      } catch {
-        // Sem integração disponível; mantemos o estado anterior.
-      }
-    })();
-  }, []);
+    void refreshIntegrations();
+  }, [refreshIntegrations]);
+
+  useEffect(() => {
+    if (!docVisible) return;
+    const id = window.setInterval(() => void refreshIntegrations(), 30_000);
+    return () => window.clearInterval(id);
+  }, [docVisible, refreshIntegrations]);
 
   useEffect(() => {
     void refresh();

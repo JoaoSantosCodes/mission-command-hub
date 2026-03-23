@@ -441,6 +441,7 @@ export async function feedFish(amount = 12): Promise<FishState> {
 export type IntegrationsStatus = {
   ok: boolean;
   generatedAt: string;
+  summary?: { okCount: number; total: number; healthScore: number };
   database: { configured: boolean; activityBackend: "file" | "postgres" | string };
   exec: { configured: boolean };
   doubts: {

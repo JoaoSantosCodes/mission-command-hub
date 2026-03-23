@@ -443,6 +443,21 @@ export async function createBridgeApp(missionRoot, options = {}) {
     };
   }
 
+  function computeIntegrationsSummary(payload) {
+    const checks = [
+      payload?.database?.activityBackend === "postgres",
+      payload?.exec?.configured === true,
+      payload?.doubts?.llmEnabled === true && payload?.doubts?.openaiValidated === true,
+      payload?.notion?.tokenValidated === true,
+      payload?.figma?.tokenValidated === true,
+      payload?.fish?.enabled === true,
+    ];
+    const total = checks.length;
+    const okCount = checks.filter(Boolean).length;
+    const healthScore = total > 0 ? Math.round((okCount / total) * 100) : 0;
+    return { okCount, total, healthScore };
+  }
+
   app.get("/api/aiox/integrations-status", async (req, res) => {
     const openaiKey = String(process.env.OPENAI_API_KEY || process.env.MISSION_LLM_API_KEY || "");
     const openaiKeyConfigured = openaiKey.trim().length >= 8;
@@ -477,6 +492,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
         enabled: true,
       },
     };
+    payload.summary = computeIntegrationsSummary(payload);
 
     if (!wantValidate) {
       return res.json(payload);
@@ -509,6 +525,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
         ...integrationsValidationCache.figma,
       },
     };
+    merged.summary = computeIntegrationsSummary(merged);
 
     return res.json(merged);
   });
