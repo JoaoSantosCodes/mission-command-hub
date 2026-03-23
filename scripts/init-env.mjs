@@ -20,5 +20,5 @@ if (!fs.existsSync(src)) {
 }
 fs.copyFileSync(src, target);
 console.log(
-  "[mission-agent] Criado .env a partir de .env.ready — preenche OPENAI_API_KEY (ou MISSION_LLM_API_KEY) para activar o LLM no painel Dúvidas."
+  "[mission-agent] Criado .env a partir de .env.ready — edita e cola OPENAI_API_KEY ou MISSION_LLM_API_KEY; opcionalmente MISSION_LLM_BASE_URL / MISSION_LLM_MODEL."
 );

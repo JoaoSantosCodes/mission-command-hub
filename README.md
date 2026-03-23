@@ -61,7 +61,7 @@ npm install
 npm run dev
 ```
 
-- **`npm install`** corre `postinstall` → **`npm run env:init`**: se ainda não existir **`.env`**, é criado a partir de **[`.env.ready`](./.env.ready)** (porta, polling, **`MISSION_DOUBTS_LLM=1`**, URLs do modelo — **`OPENAI_API_KEY` vazio** até colocares a tua chave). O servidor carrega **`.env`** e **`.env.local`** via [`server/load-env.mjs`](./server/load-env.mjs) (também no Vite embebido).
+- **`npm install`** corre `postinstall` → **`npm run env:init`**: se ainda não existir **`.env`**, é criado a partir de **[`.env.ready`](./.env.ready)** — ficheiro pensado para **colar só a chave** (`OPENAI_API_KEY` ou `MISSION_LLM_API_KEY`) e, se quiseres, **URL/modelo** da API (`MISSION_LLM_BASE_URL`, `MISSION_LLM_MODEL`; vazio = defeitos no servidor). O servidor carrega **`.env`** e **`.env.local`** via [`server/load-env.mjs`](./server/load-env.mjs) (também no Vite embebido).
 - **LLM no painel Dúvidas:** edita **`.env`**, define **`OPENAI_API_KEY=sk-...`** (ou `MISSION_LLM_API_KEY`), reinicia `npm run dev`. Enquanto a chave tiver menos de 8 caracteres ou estiver vazia, o hub mantém notas locais e `GET /api/aiox/doubts` reporta `llmEnabled: false`.
 - **UI + API (dev/preview):** o plugin Vite **embebe** a ponte Express em **`/api/*`** no mesmo processo — **não é necessário** nada a ouvir em `127.0.0.1:8787` enquanto usas `npm run dev` ou `npm run preview`. Abre a URL que o Vite mostra (porta por defeito **5179**). O header indica **API ligada** / **offline** consoante `/api` responda.
 - **`npm run dev:split`** — `concurrently`: Express na **:8787** + Vite (útil se quiseres a API noutro processo).
@@ -91,7 +91,7 @@ npm run dev
 | `VITE_*` | Variáveis só no **build** Vite — ver `.env.example` (`VITE_AIOX_DOCS_URL`, `VITE_POLL_INTERVAL_MS`, **`VITE_TASK_BOARD_SYNC`**) |
 | `OPENAI_API_KEY` / `MISSION_LLM_API_KEY` | Chave **só no servidor** para `POST /api/aiox/doubts/chat` (com `MISSION_DOUBTS_LLM=1`). Ver [`.env.ready`](./.env.ready) |
 | `MISSION_DOUBTS_LLM` | `1` para activar a rota de chat (ainda exige chave ≥8 caracteres). Pré-definido em `.env.ready` |
-| `MISSION_LLM_BASE_URL` / `MISSION_LLM_MODEL` | Endpoint OpenAI-compatible e modelo (pré-definidos em `.env.ready`) |
+| `MISSION_LLM_BASE_URL` / `MISSION_LLM_MODEL` | Endpoint e modelo OpenAI-compatible (**opcionais**; vazio = `https://api.openai.com` e `gpt-4o-mini` no servidor) |
 
 **Vistas no header:** **Hub** (três colunas), **Central** (ícone monitor — layout tipo [OpenClaw Command Center](../openclaw-command-center-main/README.md): canvas + terminal + agentes), **Canvas de tarefas** (ícone Kanban — presets, filtro, ordenação, chaves `localStorage`, import/export JSON; sync servidor opcional com **`VITE_TASK_BOARD_SYNC`**). **Dúvidas** (ícone mensagem) abre painel com FAQ + chat de notas de sessão; **GET `/api/aiox/doubts`** e opcionalmente **POST `/api/aiox/doubts/chat`** com `MISSION_DOUBTS_LLM=1` + chave (ver `.env.example`); atalho **Ctrl+/** (**Cmd+/** no Mac); import/export JSON, Markdown, copiar e limpar (ver `CHECKLIST.md` → Melhorias).
 
