@@ -63,6 +63,7 @@ export type AioxOverviewResponse = {
   };
   doubts: {
     llmEnabled: boolean;
+    streamAvailable?: boolean;
   };
 };
 
@@ -70,6 +71,8 @@ export type AioxOverviewResponse = {
 export type AioxDoubtsCapabilities = {
   ok: boolean;
   llmEnabled: boolean;
+  /** `true` quando `POST /api/aiox/doubts/chat/stream` está disponível (igual a `llmEnabled`). */
+  streamAvailable?: boolean;
   knowledgeBaseEnabled: boolean;
   message: string;
   docsUrl?: string | null;

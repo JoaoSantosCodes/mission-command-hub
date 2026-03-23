@@ -16,7 +16,7 @@ Lista curta para **arranque**, **PR**, **release** e **processo de equipa**. O i
 
 ## 2. Antes de commit / PR
 
-- [ ] `npm test` — **28** testes smoke a passar
+- [ ] `npm test` — **29** testes smoke a passar
 - [ ] `npm run build` — sem erros TypeScript / Vite
 - [ ] Sem segredos no commit (`.env` está no `.gitignore`; não commitar chaves)
 - [ ] Se alteraste API: `docs/openapi.yaml` actualizado
@@ -38,7 +38,7 @@ Lista curta para **arranque**, **PR**, **release** e **processo de equipa**. O i
 
 Marca quando implementares; detalhes em **[CHECKLIST.md](./CHECKLIST.md)** (tabela *Melhorias (roadmap)*).
 
-- [ ] **LLM:** streaming, quotas/custos, política de dados explícita (além do chat actual)
+- [ ] **LLM:** quotas/custos, política de dados explícita (streaming SSE em `/api/aiox/doubts/chat/stream` — ver **CHECKLIST.md**)
 - [ ] **Base de conhecimento:** indexação `docs/` ou Notion para respostas contextualizadas no hub
 - [ ] **Testes de UI** (opcional): E2E ou smoke do painel Dúvidas (`DoubtsChatPanel`) ou do canvas (`TaskCanvasView`)
 - [ ] **Canvas de tarefas:** quotas / auth / multi-utilizador (persistência ficheiro + `VITE_TASK_BOARD_SYNC` já em **[CHECKLIST.md](./CHECKLIST.md)**)

@@ -218,6 +218,86 @@ export async function postDoubtsChat(
   return { ok: true, reply: data.reply };
 }
 
+/**
+ * Stream SSE de `POST /api/aiox/doubts/chat/stream` — linhas `data: {"delta":"..."}` até `data: [DONE]`.
+ */
+export async function postDoubtsChatStream(
+  messages: Array<{ role: "user" | "assistant"; content: string }>,
+  onDelta: (chunk: string) => void
+): Promise<void> {
+  let r: Response;
+  try {
+    r = await fetch("/api/aiox/doubts/chat/stream", {
+      ...API_FETCH_INIT,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+    });
+  } catch (e) {
+    throw new Error(
+      e instanceof TypeError
+        ? "Sem ligação à API. Confirma que o servidor está a correr (ex.: npm run dev)."
+        : String(e)
+    );
+  }
+  if (r.status === 503) {
+    let err = "LLM desactivado no servidor.";
+    try {
+      const t = await r.text();
+      const j = t ? (JSON.parse(t) as { error?: string }) : {};
+      if (j?.error) err = j.error;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(err);
+  }
+  if (r.status === 400) {
+    let err = "Pedido inválido.";
+    try {
+      const t = await r.text();
+      const j = t ? (JSON.parse(t) as { error?: string }) : {};
+      if (j?.error) err = j.error;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`${scopeForHttpStatus(400)}: ${err}`);
+  }
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(text ? `${scopeForHttpStatus(r.status)}: ${text}` : `${scopeForHttpStatus(r.status)} (${r.status})`);
+  }
+  const reader = r.body?.getReader();
+  if (!reader) {
+    throw new Error("Resposta sem corpo (stream).");
+  }
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const payload = line.slice(6).trim();
+      if (payload === "[DONE]") return;
+      try {
+        const j = JSON.parse(payload) as { delta?: string; error?: string };
+        if (j.error) {
+          throw new Error(j.error);
+        }
+        if (typeof j.delta === "string" && j.delta) {
+          onDelta(j.delta);
+        }
+      } catch (e) {
+        if (e instanceof SyntaxError) continue;
+        throw e;
+      }
+    }
+  }
+}
+
 export async function getTaskBoard(): Promise<{ tasks: TaskItem[]; revision: string }> {
   const d = await fetchJson<{ ok?: boolean; tasks?: TaskItem[]; revision?: string }>("/api/aiox/task-board");
   return {

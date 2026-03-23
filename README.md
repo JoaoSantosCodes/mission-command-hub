@@ -40,7 +40,7 @@ Vista **Kanban** no header: colunas **Backlog → Em curso → Revisão → Feit
 
 ### Dúvidas & ajuda — Chat e FAQ
 
-Painel lateral (**ícone mensagem** ou **Ctrl+/**): notas de sessão, export **JSON** / **Markdown**, separadores **Chat** e **FAQ**. Com **`MISSION_DOUBTS_LLM=1`** e chave no servidor, mensagens usam **`POST /api/aiox/doubts/chat`**.
+Painel lateral (**ícone mensagem** ou **Ctrl+/**): notas de sessão, export **JSON** / **Markdown**, separadores **Chat** e **FAQ**. Com **`MISSION_DOUBTS_LLM=1`** e chave no servidor, o chat usa **`POST /api/aiox/doubts/chat/stream`** (resposta em streaming); existe ainda **`POST /api/aiox/doubts/chat`** (JSON único) para integrações.
 
 ![Canvas de tarefas com painel Dúvidas — separador Chat](./docs/readme/canvas-duvidas-chat.png)
 
@@ -123,7 +123,7 @@ O servidor Express serve o `dist/` e a API nos mesmos endpoints `/api/*`.
 npm test
 ```
 
-Smoke da API (**28** testes Vitest + Supertest): `health`, 404/JSON inválido, métricas, tempo, `info` (incl. **`taskBoard`**), **`overview`**, `doubts` / `doubts/chat`, **`task-board`** GET/PUT/409, `agents`, `exec`, validação de `command`, GET/PUT agente ( **`revision`** + conflito **409** ), `MISSION_AGENT_EDIT`, caminhos mascarados, persistência do feed.
+Smoke da API (**29** testes Vitest + Supertest): `health`, 404/JSON inválido, métricas, tempo, `info` (incl. **`taskBoard`**), **`overview`**, `doubts` / `doubts/chat` / **`doubts/chat/stream`**, **`task-board`** GET/PUT/409, `agents`, `exec`, validação de `command`, GET/PUT agente ( **`revision`** + conflito **409** ), `MISSION_AGENT_EDIT`, caminhos mascarados, persistência do feed.
 
 **CI:** o workflow [`.github/workflows/mission-agent-ci.yml`](./.github/workflows/mission-agent-ci.yml) corre `npm ci`, `npm test` e `npm run build` em cada push ou PR para `main` / `master` (quando o repositório Git tem a raiz em `MissionAgent/`).
 

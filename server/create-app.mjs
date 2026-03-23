@@ -23,7 +23,12 @@ import {
   isAioxExecConfigured,
   runAioxSubcommand,
 } from "./lib/aiox-exec.mjs";
-import { callDoubtsChatCompletion, isDoubtsLlmConfigured } from "./lib/doubts-llm.mjs";
+import {
+  callDoubtsChatCompletion,
+  isDoubtsLlmConfigured,
+  streamDoubtsChatCompletion,
+  validateDoubtsChatBody,
+} from "./lib/doubts-llm.mjs";
 import {
   computeTaskBoardRevision,
   loadTaskBoardFromFile,
@@ -224,6 +229,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       },
       doubts: {
         llmEnabled: isDoubtsLlmConfigured(),
+        streamAvailable: isDoubtsLlmConfigured(),
       },
     });
   });
@@ -267,6 +273,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
     res.json({
       ok: true,
       llmEnabled,
+      streamAvailable: llmEnabled,
       knowledgeBaseEnabled: false,
       message: llmEnabled
         ? "O painel Dúvidas pode enviar mensagens a um modelo no servidor (opt-in). O histórico continua em sessionStorage no browser; não uses dados sensíveis."
@@ -275,9 +282,6 @@ export async function createBridgeApp(missionRoot, options = {}) {
     });
   });
 
-  const MAX_DOUBTS_MSG = 35;
-  const MAX_DOUBTS_CONTENT = 8000;
-
   app.post("/api/aiox/doubts/chat", doubtsChatLimiter, async (req, res) => {
     if (!isDoubtsLlmConfigured()) {
       return res.status(503).json({
@@ -285,46 +289,12 @@ export async function createBridgeApp(missionRoot, options = {}) {
         error: "Chat com LLM no servidor desactivado. Define MISSION_DOUBTS_LLM=1 e OPENAI_API_KEY (ou MISSION_LLM_API_KEY).",
       });
     }
-    const raw = req.body?.messages;
-    if (!Array.isArray(raw)) {
-      return res.status(400).json({ ok: false, error: "Corpo inválido: espera-se { messages: [...] }." });
-    }
-    if (raw.length === 0 || raw.length > MAX_DOUBTS_MSG) {
-      return res.status(400).json({
-        ok: false,
-        error: `messages: entre 1 e ${MAX_DOUBTS_MSG} entradas.`,
-      });
-    }
-    const cleaned = [];
-    for (let i = 0; i < raw.length; i++) {
-      const m = raw[i];
-      if (!m || typeof m !== "object") {
-        return res.status(400).json({ ok: false, error: "Cada mensagem deve ser um objecto." });
-      }
-      const role = m.role;
-      const content = m.content;
-      if (role !== "user" && role !== "assistant") {
-        return res.status(400).json({ ok: false, error: "role deve ser user ou assistant." });
-      }
-      if (typeof content !== "string" || !content.trim()) {
-        return res.status(400).json({ ok: false, error: "content deve ser texto não vazio." });
-      }
-      if (content.length > MAX_DOUBTS_CONTENT) {
-        return res.status(400).json({
-          ok: false,
-          error: `content demasiado longo (máx. ${MAX_DOUBTS_CONTENT} caracteres).`,
-        });
-      }
-      cleaned.push({ role, content });
-    }
-    if (cleaned[cleaned.length - 1].role !== "user") {
-      return res.status(400).json({
-        ok: false,
-        error: "A última mensagem do histórico deve ser do utilizador (user).",
-      });
+    const parsed = validateDoubtsChatBody(req);
+    if (!parsed.ok) {
+      return res.status(parsed.status).json({ ok: false, error: parsed.error });
     }
     try {
-      const { text } = await callDoubtsChatCompletion(cleaned);
+      const { text } = await callDoubtsChatCompletion(parsed.messages);
       res.json({ ok: true, reply: text });
     } catch (e) {
       logger.warn({ err: String(e?.message || e) }, "doubts chat failed");
@@ -332,6 +302,40 @@ export async function createBridgeApp(missionRoot, options = {}) {
         ok: false,
         error: String(e?.message || e) || "Falha ao obter resposta do modelo.",
       });
+    }
+  });
+
+  /** Mesmo contrato que `POST /api/aiox/doubts/chat`, mas resposta `text/event-stream` (SSE): linhas `data: {"delta":"..."}` e final `data: [DONE]`. */
+  app.post("/api/aiox/doubts/chat/stream", doubtsChatLimiter, async (req, res) => {
+    if (!isDoubtsLlmConfigured()) {
+      return res.status(503).json({
+        ok: false,
+        error: "Chat com LLM no servidor desactivado. Define MISSION_DOUBTS_LLM=1 e OPENAI_API_KEY (ou MISSION_LLM_API_KEY).",
+      });
+    }
+    const parsed = validateDoubtsChatBody(req);
+    if (!parsed.ok) {
+      return res.status(parsed.status).json({ ok: false, error: parsed.error });
+    }
+    res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    if (typeof res.flushHeaders === "function") res.flushHeaders();
+    try {
+      for await (const delta of streamDoubtsChatCompletion(parsed.messages)) {
+        res.write(`data: ${JSON.stringify({ delta })}\n\n`);
+      }
+      res.write("data: [DONE]\n\n");
+      res.end();
+    } catch (e) {
+      logger.warn({ err: String(e?.message || e) }, "doubts chat stream failed");
+      res.write(
+        `data: ${JSON.stringify({
+          error: String(e?.message || e) || "Falha ao obter resposta do modelo.",
+        })}\n\n`
+      );
+      res.end();
     }
   });
 

@@ -1,6 +1,6 @@
 # Architecture Agents Hub — melhorias e pendências
 
-Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-23 — **`GET`/`PUT /api/aiox/task-board`** (ficheiro JSON no servidor, `If-Match`/`409`, `taskBoard` em `info`); UI opt-in **`VITE_TASK_BOARD_SYNC`**; Canvas com reordenar/filtro/debounce como antes; **`npm test` 28/28**, `npm run build` OK. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
+Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-23 — Painel Dúvidas: **`POST /api/aiox/doubts/chat/stream`** (SSE) + UI em streaming; `streamAvailable` em **`GET /api/aiox/doubts`**; resto alinhado (task-board, Canvas); **`npm test` 29/29**, `npm run build` OK. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
 
 ---
 
@@ -42,6 +42,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 - [x] **Ambiente local**: [`.env.ready`](../.env.ready) versionado; `npm run env:init` + `postinstall`; **`dotenv`** + [`server/load-env.mjs`](../server/load-env.mjs) (Express e Vite embebido); `.env` e `.env.local` no `.gitignore`
 - [x] **`GET /api/aiox/overview`**: ponte + lista de agentes + logs + `activity.kindCounts` + `doubts.llmEnabled` num só pedido — o **polling** da app usa esta rota em vez de `info` + `agents` + `activity` em paralelo (`bridge.taskBoard` espelha `info`)
 - [x] **Canvas no servidor (opt-in)**: **`GET`/`PUT /api/aiox/task-board`** — ficheiro JSON (`MISSION_TASK_BOARD_PATH`, por defeito `.mission-agent/task-board.json`); **`If-Match`** com `revision` (mtime:size) e **409** em conflito; resumo em **`GET /api/aiox/info`** (`taskBoard.revision` / `taskCount`); cliente com **`VITE_TASK_BOARD_SYNC=1`** sincroniza após carga inicial (servidor prevalece se tiver tarefas; senão envia quadro local)
+- [x] **Painel Dúvidas — streaming LLM**: **`POST /api/aiox/doubts/chat/stream`** (`text/event-stream`, deltas SSE); **`GET /api/aiox/doubts`** inclui **`streamAvailable`**; UI (`DoubtsChatPanel`) consome stream e actualiza a bolha do assistente em tempo real; **`POST /api/aiox/doubts/chat`** (JSON completo) mantém-se para clientes que não usem stream
 - [x] **Feed**: campo opcional **`kind`** (`command` | `bridge` | `agent` | `cli`); coluna PostgreSQL `kind`; persistência JSON com escrita **atómica** (ficheiro temp + rename); ícones no painel de atividade
 - [x] **Agentes**: resposta GET com **`revision`** (`mtime:size`); PUT com **`If-Match`** / `revision` → **409** `conflict` se o `.md` mudou no disco
 - [x] **Canvas de tarefas**: campos opcionais **`priority`** e **`blocked`** (import/export e UI com etiqueta e toggle *Bloqueio*)
@@ -53,7 +54,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 ### Alta
 
-- [x] **Testes automatizados**: Vitest + Supertest — **28** casos em `test/api.smoke.test.mjs`: `health`, 404 rota API, POST JSON inválido, métricas, tempo, `info` (incl. **`taskBoard`**), **`overview`**, **`doubts`**, **`doubts/chat`** (503 / 400), **`task-board`** GET/PUT/409, agentes, `exec` 503/403, validação `command`, GET agente 404, **POST** criar agente + **409** duplicado, **DELETE** agente, **PUT** `.md` + **revision** / **409** conflito + 403 com `MISSION_AGENT_EDIT=0`, caminhos mascarados, persistência do feed (`npm test`)
+- [x] **Testes automatizados**: Vitest + Supertest — **29** casos em `test/api.smoke.test.mjs`: `health`, 404 rota API, POST JSON inválido, métricas, tempo, `info` (incl. **`taskBoard`**), **`overview`**, **`doubts`**, **`doubts/chat`** / **`doubts/chat/stream`** (503 / 400), **`task-board`** GET/PUT/409, agentes, `exec` 503/403, validação `command`, GET agente 404, **POST** criar agente + **409** duplicado, **DELETE** agente, **PUT** `.md` + **revision** / **409** conflito + 403 com `MISSION_AGENT_EDIT=0`, caminhos mascarados, persistência do feed (`npm test`)
 - [x] **Validação de entrada**: limite no servidor + `maxLength` no input e mensagens de erro alinhadas
 - [x] **Tratamento de erro HTTP** no cliente: rede (`TypeError`) vs 4xx/5xx com prefixos legíveis
 - [x] **Persistência do feed**: JSON em `MissionAgent/.mission-agent/activity.json` ou `MISSION_ACTIVITY_PATH`
@@ -88,7 +89,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 | Prioridade | Melhoria | Notas |
 |------------|----------|--------|
-| Média | **Chat com LLM no servidor** | **Parcial:** `POST /api/aiox/doubts/chat` + `llmEnabled` em `GET /api/aiox/doubts` (opt-in); rate limit `DOUBTS_CHAT_RATE_MAX`. Evoluir: **streaming**, custos/quotas, política de dados; chaves só no servidor; nunca no bundle Vite |
+| Média | **Chat com LLM no servidor** | **Parcial:** `POST /api/aiox/doubts/chat` (JSON) e **`POST /api/aiox/doubts/chat/stream`** (SSE / streaming na UI); `streamAvailable` em `GET /api/aiox/doubts`. Evoluir: **quotas/custos**, política de dados explícita; chaves só no servidor |
 | Média | **Ligação opcional a base de conhecimento** | Indexar `docs/` ou Notion para respostas contextualizadas (MCP já cobre parte no IDE) |
 | ~~Baixa~~ | ~~**Exportar histórico do painel Dúvidas**~~ | **Feito:** botões JSON + Markdown em `DoubtsChatPanel` |
 | ~~Baixa~~ | ~~**Atalho de teclado** para Dúvidas~~ | **Feito:** `Ctrl+/` / `Cmd+/` toggle global (ignorado dentro de `input`/`textarea`/contenteditable) |

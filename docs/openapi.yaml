@@ -195,6 +195,9 @@ paths:
                     type: object
                     properties:
                       llmEnabled: { type: boolean }
+                      streamAvailable:
+                        type: boolean
+                        description: Igual a llmEnabled — streaming em /api/aiox/doubts/chat/stream
   /api/aiox/doubts:
     get:
       summary: Capacidades do painel Dúvidas & ajuda (UI)
@@ -224,6 +227,9 @@ paths:
                     type: string
                     nullable: true
                     description: URL opcional de ajuda (env MISSION_DOUBTS_HELP_URL)
+                  streamAvailable:
+                    type: boolean
+                    description: "true quando o streaming (POST /api/aiox/doubts/chat/stream) está disponível — igual a llmEnabled"
   /api/aiox/doubts/chat:
     post:
       summary: Resposta do modelo (painel Dúvidas) — opt-in
@@ -267,6 +273,44 @@ paths:
           description: Erro do fornecedor do modelo
         "503":
           description: LLM desactivado (sem env)
+  /api/aiox/doubts/chat/stream:
+    post:
+      summary: Resposta do modelo em streaming (SSE) — painel Dúvidas
+      description: |
+        Mesmo corpo e validação que `POST /api/aiox/doubts/chat`. Resposta `text/event-stream`: linhas `data: {"delta":"..."}` (troços de texto) e final `data: [DONE]`.
+        Erro: linha `data: {"error":"..."}`. Rate limit partilhado (`DOUBTS_CHAT_RATE_MAX`). Timeout longo: `MISSION_LLM_STREAM_TIMEOUT_MS` ou `MISSION_LLM_TIMEOUT_MS`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                messages:
+                  type: array
+                  minItems: 1
+                  maxItems: 35
+                  items:
+                    type: object
+                    required: [role, content]
+                    properties:
+                      role: { type: string, enum: [user, assistant] }
+                      content: { type: string, maxLength: 8000 }
+      responses:
+        "200":
+          description: Stream SSE (text/event-stream)
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Linhas SSE; tokens em JSON `delta`; fim `[DONE]`
+        "400":
+          description: Payload inválido (JSON)
+        "429":
+          description: Rate limit
+        "503":
+          description: LLM desactivado (JSON)
   /api/aiox/agents:
     get:
       summary: Lista de agentes (.md)

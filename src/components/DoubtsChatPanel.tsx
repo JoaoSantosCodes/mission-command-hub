@@ -1,6 +1,6 @@
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { BookOpen, Copy, Download, Loader2, MessageCircle, RotateCcw, Send, Upload, X } from "lucide-react";
-import { fetchJson, postDoubtsChat } from "@/lib/api";
+import { fetchJson, postDoubtsChatStream } from "@/lib/api";
 import type { AioxDoubtsCapabilities } from "@/types/hub";
 
 const STORAGE_KEY = "mission-agent-doubts-chat-v1";
@@ -85,7 +85,7 @@ const FAQ = [
   },
   {
     q: "O painel Dúvidas fala com a API?",
-    a: "GET /api/aiox/doubts indica se o LLM no servidor está activo. Com MISSION_DOUBTS_LLM=1 e chave, as mensagens podem ir a POST /api/aiox/doubts/chat; caso contrário só notas locais em sessionStorage.",
+    a: "GET /api/aiox/doubts indica se o LLM no servidor está activo. Com MISSION_DOUBTS_LLM=1 e chave, as mensagens usam streaming em POST /api/aiox/doubts/chat/stream; caso contrário só notas locais em sessionStorage.",
   },
 ];
 
@@ -212,29 +212,33 @@ export function DoubtsChatPanel({ open, onClose }: DoubtsChatPanelProps) {
       setDraft("");
 
       if (serverCaps?.llmEnabled) {
-        const nextMessages = [...messages, userMsg];
+        const aid = `a-${Date.now()}`;
+        const nextMessages = [...messages, userMsg, { id: aid, role: "assistant" as const, text: "", at: Date.now() }];
         setMessages(nextMessages);
         setLlmBusy(true);
         try {
-          const apiMessages = nextMessages
+          const apiMessages = [...messages, userMsg]
             .filter((m) => m.id !== "welcome")
             .map((m) => ({ role: m.role, content: m.text }));
-          const { reply } = await postDoubtsChat(apiMessages);
-          setMessages((prev) => [
-            ...prev,
-            { id: `a-${Date.now()}`, role: "assistant", text: reply, at: Date.now() },
-          ]);
+          await postDoubtsChatStream(apiMessages, (delta) => {
+            setMessages((prev) =>
+              prev.map((m) => (m.id === aid ? { ...m, text: m.text + delta } : m))
+            );
+          });
         } catch (e) {
           const err = e instanceof Error ? e.message : String(e);
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `a-${Date.now()}`,
-              role: "assistant",
-              text: `Não foi possível obter resposta do modelo.\n\n${err}`,
-              at: Date.now(),
-            },
-          ]);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === aid
+                ? {
+                    ...m,
+                    text: m.text.trim()
+                      ? `${m.text}\n\n— ${err}`
+                      : `Não foi possível obter resposta do modelo.\n\n${err}`,
+                  }
+                : m
+            )
+          );
         } finally {
           setLlmBusy(false);
         }
@@ -460,7 +464,7 @@ export function DoubtsChatPanel({ open, onClose }: DoubtsChatPanelProps) {
                 {!serverCaps ? (
                   <> Sem LLM no servidor — usa o Chat do Cursor para IA.</>
                 ) : serverCaps.llmEnabled ? (
-                  <> Respostas via modelo no servidor (opt-in).</>
+                  <> Respostas em streaming via modelo no servidor (opt-in).</>
                 ) : null}
               </p>
               {serverCaps?.message ? (

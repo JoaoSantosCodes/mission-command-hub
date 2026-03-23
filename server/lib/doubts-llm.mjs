@@ -91,3 +91,140 @@ export async function callDoubtsChatCompletion(userMessages) {
     clearTimeout(t);
   }
 }
+
+const MAX_DOUBTS_MSG = 35;
+const MAX_DOUBTS_CONTENT = 8000;
+
+/**
+ * Valida o corpo de POST /api/aiox/doubts/chat (e /chat/stream).
+ * @returns {{ ok: true, messages: Array<{ role: string, content: string }> } | { ok: false, status: number, error: string }}
+ */
+export function validateDoubtsChatBody(req) {
+  const raw = req.body?.messages;
+  if (!Array.isArray(raw)) {
+    return { ok: false, status: 400, error: "Corpo inválido: espera-se { messages: [...] }." };
+  }
+  if (raw.length === 0 || raw.length > MAX_DOUBTS_MSG) {
+    return {
+      ok: false,
+      status: 400,
+      error: `messages: entre 1 e ${MAX_DOUBTS_MSG} entradas.`,
+    };
+  }
+  const cleaned = [];
+  for (let i = 0; i < raw.length; i++) {
+    const m = raw[i];
+    if (!m || typeof m !== "object") {
+      return { ok: false, status: 400, error: "Cada mensagem deve ser um objecto." };
+    }
+    const role = m.role;
+    const content = m.content;
+    if (role !== "user" && role !== "assistant") {
+      return { ok: false, status: 400, error: "role deve ser user ou assistant." };
+    }
+    if (typeof content !== "string" || !content.trim()) {
+      return { ok: false, status: 400, error: "content deve ser texto não vazio." };
+    }
+    if (content.length > MAX_DOUBTS_CONTENT) {
+      return {
+        ok: false,
+        status: 400,
+        error: `content demasiado longo (máx. ${MAX_DOUBTS_CONTENT} caracteres).`,
+      };
+    }
+    cleaned.push({ role, content });
+  }
+  if (cleaned[cleaned.length - 1].role !== "user") {
+    return {
+      ok: false,
+      status: 400,
+      error: "A última mensagem do histórico deve ser do utilizador (user).",
+    };
+  }
+  return { ok: true, messages: cleaned };
+}
+
+/**
+ * Stream OpenAI-compatible (SSE). Gera troços de texto (delta) por token/pedaço.
+ * @param {Array<{ role: string, content: string }>} userMessages
+ */
+export async function* streamDoubtsChatCompletion(userMessages) {
+  const key = apiKey();
+  const base = getDoubtsLlmBaseUrl();
+  const model = getDoubtsLlmModel();
+  const timeoutMs = Math.min(
+    Math.max(Number(process.env.MISSION_LLM_STREAM_TIMEOUT_MS) || Number(process.env.MISSION_LLM_TIMEOUT_MS) || 120_000, 10_000),
+    300_000
+  );
+  const maxTokens = Math.min(Math.max(Number(process.env.MISSION_LLM_MAX_TOKENS) || 1024, 64), 4096);
+  const messages = [{ role: "system", content: getDoubtsSystemPrompt() }, ...userMessages];
+
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${base}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        max_tokens: maxTokens,
+        stream: true,
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const raw = await res.text();
+      let errMsg = `HTTP ${res.status}`;
+      try {
+        const data = raw ? JSON.parse(raw) : {};
+        errMsg = data?.error?.message || data?.error || errMsg;
+      } catch {
+        /* ignore */
+      }
+      logger.warn({ status: res.status, err: String(errMsg).slice(0, 200) }, "doubts LLM stream upstream error");
+      throw new Error(typeof errMsg === "string" ? errMsg : "Erro do serviço de modelo.");
+    }
+    if (!res.body) {
+      throw new Error("Resposta sem corpo (stream).");
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        const s = line.trim();
+        if (!s.startsWith("data: ")) continue;
+        const payload = s.slice(6).trim();
+        if (payload === "[DONE]") return;
+        try {
+          const json = JSON.parse(payload);
+          if (json?.error) {
+            const em = json.error?.message || json.error;
+            throw new Error(typeof em === "string" ? em : "Erro no stream do modelo.");
+          }
+          const delta = json?.choices?.[0]?.delta?.content;
+          if (typeof delta === "string" && delta) yield delta;
+        } catch (e) {
+          if (e instanceof SyntaxError) continue;
+          throw e;
+        }
+      }
+    }
+  } catch (e) {
+    if (e?.name === "AbortError") {
+      throw new Error("Tempo esgotado ao contactar o modelo (stream).");
+    }
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
+}

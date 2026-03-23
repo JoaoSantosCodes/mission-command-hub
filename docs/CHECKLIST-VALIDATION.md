@@ -9,14 +9,14 @@ Registo de auditorias cruzadas entre **`docs/CHECKLIST.md`** e o código / repos
 | Campo | Valor |
 |--------|--------|
 | **Data** | 2026-03-23 |
-| **Âmbito** | MissionAgent — `GET`/`PUT /api/aiox/task-board`, `taskBoard` em `info`, cliente `VITE_TASK_BOARD_SYNC`; smoke +28; OpenAPI/README/CHECKLIST |
-| **Comandos** | `npm test` → **28/28** pass; `npm run build` → OK (mesma data) |
+| **Âmbito** | MissionAgent — streaming Dúvidas (`POST /api/aiox/doubts/chat/stream`, `streamAvailable`); smoke 29; OpenAPI/README/CHECKLIST |
+| **Comandos** | `npm test` → **29/29** pass; `npm run build` → OK (mesma data) |
 
 ### Resultado
 
 - **Estado geral:** o checklist está **alinhado** com a implementação actual.
-- **Contagem de testes:** **28** casos em `test/api.smoke.test.mjs` — confere com a secção «Melhorias técnicas → Alta».
-- **Rotas / contrato:** `GET`/`PUT /api/aiox/task-board` + `taskBoard` em `GET /api/aiox/info`; **`docs/openapi.yaml`** actualizado; `GET/PUT /api/aiox/agents/:id` inalterado.
+- **Contagem de testes:** **29** casos em `test/api.smoke.test.mjs` — confere com a secção «Melhorias técnicas → Alta».
+- **Rotas / contrato:** `POST /api/aiox/doubts/chat/stream` (SSE) + `streamAvailable` em `GET /api/aiox/doubts` e `overview.doubts`; task-board inalterado; **`docs/openapi.yaml`** actualizado.
 - **Correcção aplicada:** linha «Motor LLM» em **Pendências conhecidas** mantém LLM opcional no painel Dúvidas vs. modelo no IDE.
 
 ### Lacunas conhecidas (não são erros do checklist)
@@ -25,7 +25,7 @@ Registo de auditorias cruzadas entre **`docs/CHECKLIST.md`** e o código / repos
 |--------|------|
 | Testes de UI | Sem testes automatizados do `DoubtsChatPanel` (comportamento manual / E2E futuro). |
 | MCP operacional | Item `[ ]` em **Integrações MCP** — depende de configuração no Cursor, fora deste repo. |
-| Roadmap | «Base de conhecimento» e **streaming** LLM continuam em aberto — coerente com a tabela **Melhorias (roadmap)**. |
+| Roadmap | «Base de conhecimento» e quotas LLM continuam em aberto — **streaming** SSE já em `/api/aiox/doubts/chat/stream`. |
 
 ### Próxima revisão sugerida
 

@@ -103,7 +103,10 @@ describe("API smoke", () => {
       backend: expect.stringMatching(/file|postgres/),
       kindCounts: expect.any(Object),
     });
-    expect(res.body.doubts).toMatchObject({ llmEnabled: expect.any(Boolean) });
+    expect(res.body.doubts).toMatchObject({
+      llmEnabled: expect.any(Boolean),
+      streamAvailable: expect.any(Boolean),
+    });
     expect(res.body.bridge.taskBoard).toMatchObject({
       revision: expect.any(String),
       taskCount: expect.any(Number),
@@ -154,6 +157,7 @@ describe("API smoke", () => {
     expect(res.body).toMatchObject({
       ok: true,
       llmEnabled: false,
+      streamAvailable: false,
       knowledgeBaseEnabled: false,
     });
     expect(typeof res.body.message).toBe("string");
@@ -163,6 +167,16 @@ describe("API smoke", () => {
   it("POST /api/aiox/doubts/chat → 503 sem MISSION_DOUBTS_LLM", async () => {
     const res = await request(app)
       .post("/api/aiox/doubts/chat")
+      .set("Content-Type", "application/json")
+      .send({ messages: [{ role: "user", content: "olá" }] });
+    expect(res.status).toBe(503);
+    expect(res.body).toMatchObject({ ok: false });
+    expect(typeof res.body.error).toBe("string");
+  });
+
+  it("POST /api/aiox/doubts/chat/stream → 503 sem MISSION_DOUBTS_LLM", async () => {
+    const res = await request(app)
+      .post("/api/aiox/doubts/chat/stream")
       .set("Content-Type", "application/json")
       .send({ messages: [{ role: "user", content: "olá" }] });
     expect(res.status).toBe(503);
