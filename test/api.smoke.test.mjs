@@ -13,7 +13,8 @@ const MISSION_ROOT = path.resolve(__dirname, "..");
 describe("API smoke", () => {
   const tmpActivity = path.join(os.tmpdir(), `ma-smoke-${process.pid}-${Date.now()}.json`);
   const tmpTaskBoard = path.join(os.tmpdir(), `ma-tb-${process.pid}-${Date.now()}.json`);
-  const bridgeOpts = { activityLogPath: tmpActivity, taskBoardPath: tmpTaskBoard };
+  const tmpIntegrationsHistory = path.join(os.tmpdir(), `ma-int-history-${process.pid}-${Date.now()}.json`);
+  const bridgeOpts = { activityLogPath: tmpActivity, taskBoardPath: tmpTaskBoard, integrationsHistoryPath: tmpIntegrationsHistory };
   let app;
 
   beforeAll(async () => {
@@ -28,6 +29,11 @@ describe("API smoke", () => {
     }
     try {
       fs.unlinkSync(tmpTaskBoard);
+    } catch {
+      /* ignore */
+    }
+    try {
+      fs.unlinkSync(tmpIntegrationsHistory);
     } catch {
       /* ignore */
     }
@@ -105,6 +111,23 @@ describe("API smoke", () => {
     expect(typeof res.body.notion.tokenConfigured).toBe("boolean");
     expect(res.body).toHaveProperty("figma");
     expect(typeof res.body.figma.tokenConfigured).toBe("boolean");
+    expect(Array.isArray(res.body.alerts)).toBe(true);
+    expect(Array.isArray(res.body.history)).toBe(true);
+  });
+
+  it("GET /api/aiox/integrations-status?validate=1 adiciona snapshot ao histórico", async () => {
+    const before = await request(app).get("/api/aiox/integrations-status").expect(200);
+    const beforeCount = Array.isArray(before.body.history) ? before.body.history.length : 0;
+    const validated = await request(app).get("/api/aiox/integrations-status?validate=1").expect(200);
+    expect(validated.body.ok).toBe(true);
+    expect(Array.isArray(validated.body.history)).toBe(true);
+    expect(validated.body.history.length).toBeGreaterThanOrEqual(beforeCount);
+    expect(validated.body.summary).toMatchObject({
+      healthScore: expect.any(Number),
+      okCount: expect.any(Number),
+      total: expect.any(Number),
+    });
+    expect(Array.isArray(validated.body.alerts)).toBe(true);
   });
 
   it("GET /api/aiox/overview — ponte + agentes + logs agregados", async () => {

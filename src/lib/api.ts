@@ -442,6 +442,14 @@ export type IntegrationsStatus = {
   ok: boolean;
   generatedAt: string;
   summary?: { okCount: number; total: number; healthScore: number };
+  alerts?: string[];
+  history?: Array<{
+    generatedAt: string;
+    healthScore: number;
+    okCount: number;
+    total: number;
+    alerts: string[];
+  }>;
   database: { configured: boolean; activityBackend: "file" | "postgres" | string };
   exec: { configured: boolean };
   doubts: {

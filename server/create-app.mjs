@@ -41,6 +41,10 @@ import {
   saveCustomizationAtomic,
 } from "./lib/customization-store.mjs";
 import { fishMood, loadFishState, saveFishState } from "./lib/fish-store.mjs";
+import {
+  appendIntegrationsSnapshot,
+  loadIntegrationsHistory,
+} from "./lib/integrations-history-store.mjs";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -63,7 +67,7 @@ function resolveAgentMarkdownPath(agentsDir, idParam) {
 
 /**
  * @param {string} missionRoot Raiz do pacote MissionAgent
- * @param {{ activityLogPath?: string; taskBoardPath?: string; customizationPath?: string; maskPathsInUi?: boolean }} [options]
+ * @param {{ activityLogPath?: string; taskBoardPath?: string; customizationPath?: string; integrationsHistoryPath?: string; maskPathsInUi?: boolean }} [options]
  */
 export async function createBridgeApp(missionRoot, options = {}) {
   const ROOT = path.resolve(missionRoot);
@@ -90,6 +94,11 @@ export async function createBridgeApp(missionRoot, options = {}) {
   const fishStatePath = process.env.MISSION_FISH_PATH
     ? path.resolve(process.env.MISSION_FISH_PATH)
     : path.join(ROOT, ".mission-agent", "fish-state.json");
+  const integrationsHistoryPath =
+    options.integrationsHistoryPath ??
+    (process.env.MISSION_INTEGRATIONS_HISTORY_PATH
+      ? path.resolve(process.env.MISSION_INTEGRATIONS_HISTORY_PATH)
+      : path.join(ROOT, ".mission-agent", "integrations-history.json"));
 
   const activity = await createActivityStoreAuto(activityLogPath);
 
@@ -458,6 +467,45 @@ export async function createBridgeApp(missionRoot, options = {}) {
     return { okCount, total, healthScore };
   }
 
+  function buildIntegrationsAlerts(payload) {
+    const alerts = [];
+    if ((payload?.database?.activityBackend ?? "file") !== "postgres") {
+      alerts.push("DB em fallback para ficheiro (sem Postgres ativo)");
+    }
+    if (payload?.exec?.configured !== true) {
+      alerts.push("CLI AIOX desativado (ENABLE_AIOX_CLI_EXEC=1 em falta)");
+    }
+    if (!(payload?.doubts?.llmEnabled === true && payload?.doubts?.openaiValidated === true)) {
+      alerts.push("OpenAI Dúvidas indisponível ou com validação falhada");
+    }
+    if (payload?.notion?.tokenValidated !== true) {
+      alerts.push("Notion pendente: token ausente ou inválido");
+    }
+    if (payload?.figma?.tokenValidated !== true) {
+      alerts.push("Figma pendente: token ausente ou inválido");
+    }
+    if (payload?.fish?.enabled !== true) {
+      alerts.push("Fish desativado");
+    }
+    return alerts.slice(0, 12);
+  }
+
+  function attachHistoryAndAlerts(payload) {
+    const summary = computeIntegrationsSummary(payload);
+    const alerts = buildIntegrationsAlerts(payload);
+    payload.summary = summary;
+    payload.alerts = alerts;
+    const generatedAt = String(payload.generatedAt || new Date().toISOString());
+    payload.history = appendIntegrationsSnapshot(integrationsHistoryPath, {
+      generatedAt,
+      healthScore: summary.healthScore,
+      okCount: summary.okCount,
+      total: summary.total,
+      alerts,
+    }).slice(-24);
+    return payload;
+  }
+
   app.get("/api/aiox/integrations-status", async (req, res) => {
     const openaiKey = String(process.env.OPENAI_API_KEY || process.env.MISSION_LLM_API_KEY || "");
     const openaiKeyConfigured = openaiKey.trim().length >= 8;
@@ -492,7 +540,9 @@ export async function createBridgeApp(missionRoot, options = {}) {
         enabled: true,
       },
     };
+    payload.history = loadIntegrationsHistory(integrationsHistoryPath).slice(-24);
     payload.summary = computeIntegrationsSummary(payload);
+    payload.alerts = buildIntegrationsAlerts(payload);
 
     if (!wantValidate) {
       return res.json(payload);
@@ -525,7 +575,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
         ...integrationsValidationCache.figma,
       },
     };
-    merged.summary = computeIntegrationsSummary(merged);
+    attachHistoryAndAlerts(merged);
 
     return res.json(merged);
   });

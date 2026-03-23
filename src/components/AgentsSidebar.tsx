@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { HubMascot } from "@/components/HubMascot";
 import { TeamStatusOverview } from "@/components/TeamStatusOverview";
-import { Bot, BookOpen, Database, FileText, FolderKanban, LayoutList, Layers, Plus, Sparkles, Terminal } from "lucide-react";
+import { AlertTriangle, Bot, BookOpen, Database, FileText, FolderKanban, LayoutList, Layers, Plus, Sparkles, Terminal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ActivityEntry, AgentRow, AioxInfo } from "@/types/hub";
 import { MobileDrawer } from "@/components/MobileDrawer";
@@ -272,6 +272,26 @@ export function AgentsSidebar({
                   {integrations?.generatedAt ? new Date(integrations.generatedAt).toLocaleTimeString("pt-PT") : "—"}
                 </span>
               </p>
+              {integrations?.alerts?.length ? (
+                <div className="mt-2 rounded-md border border-amber-500/20 bg-amber-500/5 px-2 py-1.5">
+                  <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="h-3 w-3" aria-hidden />
+                    Alertas ativos ({integrations.alerts.length})
+                  </p>
+                  <p className="mt-1 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
+                    {integrations.alerts[0]}
+                  </p>
+                </div>
+              ) : null}
+              {integrations?.history?.length ? (
+                <p className="mt-2 text-[10px] text-muted-foreground">
+                  Tendência (24 snapshots):{" "}
+                  <span className="font-mono text-foreground">
+                    {integrations.history[0]?.healthScore ?? "—"}% →{" "}
+                    {integrations.history[integrations.history.length - 1]?.healthScore ?? "—"}%
+                  </span>
+                </p>
+              ) : null}
               <div className="mt-3 grid grid-cols-1 gap-2">
                 <IntegrationServiceCard
                   icon={Database}
