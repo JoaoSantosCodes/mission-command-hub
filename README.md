@@ -15,6 +15,7 @@ Hub funcional que combina a **UI** inspirada no `ai-orchestration-hub-main` com 
 - **Integrações em cards:** tab dedicada na sidebar com serviços por cartão e estados **OK/Pendente**.
 - **Validação real no servidor:** `GET /api/aiox/integrations-status?validate=1` faz checks HTTP leves para OpenAI, Notion e Figma.
 - **Saúde das integrações:** score global (%) + `ok/total` + hora da última validação.
+- **Alertas e histórico operacional:** o endpoint devolve `alerts` e `history` para destacar pendências ativas e tendência de saúde das integrações.
 - **Sincronização entre abas:** ações no Task Canvas publicam eventos em `POST /api/aiox/activity/event` e atualizam feed/estado sem esperar só pelo polling.
 - **Aquário visual:** permanece na vista **Central de agentes** (Command Center), com persistência em ficheiro.
 
@@ -138,7 +139,7 @@ O servidor Express serve o `dist/` e a API nos mesmos endpoints `/api/*`.
 npm test
 ```
 
-Smoke da API (**36** testes Vitest + Supertest): `health`, 404/JSON inválido, métricas, tempo, `info` (incl. **`taskBoard`**), **`overview`**, `doubts` / `doubts/chat` / **`doubts/chat/stream`**, **`integrations-status`** (+ `validate=1`), **`task-board`** GET/PUT/409, `agents`, `exec`, validação de `command`, **`activity/event`**, GET/PUT agente ( **`revision`** + conflito **409** ), `MISSION_AGENT_EDIT`, caminhos mascarados, persistência do feed.
+Testes automatizados (**39** testes Vitest + Supertest em `api.smoke`, `fish-api` e `e2e-basic-flow`): `health`, 404/JSON inválido, métricas, tempo, `info` (incl. **`taskBoard`**), **`overview`**, `doubts` / `doubts/chat` / **`doubts/chat/stream`**, **`integrations-status`** (+ `validate=1`, `alerts`, `history`), **`task-board`** GET/PUT/409, `agents`, `exec`, validação de `command`, **`activity/event`**, GET/PUT agente ( **`revision`** + conflito **409** ), `MISSION_AGENT_EDIT`, caminhos mascarados, persistência do feed, fish API e fluxo E2E básico.
 
 **CI:** o workflow [`.github/workflows/mission-agent-ci.yml`](./.github/workflows/mission-agent-ci.yml) corre `npm ci`, `npm test` e `npm run build` em cada push ou PR para `main` / `master` (quando o repositório Git tem a raiz em `MissionAgent/`).
 
