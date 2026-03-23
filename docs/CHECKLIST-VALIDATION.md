@@ -9,14 +9,14 @@ Registo de auditorias cruzadas entre **`docs/CHECKLIST.md`** e o código / repos
 | Campo | Valor |
 |--------|--------|
 | **Data** | 2026-03-23 |
-| **Âmbito** | MissionAgent — streaming Dúvidas (`POST /api/aiox/doubts/chat/stream`, `streamAvailable`), evento de atividade entre abas (`POST /api/aiox/activity/event`); smoke 36; OpenAPI/README/CHECKLIST |
-| **Comandos** | `npm test` → **36/36** pass; `npm run build` → OK (mesma data) |
+| **Âmbito** | MissionAgent — Integrações com `alerts/history` e snapshot em `integrations-status?validate=1`, evento de atividade entre abas (`POST /api/aiox/activity/event`) e fluxo E2E básico; OpenAPI/README/CHECKLIST |
+| **Comandos** | `npm test` → **39/39** pass; `npm run build` → OK (mesma data) |
 
 ### Resultado
 
 - **Estado geral:** o checklist está **alinhado** com a implementação actual.
-- **Contagem de testes:** **36** casos em `test/api.smoke.test.mjs` — confere com a secção «Melhorias técnicas → Alta».
-- **Rotas / contrato:** `POST /api/aiox/doubts/chat/stream` (SSE) + `streamAvailable` em `GET /api/aiox/doubts` e `overview.doubts`; task-board inalterado; **`docs/openapi.yaml`** actualizado.
+- **Contagem de testes:** **39** testes no total (`api.smoke` + `fish-api` + `e2e-basic-flow`) — confere com a secção «Melhorias técnicas → Alta».
+- **Rotas / contrato:** `GET /api/aiox/integrations-status` inclui `alerts/history` e gera snapshot com `validate=1`; `POST /api/aiox/activity/event` mantém sincronização entre abas; `POST /api/aiox/doubts/chat/stream` (SSE) permanece activo.
 - **Correcção aplicada:** linha «Motor LLM» em **Pendências conhecidas** mantém LLM opcional no painel Dúvidas vs. modelo no IDE.
 
 ### Lacunas conhecidas (não são erros do checklist)

@@ -1,6 +1,6 @@
 # Architecture Agents Hub — melhorias e pendências
 
-Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-23 — painel de Integrações (cards + `integrations-status?validate=1`), sincronização entre abas via **`POST /api/aiox/activity/event`**, e feed/Task Canvas alinhados; **`npm test` 36/36**, `npm run build` OK. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
+Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-23 — Integrações com alertas ativos + histórico de saúde (`integrations-status?validate=1`), sincronização entre abas via **`POST /api/aiox/activity/event`**, e fluxo E2E básico coberto; **`npm test` 39/39**, `npm run build` OK. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
 
 ---
 
@@ -48,6 +48,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 - [x] **Canvas de tarefas**: campos opcionais **`priority`** e **`blocked`** (import/export e UI com etiqueta e toggle *Bloqueio*)
 - [x] **UI vista Hub**: cartão *Estado da ponte* (grelha de métricas, badge ponte OK/atenção, botão sincronizar); sidebar de agentes com ícone/cor; feed vazio com instruções; mascote no header/sidebar/modal (ficheiro em `public/`)
 - [x] **Sincronização entre abas**: Task Canvas publica eventos de equipa em `POST /api/aiox/activity/event`; o Hub escuta `mission-team-activity` e força refresh silencioso para refletir atividade em Estado/Integrações/Feed
+- [x] **Integrações com alertas e histórico**: `GET /api/aiox/integrations-status` devolve `alerts` + `history`; com `validate=1` persiste snapshots de saúde para tendência operacional
 
 ---
 
@@ -55,7 +56,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 ### Alta
 
-- [x] **Testes automatizados**: Vitest + Supertest — **36** casos em `test/api.smoke.test.mjs`: `health`, 404 rota API, POST JSON inválido, métricas, tempo, `info` (incl. **`taskBoard`**), **`overview`**, **`doubts`**, **`doubts/chat`** / **`doubts/chat/stream`** (503 / 400), **`integrations-status`**, **`task-board`** GET/PUT/409, agentes, `exec` 503/403, validação `command`, **`activity/event`**, GET agente 404, **POST** criar agente + **409** duplicado, **DELETE** agente, **PUT** `.md` + **revision** / **409** conflito + 403 com `MISSION_AGENT_EDIT=0`, caminhos mascarados, persistência do feed (`npm test`)
+- [x] **Testes automatizados**: Vitest + Supertest — **39** testes em 3 ficheiros (`test/api.smoke.test.mjs`, `test/fish-api.test.mjs`, `test/e2e-basic-flow.test.mjs`): cobertura de `health/info/overview`, `doubts` (JSON + SSE), `integrations-status` (incl. `alerts/history` e snapshot com `validate=1`), `task-board`, `activity/event`, CRUD de agentes, `exec`, fish API, e fluxo E2E básico (atividade + integrações) (`npm test`)
 - [x] **Validação de entrada**: limite no servidor + `maxLength` no input e mensagens de erro alinhadas
 - [x] **Tratamento de erro HTTP** no cliente: rede (`TypeError`) vs 4xx/5xx com prefixos legíveis
 - [x] **Persistência do feed**: JSON em `MissionAgent/.mission-agent/activity.json` ou `MISSION_ACTIVITY_PATH`

@@ -16,7 +16,7 @@ Lista curta para **arranque**, **PR**, **release** e **processo de equipa**. O i
 
 ## 2. Antes de commit / PR
 
-- [ ] `npm test` — **36** testes smoke a passar
+- [ ] `npm test` — **39** testes a passar (smoke + fish API + E2E básico)
 - [ ] `npm run build` — sem erros TypeScript / Vite
 - [ ] Sem segredos no commit (`.env` está no `.gitignore`; não commitar chaves)
 - [ ] Se alteraste API: `docs/openapi.yaml` actualizado
@@ -48,6 +48,7 @@ Marca quando implementares; detalhes em **[CHECKLIST.md](./CHECKLIST.md)** (tabe
 ## 5. Integrações (Cursor / equipa)
 
 - [x] Painel **Integrações** (cards por serviço) valida env chaves no servidor via `GET /api/aiox/integrations-status?validate=1` (OpenAI/Notion/Figma) — funciona em qualquer IDE
+- [x] Painel **Integrações** expõe alertas ativos + tendência por histórico (`alerts` / `history`) para acompanhamento operacional
 - [x] Abas partilham feed de atividade da equipa (Task Canvas publica eventos para `/api/aiox/activity/event` e o Hub faz refresh silencioso)
 - [ ] MCP **Notion** e **Figma** configurados no Cursor com tokens (fora do Git) e “connect”/leitura validada
 
