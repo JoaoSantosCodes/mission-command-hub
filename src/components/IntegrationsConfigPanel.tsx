@@ -13,6 +13,8 @@ type IntegrationsConfigPanelProps = {
   onChange: (patch: IntegrationsConfigPayload) => void;
   onReload: () => void;
   onValidateNow: () => void;
+  helpVisible: boolean;
+  onHelpVisibleChange: (next: boolean) => void;
   onSave: () => void;
 };
 
@@ -72,6 +74,8 @@ export function IntegrationsConfigPanel({
   onChange,
   onReload,
   onValidateNow,
+  helpVisible,
+  onHelpVisibleChange,
   onSave,
 }: IntegrationsConfigPanelProps) {
   const [tab, setTab] = useState<"onboarding" | "llm" | "integrations" | "infra">("onboarding");
@@ -128,10 +132,18 @@ export function IntegrationsConfigPanel({
               {t.label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => onHelpVisibleChange(!helpVisible)}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
+            title="Mostrar/ocultar dicas do painel"
+          >
+            {helpVisible ? "Ocultar dicas" : "Mostrar dicas"}
+          </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-5">
-          {tab === "onboarding" ? (
+          {tab === "onboarding" && helpVisible ? (
             <div className="space-y-4">
               <div className="rounded-xl border border-border bg-background/50 p-3">
                 <p className="text-xs font-semibold text-foreground">Wizard de onboarding</p>
@@ -170,6 +182,10 @@ export function IntegrationsConfigPanel({
                   <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{step.hint}</p>
                 </div>
               ))}
+            </div>
+          ) : tab === "onboarding" ? (
+            <div className="rounded-xl border border-border bg-background/50 p-3 text-[11px] text-muted-foreground">
+              Dicas ocultas. Usa <strong className="font-medium text-foreground">Mostrar dicas</strong> para ver o wizard.
             </div>
           ) : tab === "llm" ? (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -237,6 +253,21 @@ export function IntegrationsConfigPanel({
                 masked={redacted.FIGMA_ACCESS_TOKEN}
                 onChange={(v) => onChange({ FIGMA_ACCESS_TOKEN: v })}
               />
+              <FieldRow
+                label="Slack ingest secret (entrada)"
+                envKey="SLACK_TASK_INGEST_SECRET"
+                type="password"
+                value={draft.SLACK_TASK_INGEST_SECRET}
+                masked={redacted.SLACK_TASK_INGEST_SECRET}
+                onChange={(v) => onChange({ SLACK_TASK_INGEST_SECRET: v })}
+              />
+              <FieldRow
+                label="Agente padrão (Slack->Backlog)"
+                envKey="SLACK_TASK_DEFAULT_ASSIGNEE"
+                value={draft.SLACK_TASK_DEFAULT_ASSIGNEE}
+                masked={redacted.SLACK_TASK_DEFAULT_ASSIGNEE}
+                onChange={(v) => onChange({ SLACK_TASK_DEFAULT_ASSIGNEE: v })}
+              />
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -265,9 +296,11 @@ export function IntegrationsConfigPanel({
               />
             </div>
           )}
-          <p className="mt-3 text-[11px] text-muted-foreground">
-            Guardar aplica no processo atual do servidor e persiste em ficheiro de configuração do MissionAgent.
-          </p>
+          {helpVisible ? (
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              Guardar aplica no processo atual do servidor e persiste em ficheiro de configuração do MissionAgent.
+            </p>
+          ) : null}
         </div>
 
         <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border px-4 py-3 sm:px-5">

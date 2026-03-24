@@ -23,6 +23,8 @@ type MainWorkspaceProps = {
   agentsCount: number;
   timeLabel: string;
   onRefresh: () => void;
+  helpVisible: boolean;
+  onHelpVisibleChange: (next: boolean) => void;
 };
 
 function StatTile({
@@ -50,7 +52,7 @@ function StatTile({
   );
 }
 
-export function MainWorkspace({ info, agentsCount, timeLabel, onRefresh }: MainWorkspaceProps) {
+export function MainWorkspace({ info, agentsCount, timeLabel, onRefresh, helpVisible, onHelpVisibleChange }: MainWorkspaceProps) {
   const docsUrl = import.meta.env.VITE_AIOX_DOCS_URL?.trim();
   const agentsErr = info?.agentsError?.trim();
   const bridgeHealthy = Boolean(info?.aioxExists !== false && !agentsErr);
@@ -92,9 +94,11 @@ export function MainWorkspace({ info, agentsCount, timeLabel, onRefresh }: MainW
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/90">Monitorização</p>
                     <h3 className="mt-1 text-base font-semibold tracking-tight text-foreground">Estado da ponte</h3>
-                    <p className="mt-1 max-w-xl text-[11px] text-muted-foreground">
-                      Ligação ao disco e à API local; actualiza quando sincronizas ou envias comandos.
-                    </p>
+                    {helpVisible ? (
+                      <p className="mt-1 max-w-xl text-[11px] text-muted-foreground">
+                        Ligação ao disco e à API local; actualiza quando sincronizas ou envias comandos.
+                      </p>
+                    ) : null}
                   </div>
                   <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
                     <span
@@ -120,6 +124,14 @@ export function MainWorkspace({ info, agentsCount, timeLabel, onRefresh }: MainW
                       <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                       Sincronizar
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => onHelpVisibleChange(!helpVisible)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                      title="Mostrar/ocultar dicas desta área"
+                    >
+                      {helpVisible ? "Ocultar dicas" : "Mostrar dicas"}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -133,7 +145,10 @@ export function MainWorkspace({ info, agentsCount, timeLabel, onRefresh }: MainW
                     <span className="tabular-nums">{agentsCount}</span>
                   </StatTile>
                   <StatTile icon={FolderOpen} label="Pasta de agentes">
-                    <span className="break-all font-mono text-[11px] leading-snug text-muted-foreground">
+                    <span
+                      className="break-all font-mono text-[11px] leading-snug text-muted-foreground"
+                      title="Raiz AIOX: contém .aiox-core. A lista de agentes segue agents_dir nos YAML (framework -> project -> local)."
+                    >
                       {info?.agentsDir ?? "—"}
                     </span>
                   </StatTile>
@@ -159,37 +174,39 @@ export function MainWorkspace({ info, agentsCount, timeLabel, onRefresh }: MainW
                   </StatTile>
                 </div>
 
-                <div className="rounded-xl border border-dashed border-border/80 bg-muted/25 px-4 py-3 dark:bg-muted/15">
-                  <div className="flex items-start gap-2">
-                    <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-                    <div className="space-y-2 text-[11px] leading-relaxed text-muted-foreground">
-                      <p>
-                        Na <strong className="font-medium text-foreground/90">raiz do projeto AIOX</strong> (caminho acima —
-                        onde vive <code className="rounded bg-muted px-1 font-mono text-[10px]">.aiox-core</code>) corre{" "}
-                        <code className="rounded bg-muted px-1 font-mono text-[10px]">npx aiox-core doctor</code> para
-                        diagnóstico.
-                      </p>
-                      <p>
-                        Documentação externa:{" "}
-                        {docsUrl ? (
-                          <a
-                            href={docsUrl}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="font-medium text-primary underline-offset-2 hover:underline"
-                          >
-                            abrir link
-                          </a>
-                        ) : (
-                          <span className="text-[10px]">
-                            define <span className="font-mono">VITE_AIOX_DOCS_URL</span> no{" "}
-                            <span className="font-mono">.env</span>.
-                          </span>
-                        )}
-                      </p>
+                {helpVisible ? (
+                  <div className="rounded-xl border border-dashed border-border/80 bg-muted/25 px-4 py-3 dark:bg-muted/15">
+                    <div className="flex items-start gap-2">
+                      <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+                      <div className="space-y-2 text-[11px] leading-relaxed text-muted-foreground">
+                        <p>
+                          Na <strong className="font-medium text-foreground/90">raiz do projeto AIOX</strong> (caminho acima —
+                          onde vive <code className="rounded bg-muted px-1 font-mono text-[10px]">.aiox-core</code>) corre{" "}
+                          <code className="rounded bg-muted px-1 font-mono text-[10px]">npx aiox-core doctor</code> para
+                          diagnóstico.
+                        </p>
+                        <p>
+                          Documentação externa:{" "}
+                          {docsUrl ? (
+                            <a
+                              href={docsUrl}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              className="font-medium text-primary underline-offset-2 hover:underline"
+                            >
+                              abrir link
+                            </a>
+                          ) : (
+                            <span className="text-[10px]">
+                              define <span className="font-mono">VITE_AIOX_DOCS_URL</span> no{" "}
+                              <span className="font-mono">.env</span>.
+                            </span>
+                          )}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : null}
 
                 {info?.aioxExecAvailable ? <AioxCliPanel onRan={onRefresh} /> : null}
               </div>

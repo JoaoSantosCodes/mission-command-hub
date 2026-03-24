@@ -417,6 +417,8 @@ export type IntegrationsConfigPayload = Partial<
     | "MISSION_DOUBTS_LLM"
     | "OPENAI_API_KEY"
     | "SLACK_WEBHOOK_URL"
+    | "SLACK_TASK_INGEST_SECRET"
+    | "SLACK_TASK_DEFAULT_ASSIGNEE"
     | "NOTION_TOKEN"
     | "FIGMA_ACCESS_TOKEN"
     | "DATABASE_URL"
@@ -676,6 +678,15 @@ export type FigmaContextResponse = {
   };
 };
 
+export type TaskBacklogCheckResponse = {
+  ok: true;
+  ready: boolean;
+  score: number;
+  missing: string[];
+  suggestions: string[];
+  summary: string;
+};
+
 /**
  * Pedido de retorno estruturado do LLM sobre uma tarefa do canvas (requer MISSION_DOUBTS_LLM + chave LLM).
  */
@@ -794,6 +805,62 @@ export async function postFigmaContext(payload: {
     source: data.source,
     meta: data.meta,
     designSummary: data.designSummary,
+  };
+}
+
+export async function postTaskBacklogCheck(payload: {
+  task: Pick<TaskItem, "id" | "title" | "columnId"> &
+    Partial<Pick<TaskItem, "note" | "blocked" | "assigneeAgentId">>;
+  assigneeLabel?: string;
+}): Promise<TaskBacklogCheckResponse> {
+  let r: Response;
+  try {
+    r = await fetch("/api/aiox/task-board/backlog-check", {
+      ...API_FETCH_INIT,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    throw new Error(
+      e instanceof TypeError
+        ? "Sem ligação à API. Confirma que o servidor está a correr (ex.: npm run dev)."
+        : String(e)
+    );
+  }
+  const text = await r.text();
+  let data: {
+    ok?: boolean;
+    ready?: boolean;
+    score?: number;
+    missing?: string[];
+    suggestions?: string[];
+    summary?: string;
+    error?: string;
+    retryAfterSec?: number;
+  } = {};
+  try {
+    if (text) data = JSON.parse(text) as typeof data;
+  } catch {
+    /* ignore */
+  }
+  if (!r.ok) {
+    let err = data.error || text || "falha no corretor de backlog";
+    if (r.status === 429 && typeof data.retryAfterSec === "number") {
+      err += ` (repetir daqui a ~${data.retryAfterSec}s)`;
+    }
+    throw new Error(`${scopeForHttpStatus(r.status)}: ${err}`);
+  }
+  if (data.ok !== true || typeof data.summary !== "string") {
+    throw new Error("Resposta inválida do servidor (backlog-check).");
+  }
+  return {
+    ok: true,
+    ready: data.ready === true,
+    score: Number.isFinite(Number(data.score)) ? Math.max(0, Math.min(100, Math.round(Number(data.score)))) : 0,
+    missing: Array.isArray(data.missing) ? data.missing.map((x) => String(x)) : [],
+    suggestions: Array.isArray(data.suggestions) ? data.suggestions.map((x) => String(x)) : [],
+    summary: data.summary.trim(),
   };
 }
 

@@ -390,3 +390,140 @@ export async function callTaskAgentStepCompletion(task) {
     clearTimeout(t);
   }
 }
+
+const TASK_BACKLOG_CHECK_SYSTEM_DEFAULT = `És um planner técnico que valida qualidade de tickets no backlog.
+Responde APENAS com JSON válido UTF-8 (sem markdown) com estas chaves:
+"ready": boolean — true se há informação suficiente para iniciar execução;
+"score": number — inteiro de 0 a 100 para qualidade do ticket;
+"missing": string[] — lista de itens objectivos que faltam (vazia se nada faltar);
+"suggestions": string[] — melhorias curtas e accionáveis (até 8 itens);
+"summary": string — resumo curto em português de Portugal (1-3 frases).`;
+
+export function getTaskBacklogCheckSystemPrompt() {
+  const c = process.env.MISSION_TASK_BACKLOG_CHECK_SYSTEM_PROMPT;
+  return typeof c === "string" && c.trim().length > 0 ? c.trim() : TASK_BACKLOG_CHECK_SYSTEM_DEFAULT;
+}
+
+export function parseTaskBacklogCheckResponse(text) {
+  const t = String(text || "").trim();
+  let raw = t;
+  const fence = /^```(?:json)?\s*([\s\S]*?)```$/im.exec(t);
+  if (fence) raw = fence[1].trim();
+  const brace = raw.indexOf("{");
+  const last = raw.lastIndexOf("}");
+  if (brace === -1 || last <= brace) {
+    throw new Error('Resposta do modelo: JSON inválido (esperado objecto backlog-check).');
+  }
+  raw = raw.slice(brace, last + 1);
+  let o;
+  try {
+    o = JSON.parse(raw);
+  } catch {
+    throw new Error('Resposta do modelo: JSON inválido (esperado objecto backlog-check).');
+  }
+  const ready = o.ready === true;
+  const scoreRaw = Number(o.score);
+  const score = Number.isFinite(scoreRaw) ? Math.max(0, Math.min(100, Math.round(scoreRaw))) : 0;
+  const missing = Array.isArray(o.missing)
+    ? o.missing.map((x) => String(x || "").trim()).filter(Boolean).slice(0, 12)
+    : [];
+  const suggestions = Array.isArray(o.suggestions)
+    ? o.suggestions.map((x) => String(x || "").trim()).filter(Boolean).slice(0, 12)
+    : [];
+  const summary = String(o.summary ?? "").trim().slice(0, 1500);
+  if (!summary) {
+    throw new Error('Resposta do modelo: campo "summary" vazio.');
+  }
+  return { ready, score, missing, suggestions, summary };
+}
+
+/**
+ * @param {{
+ *   id: string,
+ *   title: string,
+ *   note?: string,
+ *   columnId: string,
+ *   blocked?: boolean,
+ *   assigneeAgentId?: string,
+ *   assigneeLabel?: string,
+ * }} task
+ * @returns {Promise<{ text: string }>}
+ */
+export async function callTaskBacklogCheckCompletion(task) {
+  const key = apiKey();
+  const base = getDoubtsLlmBaseUrl();
+  const model = getDoubtsLlmModel();
+  const timeoutMs = Math.min(
+    Math.max(Number(process.env.MISSION_LLM_TIMEOUT_MS) || 60_000, 5000),
+    120_000
+  );
+  const maxTokens = Math.min(
+    Math.max(Number(process.env.MISSION_LLM_MAX_TOKENS_TASK) || 1800, 256),
+    4096
+  );
+  const note = typeof task.note === "string" && task.note.trim() ? task.note.trim().slice(0, 6000) : "(nenhuma)";
+  const userContent = [
+    `Identificador da tarefa: ${task.id}`,
+    `Coluna actual: ${task.columnId}`,
+    `Bloqueada (metadado do quadro): ${task.blocked === true ? "sim" : "não"}`,
+    `Título: ${task.title}`,
+    `Nota existente:\n${note}`,
+    `Agente atribuído (id): ${task.assigneeAgentId || "nenhum"}`,
+    task.assigneeLabel ? `Agente atribuído (rótulo): ${task.assigneeLabel}` : null,
+    "",
+    "Valida se este ticket está pronto para execução e devolve o JSON pedido no system prompt.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const messages = [
+    { role: "system", content: getTaskBacklogCheckSystemPrompt() },
+    { role: "user", content: userContent },
+  ];
+  logger.info({ taskBacklogCheck: true, taskId: task.id, titleLen: task.title.length }, "task backlog-check LLM request");
+
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${base}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+        ...optionalUpstreamHeaders(),
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        max_tokens: maxTokens,
+      }),
+      signal: controller.signal,
+    });
+    const raw = await res.text();
+    let data;
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      logger.warn({ status: res.status }, "task backlog-check LLM resposta não-JSON");
+      throw new Error(`Resposta inválida do serviço de modelo (HTTP ${res.status}).`);
+    }
+    if (!res.ok) {
+      const errMsg =
+        data?.error?.message || data?.error || data?.message || raw?.slice(0, 200) || `HTTP ${res.status}`;
+      logger.warn({ status: res.status, err: String(errMsg).slice(0, 200) }, "task backlog-check LLM upstream error");
+      throw new Error(typeof errMsg === "string" ? errMsg : "Erro do serviço de modelo.");
+    }
+    const text = data?.choices?.[0]?.message?.content;
+    if (typeof text !== "string" || !text.trim()) {
+      throw new Error("Resposta vazia do modelo.");
+    }
+    return { text: text.trim() };
+  } catch (e) {
+    if (e?.name === "AbortError") {
+      throw new Error("Tempo esgotado ao contactar o modelo.");
+    }
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
+}

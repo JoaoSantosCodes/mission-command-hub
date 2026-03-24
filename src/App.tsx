@@ -42,6 +42,8 @@ import { DoubtsChatPanel } from "@/components/DoubtsChatPanel";
 import { CustomizationPanel } from "@/components/CustomizationPanel";
 import { IntegrationsConfigPanel } from "@/components/IntegrationsConfigPanel";
 
+const GLOBAL_HELP_VISIBLE_STORAGE_KEY = "mission-agent-global-help-visible";
+
 export default function App() {
   const docVisible = useDocumentVisible();
   const { theme, toggle: toggleTheme } = useTheme();
@@ -80,6 +82,13 @@ export default function App() {
   );
   const [fishFood, setFishFood] = useState<{ food: number; maxFood: number; mood: "feliz" | "normal" | "fome" | "critico" } | null>(null);
   const [integrations, setIntegrations] = useState<import("@/lib/api").IntegrationsStatus | null>(null);
+  const [globalHelpVisible, setGlobalHelpVisible] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(GLOBAL_HELP_VISIBLE_STORAGE_KEY) !== "0";
+    } catch {
+      return true;
+    }
+  });
 
   const refreshIntegrations = useCallback(async () => {
     try {
@@ -120,6 +129,14 @@ export default function App() {
   useEffect(() => {
     void refreshIntegrations();
   }, [refreshIntegrations]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(GLOBAL_HELP_VISIBLE_STORAGE_KEY, globalHelpVisible ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [globalHelpVisible]);
 
   useEffect(() => {
     void refreshIntegrationsConfig();
@@ -400,6 +417,8 @@ export default function App() {
         onOpenDoubts={() => setDoubtsOpen(true)}
         onOpenCustomization={() => setCustomizationOpen(true)}
         onOpenIntegrationsConfig={() => setIntegrationsConfigOpen(true)}
+        helpVisible={globalHelpVisible}
+        onToggleHelpVisible={() => setGlobalHelpVisible((v) => !v)}
         customizationSyncLabel={customSyncLabelPt}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
@@ -445,7 +464,6 @@ export default function App() {
         {viewMode === "hub" ? (
           <>
             <AgentsSidebar
-              info={info}
               agents={agents}
               logs={logs}
               loading={loading}
@@ -461,6 +479,8 @@ export default function App() {
               agentsCount={agents.length}
               timeLabel={timeLabel}
               onRefresh={() => void refresh()}
+              helpVisible={globalHelpVisible}
+              onHelpVisibleChange={setGlobalHelpVisible}
             />
             <ActivityPanel
               logs={logs}
@@ -485,7 +505,11 @@ export default function App() {
             }}
           />
         ) : (
-          <TaskCanvasView agents={agents} />
+          <TaskCanvasView
+            agents={agents}
+            helpVisible={globalHelpVisible}
+            onHelpVisibleChange={setGlobalHelpVisible}
+          />
         )}
       </div>
 
@@ -517,7 +541,12 @@ export default function App() {
         }}
       />
 
-      <DoubtsChatPanel open={doubtsOpen} onClose={() => setDoubtsOpen(false)} />
+      <DoubtsChatPanel
+        open={doubtsOpen}
+        onClose={() => setDoubtsOpen(false)}
+        helpVisible={globalHelpVisible}
+        onHelpVisibleChange={setGlobalHelpVisible}
+      />
 
       <CustomizationPanel
         open={customizationOpen}
@@ -537,6 +566,8 @@ export default function App() {
         onChange={(patch) => setIntegrationsConfigDraft((d) => ({ ...d, ...patch }))}
         onReload={() => void refreshIntegrationsConfig()}
         onValidateNow={() => void refreshIntegrations()}
+        helpVisible={globalHelpVisible}
+        onHelpVisibleChange={setGlobalHelpVisible}
         onSave={() => {
           void (async () => {
             setIntegrationsConfigSaving(true);

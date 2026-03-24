@@ -1,7 +1,7 @@
 import { Fragment, useState } from "react";
 import { Plus } from "lucide-react";
 import type { AgentRow } from "@/types/hub";
-import type { FigmaContextResponse, TaskRunEntry } from "@/lib/api";
+import type { FigmaContextResponse, TaskBacklogCheckResponse, TaskRunEntry } from "@/lib/api";
 import type { ColumnDef, ColumnId, TaskItem } from "./types";
 import { TaskCard } from "./TaskCard";
 
@@ -12,8 +12,11 @@ type TaskColumnProps = {
   runsByTaskId?: Record<string, TaskRunEntry | undefined>;
   agentStepLoadingId?: string | null;
   figmaLoadingTaskId?: string | null;
+  backlogCheckLoadingTaskId?: string | null;
   figmaContextByTaskId?: Record<string, FigmaContextResponse | undefined>;
+  backlogCheckByTaskId?: Record<string, TaskBacklogCheckResponse | undefined>;
   onAgentStep?: (task: TaskItem) => void;
+  onBacklogCheck?: (task: TaskItem) => void;
   onReadFigmaContext?: (task: TaskItem) => void;
   /** Só com ordenação *manual* e sem filtro de texto: zonas entre cartões para `toIndex`. */
   reorderEnabled: boolean;
@@ -65,8 +68,11 @@ export function TaskColumn({
   runsByTaskId = {},
   agentStepLoadingId = null,
   figmaLoadingTaskId = null,
+  backlogCheckLoadingTaskId = null,
   figmaContextByTaskId = {},
+  backlogCheckByTaskId = {},
   onAgentStep,
+  onBacklogCheck,
   onReadFigmaContext,
   reorderEnabled,
   onAdd,
@@ -117,6 +123,9 @@ export function TaskColumn({
                   figmaContextSummary={figmaContextByTaskId[t.id]?.designSummary}
                   figmaMeta={figmaContextByTaskId[t.id]?.meta}
                   onAgentStep={onAgentStep}
+                  onBacklogCheck={onBacklogCheck}
+                  backlogCheckLoading={backlogCheckLoadingTaskId === t.id}
+                  backlogCheckResult={backlogCheckByTaskId[t.id]}
                   onReadFigmaContext={onReadFigmaContext}
                   onUpdate={onUpdate}
                   onRemove={onRemove}
@@ -140,6 +149,9 @@ export function TaskColumn({
               figmaContextSummary={figmaContextByTaskId[t.id]?.designSummary}
               figmaMeta={figmaContextByTaskId[t.id]?.meta}
               onAgentStep={onAgentStep}
+              onBacklogCheck={onBacklogCheck}
+              backlogCheckLoading={backlogCheckLoadingTaskId === t.id}
+              backlogCheckResult={backlogCheckByTaskId[t.id]}
               onReadFigmaContext={onReadFigmaContext}
               onUpdate={onUpdate}
               onRemove={onRemove}

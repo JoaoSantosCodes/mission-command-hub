@@ -16,7 +16,16 @@ export function resolveAioxPaths(missionRoot) {
     ? path.resolve(process.env.AIOX_CORE_PATH)
     : path.resolve(missionRoot);
   const AGENTS_DIR = resolveAioxAgentsDir(AIOX_ROOT);
-  const AIOX_BIN = path.join(AIOX_ROOT, "bin", "aiox.js");
+  const overrideBin = String(process.env.AIOX_BIN_PATH || "").trim();
+  if (overrideBin) {
+    const AIOX_BIN = path.resolve(overrideBin);
+    return { AIOX_ROOT, AGENTS_DIR, AIOX_BIN };
+  }
+  const candidates = [
+    path.join(AIOX_ROOT, "bin", "aiox.js"),
+    path.resolve(missionRoot, "..", "aiox-core", "bin", "aiox.js"),
+  ];
+  const AIOX_BIN = candidates.find((p) => fs.existsSync(p)) || candidates[0];
   return { AIOX_ROOT, AGENTS_DIR, AIOX_BIN };
 }
 

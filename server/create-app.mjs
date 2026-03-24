@@ -24,9 +24,11 @@ import {
   runAioxSubcommand,
 } from "./lib/aiox-exec.mjs";
 import {
+  callTaskBacklogCheckCompletion,
   callDoubtsChatCompletion,
   callTaskAgentStepCompletion,
   isDoubtsLlmConfigured,
+  parseTaskBacklogCheckResponse,
   parseTaskAgentStepResponse,
   streamDoubtsChatCompletion,
   validateDoubtsChatBody,
@@ -219,6 +221,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
     );
   }
   app.use(express.json({ limit: "1mb" }));
+  app.use(express.urlencoded({ extended: false, limit: "1mb" }));
 
   const commandLimiter = rateLimitJson({
     windowMs: 60 * 1000,
@@ -424,7 +427,139 @@ export async function createBridgeApp(missionRoot, options = {}) {
     }
   });
 
+  /**
+   * Entrada de tarefas via Slack:
+   * - slash command: `application/x-www-form-urlencoded` com `text`
+   * - webhook interno: JSON com `{ text }` ou `{ title }`
+   * Segurança opcional via `SLACK_TASK_INGEST_SECRET`
+   */
+  app.post("/api/aiox/slack/task", taskBoardLimiter, async (req, res) => {
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const configuredSecret = String(process.env.SLACK_TASK_INGEST_SECRET || "").trim();
+    const providedSecret = String(req.headers["x-mission-slack-secret"] || body.secret || "").trim();
+    if (configuredSecret.length >= 8 && providedSecret !== configuredSecret) {
+      return res.status(401).json({ ok: false, error: "não autorizado (secret inválido)" });
+    }
+    const rawText =
+      typeof body.text === "string" ? body.text : typeof body.title === "string" ? body.title : "";
+    const parsed = parseSlackTaskInput(rawText);
+    if (!parsed.title) {
+      return res.status(400).json({
+        ok: false,
+        error: "texto da tarefa vazio. Envia em `text` (slash command) ou `title` (JSON).",
+      });
+    }
+    try {
+      const loaded = loadTaskBoardFromFile(taskBoardPath);
+      const todo = loaded.tasks.filter((t) => t.columnId === "todo");
+      const order = todo.length ? Math.max(...todo.map((t) => Number(t.order) || 0)) + 1 : 0;
+      const now = Date.now();
+      const id = `slack-${now.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const assignee = parsed.explicitAssignee || pickSlackDefaultAssignee(parsed.title, parsed.note || "");
+      const user = String(body.user_name || body.user_id || "slack").trim();
+      const stamp = new Date().toLocaleString("pt-PT");
+      const sourceLine = `[origem: slack · ${user} · ${stamp}]`;
+      const note = parsed.note ? `${sourceLine}\n${parsed.note}` : sourceLine;
+      const task = {
+        id,
+        title: parsed.title,
+        columnId: "todo",
+        order,
+        createdAt: now,
+        note,
+        blocked: false,
+        ...(assignee ? { assigneeAgentId: assignee } : {}),
+      };
+      saveTaskBoardAtomic(taskBoardPath, [...loaded.tasks, task]);
+      try {
+        const who = assignee ? `@${assignee}` : "sem agente";
+        await activity.pushLog(
+          "@slack-ingest",
+          `Slack -> Backlog: «${parsed.title.slice(0, 72)}» (${who})`,
+          "command",
+          "bridge"
+        );
+      } catch {
+        /* ignore */
+      }
+      if (autoRunEnabled && assignee && isDoubtsLlmConfigured()) {
+        void runAutoTaskStep(task);
+      }
+      if (typeof body.command === "string" && body.command.trim()) {
+        return res.json({
+          response_type: "ephemeral",
+          text: `Tarefa criada no Backlog: "${parsed.title}"${assignee ? ` (agente @${assignee})` : ""}.`,
+        });
+      }
+      return res.json({
+        ok: true,
+        task,
+        queuedAutoRun: Boolean(autoRunEnabled && assignee && isDoubtsLlmConfigured()),
+      });
+    } catch (e) {
+      const msg = String(e?.message || e);
+      logger.warn({ err: msg.slice(0, 280) }, "slack task ingest failed");
+      return res.status(500).json({ ok: false, error: "falha ao criar tarefa via slack" });
+    }
+  });
+
   const COL_IDS_TASK = new Set(["todo", "doing", "review", "done"]);
+  const AGENT_ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
+  const SLACK_TASK_MAX_TITLE = 160;
+
+  function sanitizeAssigneeId(v) {
+    if (typeof v !== "string") return undefined;
+    const s = v.trim();
+    if (!s || !AGENT_ID_RE.test(s)) return undefined;
+    return s;
+  }
+
+  function parseSlackTaskInput(raw) {
+    const text = String(raw ?? "").trim();
+    if (!text) return { title: "", note: "" };
+    let title = "";
+    let body = text;
+    const assigneeMatch = text.match(/(?:^|\s)(?:agent|assignee)\s*[:=]\s*([a-zA-Z0-9._-]{1,128})(?:\s|$)/i);
+    const explicitAssignee = assigneeMatch?.[1]?.trim();
+    if (text.includes("\n")) {
+      const [first, ...rest] = text.split(/\r?\n/);
+      title = first.trim();
+      body = rest.join("\n").trim();
+    } else {
+      const sep = text.search(/\s+-\s+|\s+\|\s+/);
+      if (sep > 8) {
+        title = text.slice(0, sep).trim();
+        body = text.slice(sep + 1).trim();
+      } else {
+        title = text.slice(0, SLACK_TASK_MAX_TITLE).trim();
+        body = "";
+      }
+    }
+    if (!title) title = text.slice(0, SLACK_TASK_MAX_TITLE).trim();
+    title = title.slice(0, SLACK_TASK_MAX_TITLE);
+    return { title, note: body, explicitAssignee: sanitizeAssigneeId(explicitAssignee) };
+  }
+
+  function pickSlackDefaultAssignee(title, note) {
+    const cfg = sanitizeAssigneeId(process.env.SLACK_TASK_DEFAULT_ASSIGNEE);
+    if (cfg) return cfg;
+    const agents = readAgentFiles(AGENTS_DIR);
+    if (!agents.ok || !Array.isArray(agents.agents) || agents.agents.length === 0) return undefined;
+    const ids = agents.agents.map((a) => String(a.id || "").trim()).filter(Boolean);
+    if (ids.includes("aiox-master")) return "aiox-master";
+    const hay = `${title} ${note}`.toLowerCase();
+    const score = (id) => {
+      const s = id.toLowerCase();
+      let n = 0;
+      if (/bug|erro|teste|valida|qa|review/.test(hay) && (s.includes("qa") || s.includes("review"))) n += 5;
+      if (/api|backend|server|db|infra/.test(hay) && (s.includes("backend") || s.includes("architect"))) n += 4;
+      if (/ui|front|layout|figma/.test(hay) && s.includes("frontend")) n += 4;
+      if (s.includes("dev")) n += 2;
+      return n;
+    };
+    ids.sort((a, b) => score(b) - score(a));
+    return sanitizeAssigneeId(ids[0]);
+  }
 
   async function runAutoTaskStep(task) {
     if (autoRunInFlight.has(task.id)) return;
@@ -636,6 +771,58 @@ export async function createBridgeApp(missionRoot, options = {}) {
     } catch (e) {
       const msg = String(e?.message || e);
       logger.warn({ err: msg.slice(0, 300) }, "task-board agent-step failed");
+      return res.status(502).json({ ok: false, error: msg });
+    }
+  });
+
+  /** Corretor de backlog (planner): valida se a tarefa tem informação suficiente para execução. */
+  app.post("/api/aiox/task-board/backlog-check", doubtsChatLimiter, async (req, res) => {
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const task = body.task;
+    if (!task || typeof task !== "object") {
+      return res.status(400).json({ ok: false, error: "Corpo inválido: espera-se { task: { id, title, ... } }." });
+    }
+    const id = String(task.id ?? "").trim();
+    const title = String(task.title ?? "").trim().slice(0, 500);
+    if (!id || !title) {
+      return res.status(400).json({ ok: false, error: "task.id e task.title são obrigatórios." });
+    }
+    let columnId = String(task.columnId ?? "todo").trim();
+    if (!COL_IDS_TASK.has(columnId)) columnId = "todo";
+    const note = typeof task.note === "string" ? task.note.slice(0, 8000) : undefined;
+    const blocked = task.blocked === true;
+    const assigneeAgentId =
+      typeof task.assigneeAgentId === "string" ? task.assigneeAgentId.trim().slice(0, 128) : undefined;
+    const assigneeLabel =
+      typeof body.assigneeLabel === "string" ? body.assigneeLabel.trim().slice(0, 200) : undefined;
+    if (assigneeAgentId && !isTaskAgentCapabilityAllowed(taskAgentPolicy, assigneeAgentId, "agentStep")) {
+      return res.status(403).json({
+        ok: false,
+        error: `Policy bloqueou capability agentStep para @${assigneeAgentId}.`,
+      });
+    }
+    if (!isDoubtsLlmConfigured()) {
+      return res.status(503).json({
+        ok: false,
+        error:
+          "LLM não activo para esta funcionalidade. Define MISSION_DOUBTS_LLM=1 e MISSION_LLM_API_KEY (ver Integrações / Dúvidas).",
+      });
+    }
+    try {
+      const { text } = await callTaskBacklogCheckCompletion({
+        id,
+        title,
+        note,
+        columnId,
+        blocked,
+        assigneeAgentId,
+        assigneeLabel,
+      });
+      const parsed = parseTaskBacklogCheckResponse(text);
+      return res.json({ ok: true, ...parsed });
+    } catch (e) {
+      const msg = String(e?.message || e);
+      logger.warn({ err: msg.slice(0, 300) }, "task-board backlog-check failed");
       return res.status(502).json({ ok: false, error: msg });
     }
   });

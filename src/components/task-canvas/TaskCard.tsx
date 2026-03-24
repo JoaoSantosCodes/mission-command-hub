@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Ban, ChevronLeft, ChevronRight, GripVertical, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { pickDisplayName } from "@/lib/agent-profile-store";
-import type { FigmaContextResponse } from "@/lib/api";
+import type { FigmaContextResponse, TaskBacklogCheckResponse } from "@/lib/api";
 import type { AgentRow } from "@/types/hub";
 import type { ColumnId, TaskItem } from "./types";
 
@@ -23,6 +23,10 @@ type TaskCardProps = {
   figmaMeta?: FigmaContextResponse["meta"];
   /** Pedir retorno estruturado do agente (nota + coluna + bloqueio). */
   onAgentStep?: (task: TaskItem) => void;
+  /** Validar completude da tarefa (estilo planner). */
+  onBacklogCheck?: (task: TaskItem) => void;
+  backlogCheckLoading?: boolean;
+  backlogCheckResult?: TaskBacklogCheckResponse;
   /** Ler contexto Figma antes do retorno (quando existir link na nota). */
   onReadFigmaContext?: (task: TaskItem) => void;
   onUpdate: (
@@ -46,6 +50,9 @@ export function TaskCard({
   figmaContextSummary,
   figmaMeta,
   onAgentStep,
+  onBacklogCheck,
+  backlogCheckLoading = false,
+  backlogCheckResult,
   onReadFigmaContext,
   onUpdate,
   onRemove,
@@ -256,6 +263,23 @@ export function TaskCard({
                   {runMessage}
                 </p>
               ) : null}
+              {backlogCheckResult ? (
+                <div
+                  className={`rounded border px-2 py-1 text-[10px] leading-relaxed ${
+                    backlogCheckResult.ready
+                      ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-800 dark:text-emerald-300"
+                      : "border-amber-500/25 bg-amber-500/10 text-amber-800 dark:text-amber-300"
+                  }`}
+                >
+                  <p className="font-medium">
+                    Planner check: {backlogCheckResult.ready ? "Pronta" : "Incompleta"} · score {backlogCheckResult.score}/100
+                  </p>
+                  <p className="mt-0.5">{backlogCheckResult.summary}</p>
+                  {backlogCheckResult.missing.length ? (
+                    <p className="mt-0.5">Falta: {backlogCheckResult.missing.slice(0, 3).join("; ")}</p>
+                  ) : null}
+                </div>
+              ) : null}
               {figmaContextLoaded && figmaContextSummary ? (
                 <div
                   className="relative rounded border border-emerald-500/20 bg-emerald-500/5 px-2 py-1 text-[10px] leading-relaxed text-emerald-800 dark:text-emerald-300"
@@ -343,6 +367,18 @@ export function TaskCard({
                 <Sparkles className="h-3 w-3" aria-hidden />
               )}
               Retorno
+            </button>
+          ) : null}
+          {onBacklogCheck ? (
+            <button
+              type="button"
+              disabled={backlogCheckLoading || runStatus === "running"}
+              onClick={() => onBacklogCheck(task)}
+              className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-50"
+              title="Validar completude do ticket no backlog (planner)"
+            >
+              {backlogCheckLoading ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}
+              Corretor
             </button>
           ) : null}
           {onReadFigmaContext && figmaLinked ? (

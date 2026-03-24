@@ -1,5 +1,7 @@
 import type { FormEvent } from "react";
 import {
+  Eye,
+  EyeOff,
   LayoutGrid,
   Loader2,
   MessageCircle,
@@ -43,6 +45,8 @@ type HubHeaderProps = {
   onOpenDoubts?: () => void;
   onOpenCustomization?: () => void;
   onOpenIntegrationsConfig?: () => void;
+  helpVisible?: boolean;
+  onToggleHelpVisible?: () => void;
   customizationSyncLabel?: string;
   viewMode?: HubViewMode;
   onViewModeChange?: (mode: HubViewMode) => void;
@@ -69,6 +73,8 @@ export function HubHeader({
   onOpenDoubts,
   onOpenCustomization,
   onOpenIntegrationsConfig,
+  helpVisible = true,
+  onToggleHelpVisible,
   customizationSyncLabel,
   viewMode = "hub",
   onViewModeChange,
@@ -248,6 +254,17 @@ export function HubHeader({
             aria-label="Abrir configuração de integrações"
           >
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        ) : null}
+        {onToggleHelpVisible ? (
+          <button
+            type="button"
+            onClick={onToggleHelpVisible}
+            className="rounded-md border border-border p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            title={helpVisible ? "Ocultar dicas (global)" : "Mostrar dicas (global)"}
+            aria-label={helpVisible ? "Ocultar dicas globalmente" : "Mostrar dicas globalmente"}
+          >
+            {helpVisible ? <EyeOff className="h-3.5 w-3.5" aria-hidden /> : <Eye className="h-3.5 w-3.5" aria-hidden />}
           </button>
         ) : null}
         <button

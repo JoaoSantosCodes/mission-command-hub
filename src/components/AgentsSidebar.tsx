@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { HubMascot } from "@/components/HubMascot";
 import { TeamStatusOverview } from "@/components/TeamStatusOverview";
-import { AlertTriangle, Bot, BookOpen, Database, FileText, FolderKanban, LayoutList, Layers, MessageSquare, Plus, Sparkles, Terminal } from "lucide-react";
+import { AlertTriangle, Bot, BookOpen, Database, FileText, Layers, MessageSquare, Plus, Sparkles, Terminal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { ActivityEntry, AgentRow, AioxInfo } from "@/types/hub";
+import type { ActivityEntry, AgentRow } from "@/types/hub";
 import { MobileDrawer } from "@/components/MobileDrawer";
 import {
   AGENT_PROFILE_CHANGED_EVENT,
@@ -17,7 +16,6 @@ import {
 } from "@/lib/api";
 
 type AgentsSidebarProps = {
-  info: AioxInfo | null;
   agents: AgentRow[];
   logs: ActivityEntry[];
   loading: boolean;
@@ -40,7 +38,6 @@ const AGENT_ACCENTS = [
 ];
 
 export function AgentsSidebar({
-  info,
   agents,
   logs,
   loading,
@@ -75,40 +72,6 @@ export function AgentsSidebar({
 
   const inner = (
     <>
-      <div className="border-b border-border p-3">
-        <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          <FolderKanban className="h-3.5 w-3.5" aria-hidden />
-          Projetos
-        </div>
-        <div className="flex items-center gap-2 rounded-md bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary">
-          <HubMascot size="sm" />
-          Architecture Agents Hub
-        </div>
-        <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
-          Caminho abaixo: raiz do <strong className="font-medium text-foreground/85">projeto AIOX</strong> (contém{" "}
-          <span className="font-mono text-foreground/90">.aiox-core</span>). A lista de agentes segue{" "}
-          <span className="font-mono text-[9px] text-foreground/85">agents_dir</span> nos YAML (framework → project → local).
-        </p>
-        <p className="mt-1 break-all font-mono text-[9px] text-muted-foreground/90" title={info?.aioxRoot}>
-          {info?.aioxRoot ?? "…"}
-        </p>
-      </div>
-
-      <div className="border-b border-border p-3">
-        <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          <LayoutList className="h-3.5 w-3.5" aria-hidden />
-          Backlog geral
-        </div>
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">Definições</span>
-          <span className="font-mono font-medium text-foreground">{agents.length}</span>
-        </div>
-        <div className="mt-1 flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">CLI</span>
-          <span className="font-mono text-accent">{info?.aioxExists ? "ok" : "—"}</span>
-        </div>
-      </div>
-
       <div className="scrollbar-thin flex-1 overflow-auto p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">

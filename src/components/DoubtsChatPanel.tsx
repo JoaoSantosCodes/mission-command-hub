@@ -142,6 +142,8 @@ const FAQ = [
 type DoubtsChatPanelProps = {
   open: boolean;
   onClose: () => void;
+  helpVisible: boolean;
+  onHelpVisibleChange: (next: boolean) => void;
 };
 
 function exportJson(messages: Msg[]) {
@@ -169,7 +171,7 @@ function exportMarkdown(messages: Msg[]) {
   URL.revokeObjectURL(a.href);
 }
 
-export function DoubtsChatPanel({ open, onClose }: DoubtsChatPanelProps) {
+export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChange }: DoubtsChatPanelProps) {
   const [tab, setTab] = useState<"chat" | "faq">("chat");
   const [messages, setMessages] = useState<Msg[]>(loadMsgs);
   const [draft, setDraft] = useState("");
@@ -406,6 +408,14 @@ export function DoubtsChatPanel({ open, onClose }: DoubtsChatPanelProps) {
             <RotateCcw className="h-3 w-3" aria-hidden />
             Limpar
           </button>
+          <button
+            type="button"
+            onClick={() => onHelpVisibleChange(!helpVisible)}
+            className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+            title="Mostrar/ocultar dicas e FAQ"
+          >
+            {helpVisible ? "Ocultar dicas" : "Mostrar dicas"}
+          </button>
         </div>
 
         <div className="flex shrink-0 gap-1 border-b border-border px-2 py-2">
@@ -418,16 +428,18 @@ export function DoubtsChatPanel({ open, onClose }: DoubtsChatPanelProps) {
           >
             Chat
           </button>
-          <button
-            type="button"
-            onClick={() => setTab("faq")}
-            className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              tab === "faq" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/80"
-            }`}
-          >
-            <BookOpen className="h-3.5 w-3.5" aria-hidden />
-            FAQ
-          </button>
+          {helpVisible ? (
+            <button
+              type="button"
+              onClick={() => setTab("faq")}
+              className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                tab === "faq" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/80"
+              }`}
+            >
+              <BookOpen className="h-3.5 w-3.5" aria-hidden />
+              FAQ
+            </button>
+          ) : null}
         </div>
 
         {tab === "faq" ? (
@@ -443,7 +455,7 @@ export function DoubtsChatPanel({ open, onClose }: DoubtsChatPanelProps) {
           </div>
         ) : (
           <>
-            {serverCaps?.dataPolicyNotice ? (
+            {helpVisible && serverCaps?.dataPolicyNotice ? (
               <div
                 className="shrink-0 border-b border-border bg-amber-500/5 px-3 py-2 dark:bg-amber-500/10"
                 role="note"
@@ -532,19 +544,21 @@ export function DoubtsChatPanel({ open, onClose }: DoubtsChatPanelProps) {
                   {llmBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Send className="h-4 w-4" />}
                 </button>
               </div>
-              <p className="mt-2 text-[10px] text-muted-foreground">
-                Atalho global (fora de campos de texto): <strong className="font-medium text-foreground">Ctrl+/</strong>{" "}
-                ou <strong className="font-medium text-foreground">Cmd+/</strong>. Máx. {MAX_DRAFT_LEN.toLocaleString(
-                  "pt-PT"
-                )}{" "}
-                caracteres por nota.
-                {!serverCaps ? (
-                  <> Sem LLM no servidor — usa o Chat do Cursor para IA.</>
-                ) : serverCaps.llmEnabled ? (
-                  <> Respostas em streaming via modelo no servidor (opt-in).</>
-                ) : null}
-              </p>
-              {serverCaps?.message ? (
+              {helpVisible ? (
+                <p className="mt-2 text-[10px] text-muted-foreground">
+                  Atalho global (fora de campos de texto): <strong className="font-medium text-foreground">Ctrl+/</strong>{" "}
+                  ou <strong className="font-medium text-foreground">Cmd+/</strong>. Máx. {MAX_DRAFT_LEN.toLocaleString(
+                    "pt-PT"
+                  )}{" "}
+                  caracteres por nota.
+                  {!serverCaps ? (
+                    <> Sem LLM no servidor — usa o Chat do Cursor para IA.</>
+                  ) : serverCaps.llmEnabled ? (
+                    <> Respostas em streaming via modelo no servidor (opt-in).</>
+                  ) : null}
+                </p>
+              ) : null}
+              {helpVisible && serverCaps?.message ? (
                 <p
                   className="mt-2 border-t border-border/60 pt-2 text-[10px] leading-relaxed text-muted-foreground"
                   role="status"
