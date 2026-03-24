@@ -29,6 +29,9 @@ Navegação rápida para toda a documentação do projeto. **Última atualizaç�
 ### **MCP (Model Context Protocol)**
 - **[MCP.md](./MCP.md)** - Servidor MCP do projeto, tools disponíveis, integração Cursor
 
+### **CLI (Command Line Interface)**
+- **[CLI-SETUP.md](./CLI-SETUP.md)** - Setup e uso da CLI aiox.js, detecção de versão, path resolution
+
 ### **Conceitos e Ideias**
 - **[AIOX_CORE_IDEAS.md](./AIOX_CORE_IDEAS.md)** - Ideias do núcleo aiox, alinhamento de conceitos
 - **[QA-CENARIO-CANVAS-REAL.md](./QA-CENARIO-CANVAS-REAL.md)** - Cenários QA reais, casos de uso

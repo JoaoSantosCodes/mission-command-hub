@@ -202,6 +202,17 @@ Alcance:
 | VS Code config | ✅ | `.vscode/settings.json` |
 | EditorConfig | ✅ | `.editorconfig` |
 | Git attributes | ✅ | `.gitattributes` |
+| CLI bin/aiox.js implementado | ✅ | `bin/aiox.js`, `.aiox-core/bin/aiox.js` |
+
+### **CLI Setup (Resolução de Issue)**
+| Item | Status | Detalhes |
+|------|--------|----------|
+| Problema | ✅ RESOLVIDO | "CLI não encontrado: bin/aiox.js" |
+| Primary CLI | ✅ | `bin/aiox.js` com ES modules |
+| Secondary CLI | ✅ | `.aiox-core/bin/aiox.js` fallback |
+| Version metadata | ✅ | `.aiox-core/package.json` criado |
+| Documentação | ✅ | `docs/CLI-SETUP.md` novo |
+| Testes | ✅ | 51/51 ainda passando |
 
 ---
 
@@ -217,6 +228,8 @@ Alcance:
 - ✅ Configuração VS Code otimizada
 - ✅ EditorConfig para cross-editor
 - ✅ Git hooks automatizados
+- ✅ CLI bin/aiox.js operacional
+- ✅ Version detection funcionando
 - ✅ Roadmap claro
 - ✅ Lacunas conhecidas documentadas
 
