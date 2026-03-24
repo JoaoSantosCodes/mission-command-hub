@@ -10,7 +10,7 @@ export type AioxInfo = {
   /** `true` quando `ENABLE_AIOX_CLI_EXEC` e `AIOX_EXEC_SECRET` (≥8) estão definidos no servidor */
   aioxExecAvailable?: boolean;
   /** Onde o feed de atividade está persistido (ficheiro JSON ou PostgreSQL) */
-  activityBackend?: "file" | "postgres";
+  activityBackend?: 'file' | 'postgres';
   /** `false` quando `MISSION_AGENT_EDIT=0` — sem criar / editar / eliminar `.md` na API */
   agentEditAllowed?: boolean;
   /** Quadro Kanban (Canvas): revisão e contagem persistidos em ficheiro no servidor */
@@ -39,7 +39,7 @@ export type AgentCustomization = {
 };
 
 export type OfficeCustomization = {
-  theme?: "default" | "neon";
+  theme?: 'default' | 'neon';
 };
 
 export type HubCustomizationPayload = {

@@ -2,8 +2,8 @@
  * Chat opcional no painel Dúvidas via API compatível com OpenAI (`POST /v1/chat/completions`).
  * Chave: `MISSION_LLM_API_KEY` (recomendado) ou `OPENAI_API_KEY` (legado). Base: `MISSION_LLM_BASE_URL`.
  */
-import { logger } from "./logger.mjs";
-import { getLlmApiKeyFromEnv, getLlmBaseUrlFromEnv } from "./llm-api-key.mjs";
+import { logger } from './logger.mjs';
+import { getLlmApiKeyFromEnv, getLlmBaseUrlFromEnv } from './llm-api-key.mjs';
 
 function apiKey() {
   return getLlmApiKeyFromEnv();
@@ -15,39 +15,39 @@ export function getDoubtsLlmBaseUrl() {
 }
 
 export function getDoubtsLlmModel() {
-  return (process.env.MISSION_LLM_MODEL || "gpt-4o-mini").trim();
+  return (process.env.MISSION_LLM_MODEL || 'gpt-4o-mini').trim();
 }
 
 /** Cabeçalhos opcionais (ex.: OpenRouter pede HTTP-Referer / X-Title para rankings). */
 function optionalUpstreamHeaders() {
   const h = {};
-  const referer = String(process.env.MISSION_LLM_HTTP_REFERER || "").trim();
-  const title = String(process.env.MISSION_LLM_APP_TITLE || "").trim();
-  if (referer) h["HTTP-Referer"] = referer;
-  if (title) h["X-Title"] = title;
+  const referer = String(process.env.MISSION_LLM_HTTP_REFERER || '').trim();
+  const title = String(process.env.MISSION_LLM_APP_TITLE || '').trim();
+  if (referer) h['HTTP-Referer'] = referer;
+  if (title) h['X-Title'] = title;
   return h;
 }
 
 /** Opt-in explícito + chave mínima (lido em tempo de pedido — não cachear no load do módulo). */
 export function isDoubtsLlmConfigured() {
-  return process.env.MISSION_DOUBTS_LLM === "1" && apiKey().length >= 8;
+  return process.env.MISSION_DOUBTS_LLM === '1' && apiKey().length >= 8;
 }
 
 const DEFAULT_SYSTEM = `És um assistente breve e útil no contexto do Architecture Agents Hub (orquestração de agentes aiox-core, API Mission Agent, documentação em MissionAgent/docs/). Responde em português de Portugal quando o utilizador escreve em português. Não inventes rotas ou ficheiros — se não souberes, indica docs/openapi.yaml ou README.`;
 
 export function getDoubtsSystemPrompt() {
   const c = process.env.MISSION_DOUBTS_SYSTEM_PROMPT;
-  return typeof c === "string" && c.trim().length > 0 ? c.trim() : DEFAULT_SYSTEM;
+  return typeof c === 'string' && c.trim().length > 0 ? c.trim() : DEFAULT_SYSTEM;
 }
 
 /** Métricas sem PII — apenas contagens para observabilidade. */
 export function logDoubtsLlmRequest(userMessages, mode) {
   const msgCount = userMessages.length;
   const approxChars = userMessages.reduce(
-    (n, m) => n + (typeof m?.content === "string" ? m.content.length : 0),
+    (n, m) => n + (typeof m?.content === 'string' ? m.content.length : 0),
     0
   );
-  logger.info({ doubtsLlm: true, mode, msgCount, approxChars }, "doubts LLM request");
+  logger.info({ doubtsLlm: true, mode, msgCount, approxChars }, 'doubts LLM request');
 }
 
 /**
@@ -62,18 +62,21 @@ export async function callDoubtsChatCompletion(userMessages) {
     Math.max(Number(process.env.MISSION_LLM_TIMEOUT_MS) || 60_000, 5000),
     120_000
   );
-  const maxTokens = Math.min(Math.max(Number(process.env.MISSION_LLM_MAX_TOKENS) || 1024, 64), 4096);
+  const maxTokens = Math.min(
+    Math.max(Number(process.env.MISSION_LLM_MAX_TOKENS) || 1024, 64),
+    4096
+  );
 
-  const messages = [{ role: "system", content: getDoubtsSystemPrompt() }, ...userMessages];
-  logDoubtsLlmRequest(userMessages, "json");
+  const messages = [{ role: 'system', content: getDoubtsSystemPrompt() }, ...userMessages];
+  logDoubtsLlmRequest(userMessages, 'json');
 
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(`${base}/v1/chat/completions`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${key}`,
         ...optionalUpstreamHeaders(),
       },
@@ -89,23 +92,30 @@ export async function callDoubtsChatCompletion(userMessages) {
     try {
       data = raw ? JSON.parse(raw) : {};
     } catch {
-      logger.warn({ status: res.status }, "doubts LLM resposta não-JSON");
+      logger.warn({ status: res.status }, 'doubts LLM resposta não-JSON');
       throw new Error(`Resposta inválida do serviço de modelo (HTTP ${res.status}).`);
     }
     if (!res.ok) {
       const errMsg =
-        data?.error?.message || data?.error || data?.message || raw?.slice(0, 200) || `HTTP ${res.status}`;
-      logger.warn({ status: res.status, err: String(errMsg).slice(0, 200) }, "doubts LLM upstream error");
-      throw new Error(typeof errMsg === "string" ? errMsg : "Erro do serviço de modelo.");
+        data?.error?.message ||
+        data?.error ||
+        data?.message ||
+        raw?.slice(0, 200) ||
+        `HTTP ${res.status}`;
+      logger.warn(
+        { status: res.status, err: String(errMsg).slice(0, 200) },
+        'doubts LLM upstream error'
+      );
+      throw new Error(typeof errMsg === 'string' ? errMsg : 'Erro do serviço de modelo.');
     }
     const text = data?.choices?.[0]?.message?.content;
-    if (typeof text !== "string" || !text.trim()) {
-      throw new Error("Resposta vazia do modelo.");
+    if (typeof text !== 'string' || !text.trim()) {
+      throw new Error('Resposta vazia do modelo.');
     }
     return { text: text.trim() };
   } catch (e) {
-    if (e?.name === "AbortError") {
-      throw new Error("Tempo esgotado ao contactar o modelo.");
+    if (e?.name === 'AbortError') {
+      throw new Error('Tempo esgotado ao contactar o modelo.');
     }
     throw e;
   } finally {
@@ -123,7 +133,7 @@ const MAX_DOUBTS_CONTENT = 8000;
 export function validateDoubtsChatBody(req) {
   const raw = req.body?.messages;
   if (!Array.isArray(raw)) {
-    return { ok: false, status: 400, error: "Corpo inválido: espera-se { messages: [...] }." };
+    return { ok: false, status: 400, error: 'Corpo inválido: espera-se { messages: [...] }.' };
   }
   if (raw.length === 0 || raw.length > MAX_DOUBTS_MSG) {
     return {
@@ -135,16 +145,16 @@ export function validateDoubtsChatBody(req) {
   const cleaned = [];
   for (let i = 0; i < raw.length; i++) {
     const m = raw[i];
-    if (!m || typeof m !== "object") {
-      return { ok: false, status: 400, error: "Cada mensagem deve ser um objecto." };
+    if (!m || typeof m !== 'object') {
+      return { ok: false, status: 400, error: 'Cada mensagem deve ser um objecto.' };
     }
     const role = m.role;
     const content = m.content;
-    if (role !== "user" && role !== "assistant") {
-      return { ok: false, status: 400, error: "role deve ser user ou assistant." };
+    if (role !== 'user' && role !== 'assistant') {
+      return { ok: false, status: 400, error: 'role deve ser user ou assistant.' };
     }
-    if (typeof content !== "string" || !content.trim()) {
-      return { ok: false, status: 400, error: "content deve ser texto não vazio." };
+    if (typeof content !== 'string' || !content.trim()) {
+      return { ok: false, status: 400, error: 'content deve ser texto não vazio.' };
     }
     if (content.length > MAX_DOUBTS_CONTENT) {
       return {
@@ -155,11 +165,11 @@ export function validateDoubtsChatBody(req) {
     }
     cleaned.push({ role, content });
   }
-  if (cleaned[cleaned.length - 1].role !== "user") {
+  if (cleaned[cleaned.length - 1].role !== 'user') {
     return {
       ok: false,
       status: 400,
-      error: "A última mensagem do histórico deve ser do utilizador (user).",
+      error: 'A última mensagem do histórico deve ser do utilizador (user).',
     };
   }
   return { ok: true, messages: cleaned };
@@ -174,20 +184,28 @@ export async function* streamDoubtsChatCompletion(userMessages) {
   const base = getDoubtsLlmBaseUrl();
   const model = getDoubtsLlmModel();
   const timeoutMs = Math.min(
-    Math.max(Number(process.env.MISSION_LLM_STREAM_TIMEOUT_MS) || Number(process.env.MISSION_LLM_TIMEOUT_MS) || 120_000, 10_000),
+    Math.max(
+      Number(process.env.MISSION_LLM_STREAM_TIMEOUT_MS) ||
+        Number(process.env.MISSION_LLM_TIMEOUT_MS) ||
+        120_000,
+      10_000
+    ),
     300_000
   );
-  const maxTokens = Math.min(Math.max(Number(process.env.MISSION_LLM_MAX_TOKENS) || 1024, 64), 4096);
-  const messages = [{ role: "system", content: getDoubtsSystemPrompt() }, ...userMessages];
-  logDoubtsLlmRequest(userMessages, "stream");
+  const maxTokens = Math.min(
+    Math.max(Number(process.env.MISSION_LLM_MAX_TOKENS) || 1024, 64),
+    4096
+  );
+  const messages = [{ role: 'system', content: getDoubtsSystemPrompt() }, ...userMessages];
+  logDoubtsLlmRequest(userMessages, 'stream');
 
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(`${base}/v1/chat/completions`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${key}`,
         ...optionalUpstreamHeaders(),
       },
@@ -208,34 +226,37 @@ export async function* streamDoubtsChatCompletion(userMessages) {
       } catch {
         /* ignore */
       }
-      logger.warn({ status: res.status, err: String(errMsg).slice(0, 200) }, "doubts LLM stream upstream error");
-      throw new Error(typeof errMsg === "string" ? errMsg : "Erro do serviço de modelo.");
+      logger.warn(
+        { status: res.status, err: String(errMsg).slice(0, 200) },
+        'doubts LLM stream upstream error'
+      );
+      throw new Error(typeof errMsg === 'string' ? errMsg : 'Erro do serviço de modelo.');
     }
     if (!res.body) {
-      throw new Error("Resposta sem corpo (stream).");
+      throw new Error('Resposta sem corpo (stream).');
     }
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = "";
+    let buffer = '';
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split(/\r?\n/);
-      buffer = lines.pop() ?? "";
+      buffer = lines.pop() ?? '';
       for (const line of lines) {
         const s = line.trim();
-        if (!s.startsWith("data: ")) continue;
+        if (!s.startsWith('data: ')) continue;
         const payload = s.slice(6).trim();
-        if (payload === "[DONE]") return;
+        if (payload === '[DONE]') return;
         try {
           const json = JSON.parse(payload);
           if (json?.error) {
             const em = json.error?.message || json.error;
-            throw new Error(typeof em === "string" ? em : "Erro no stream do modelo.");
+            throw new Error(typeof em === 'string' ? em : 'Erro no stream do modelo.');
           }
           const delta = json?.choices?.[0]?.delta?.content;
-          if (typeof delta === "string" && delta) yield delta;
+          if (typeof delta === 'string' && delta) yield delta;
         } catch (e) {
           if (e instanceof SyntaxError) continue;
           throw e;
@@ -243,8 +264,8 @@ export async function* streamDoubtsChatCompletion(userMessages) {
       }
     }
   } catch (e) {
-    if (e?.name === "AbortError") {
-      throw new Error("Tempo esgotado ao contactar o modelo (stream).");
+    if (e?.name === 'AbortError') {
+      throw new Error('Tempo esgotado ao contactar o modelo (stream).');
     }
     throw e;
   } finally {
@@ -262,22 +283,22 @@ O texto em "retorno" deve estar em português de Portugal.`;
 /** @returns {string} */
 export function getTaskAgentSystemPrompt() {
   const c = process.env.MISSION_TASK_AGENT_SYSTEM_PROMPT;
-  return typeof c === "string" && c.trim().length > 0 ? c.trim() : TASK_AGENT_SYSTEM_DEFAULT;
+  return typeof c === 'string' && c.trim().length > 0 ? c.trim() : TASK_AGENT_SYSTEM_DEFAULT;
 }
 
-const TASK_AGENT_COLS = new Set(["todo", "doing", "review", "done", "manter"]);
+const TASK_AGENT_COLS = new Set(['todo', 'doing', 'review', 'done', 'manter']);
 
 /**
  * @param {string} text
  * @returns {{ retorno: string, sugestao_coluna: string, bloqueada?: boolean }}
  */
 export function parseTaskAgentStepResponse(text) {
-  const t = String(text || "").trim();
+  const t = String(text || '').trim();
   let raw = t;
   const fence = /^```(?:json)?\s*([\s\S]*?)```$/im.exec(t);
   if (fence) raw = fence[1].trim();
-  const brace = raw.indexOf("{");
-  const last = raw.lastIndexOf("}");
+  const brace = raw.indexOf('{');
+  const last = raw.lastIndexOf('}');
   if (brace === -1 || last <= brace) {
     throw new Error('Resposta do modelo: JSON inválido (esperado objecto com "retorno").');
   }
@@ -288,15 +309,19 @@ export function parseTaskAgentStepResponse(text) {
   } catch {
     throw new Error('Resposta do modelo: JSON inválido (esperado objecto com "retorno").');
   }
-  const retorno = String(o.retorno ?? "").trim().slice(0, 4000);
+  const retorno = String(o.retorno ?? '')
+    .trim()
+    .slice(0, 4000);
   if (!retorno) {
     throw new Error('Resposta do modelo: campo "retorno" vazio.');
   }
-  let sugestao_coluna = String(o.sugestao_coluna ?? "manter").trim().toLowerCase();
-  if (!TASK_AGENT_COLS.has(sugestao_coluna)) sugestao_coluna = "manter";
+  let sugestao_coluna = String(o.sugestao_coluna ?? 'manter')
+    .trim()
+    .toLowerCase();
+  if (!TASK_AGENT_COLS.has(sugestao_coluna)) sugestao_coluna = 'manter';
   /** @type {boolean | undefined} */
   let bloqueada;
-  if (typeof o.bloqueada === "boolean") bloqueada = o.bloqueada;
+  if (typeof o.bloqueada === 'boolean') bloqueada = o.bloqueada;
   return { retorno, sugestao_coluna, bloqueada };
 }
 
@@ -324,34 +349,40 @@ export async function callTaskAgentStepCompletion(task) {
     Math.max(Number(process.env.MISSION_LLM_MAX_TOKENS_TASK) || 1800, 256),
     4096
   );
-  const note = typeof task.note === "string" && task.note.trim() ? task.note.trim().slice(0, 6000) : "(nenhuma)";
+  const note =
+    typeof task.note === 'string' && task.note.trim()
+      ? task.note.trim().slice(0, 6000)
+      : '(nenhuma)';
   const userContent = [
     `Identificador da tarefa: ${task.id}`,
     `Coluna actual: ${task.columnId}`,
-    `Bloqueada (metadado do quadro): ${task.blocked === true ? "sim" : "não"}`,
+    `Bloqueada (metadado do quadro): ${task.blocked === true ? 'sim' : 'não'}`,
     `Título: ${task.title}`,
     `Nota existente:\n${note}`,
-    `Agente atribuído (id): ${task.assigneeAgentId || "nenhum"}`,
+    `Agente atribuído (id): ${task.assigneeAgentId || 'nenhum'}`,
     task.assigneeLabel ? `Agente atribuído (rótulo): ${task.assigneeLabel}` : null,
-    "",
-    "Gera o JSON pedido no system prompt para esta tarefa.",
+    '',
+    'Gera o JSON pedido no system prompt para esta tarefa.',
   ]
     .filter(Boolean)
-    .join("\n");
+    .join('\n');
 
   const messages = [
-    { role: "system", content: getTaskAgentSystemPrompt() },
-    { role: "user", content: userContent },
+    { role: 'system', content: getTaskAgentSystemPrompt() },
+    { role: 'user', content: userContent },
   ];
-  logger.info({ taskAgentStep: true, taskId: task.id, titleLen: task.title.length }, "task agent LLM request");
+  logger.info(
+    { taskAgentStep: true, taskId: task.id, titleLen: task.title.length },
+    'task agent LLM request'
+  );
 
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(`${base}/v1/chat/completions`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${key}`,
         ...optionalUpstreamHeaders(),
       },
@@ -367,23 +398,30 @@ export async function callTaskAgentStepCompletion(task) {
     try {
       data = raw ? JSON.parse(raw) : {};
     } catch {
-      logger.warn({ status: res.status }, "task agent LLM resposta não-JSON");
+      logger.warn({ status: res.status }, 'task agent LLM resposta não-JSON');
       throw new Error(`Resposta inválida do serviço de modelo (HTTP ${res.status}).`);
     }
     if (!res.ok) {
       const errMsg =
-        data?.error?.message || data?.error || data?.message || raw?.slice(0, 200) || `HTTP ${res.status}`;
-      logger.warn({ status: res.status, err: String(errMsg).slice(0, 200) }, "task agent LLM upstream error");
-      throw new Error(typeof errMsg === "string" ? errMsg : "Erro do serviço de modelo.");
+        data?.error?.message ||
+        data?.error ||
+        data?.message ||
+        raw?.slice(0, 200) ||
+        `HTTP ${res.status}`;
+      logger.warn(
+        { status: res.status, err: String(errMsg).slice(0, 200) },
+        'task agent LLM upstream error'
+      );
+      throw new Error(typeof errMsg === 'string' ? errMsg : 'Erro do serviço de modelo.');
     }
     const text = data?.choices?.[0]?.message?.content;
-    if (typeof text !== "string" || !text.trim()) {
-      throw new Error("Resposta vazia do modelo.");
+    if (typeof text !== 'string' || !text.trim()) {
+      throw new Error('Resposta vazia do modelo.');
     }
     return { text: text.trim() };
   } catch (e) {
-    if (e?.name === "AbortError") {
-      throw new Error("Tempo esgotado ao contactar o modelo.");
+    if (e?.name === 'AbortError') {
+      throw new Error('Tempo esgotado ao contactar o modelo.');
     }
     throw e;
   } finally {
@@ -401,16 +439,18 @@ Responde APENAS com JSON válido UTF-8 (sem markdown) com estas chaves:
 
 export function getTaskBacklogCheckSystemPrompt() {
   const c = process.env.MISSION_TASK_BACKLOG_CHECK_SYSTEM_PROMPT;
-  return typeof c === "string" && c.trim().length > 0 ? c.trim() : TASK_BACKLOG_CHECK_SYSTEM_DEFAULT;
+  return typeof c === 'string' && c.trim().length > 0
+    ? c.trim()
+    : TASK_BACKLOG_CHECK_SYSTEM_DEFAULT;
 }
 
 export function parseTaskBacklogCheckResponse(text) {
-  const t = String(text || "").trim();
+  const t = String(text || '').trim();
   let raw = t;
   const fence = /^```(?:json)?\s*([\s\S]*?)```$/im.exec(t);
   if (fence) raw = fence[1].trim();
-  const brace = raw.indexOf("{");
-  const last = raw.lastIndexOf("}");
+  const brace = raw.indexOf('{');
+  const last = raw.lastIndexOf('}');
   if (brace === -1 || last <= brace) {
     throw new Error('Resposta do modelo: JSON inválido (esperado objecto backlog-check).');
   }
@@ -425,12 +465,20 @@ export function parseTaskBacklogCheckResponse(text) {
   const scoreRaw = Number(o.score);
   const score = Number.isFinite(scoreRaw) ? Math.max(0, Math.min(100, Math.round(scoreRaw))) : 0;
   const missing = Array.isArray(o.missing)
-    ? o.missing.map((x) => String(x || "").trim()).filter(Boolean).slice(0, 12)
+    ? o.missing
+        .map((x) => String(x || '').trim())
+        .filter(Boolean)
+        .slice(0, 12)
     : [];
   const suggestions = Array.isArray(o.suggestions)
-    ? o.suggestions.map((x) => String(x || "").trim()).filter(Boolean).slice(0, 12)
+    ? o.suggestions
+        .map((x) => String(x || '').trim())
+        .filter(Boolean)
+        .slice(0, 12)
     : [];
-  const summary = String(o.summary ?? "").trim().slice(0, 1500);
+  const summary = String(o.summary ?? '')
+    .trim()
+    .slice(0, 1500);
   if (!summary) {
     throw new Error('Resposta do modelo: campo "summary" vazio.');
   }
@@ -461,34 +509,40 @@ export async function callTaskBacklogCheckCompletion(task) {
     Math.max(Number(process.env.MISSION_LLM_MAX_TOKENS_TASK) || 1800, 256),
     4096
   );
-  const note = typeof task.note === "string" && task.note.trim() ? task.note.trim().slice(0, 6000) : "(nenhuma)";
+  const note =
+    typeof task.note === 'string' && task.note.trim()
+      ? task.note.trim().slice(0, 6000)
+      : '(nenhuma)';
   const userContent = [
     `Identificador da tarefa: ${task.id}`,
     `Coluna actual: ${task.columnId}`,
-    `Bloqueada (metadado do quadro): ${task.blocked === true ? "sim" : "não"}`,
+    `Bloqueada (metadado do quadro): ${task.blocked === true ? 'sim' : 'não'}`,
     `Título: ${task.title}`,
     `Nota existente:\n${note}`,
-    `Agente atribuído (id): ${task.assigneeAgentId || "nenhum"}`,
+    `Agente atribuído (id): ${task.assigneeAgentId || 'nenhum'}`,
     task.assigneeLabel ? `Agente atribuído (rótulo): ${task.assigneeLabel}` : null,
-    "",
-    "Valida se este ticket está pronto para execução e devolve o JSON pedido no system prompt.",
+    '',
+    'Valida se este ticket está pronto para execução e devolve o JSON pedido no system prompt.',
   ]
     .filter(Boolean)
-    .join("\n");
+    .join('\n');
 
   const messages = [
-    { role: "system", content: getTaskBacklogCheckSystemPrompt() },
-    { role: "user", content: userContent },
+    { role: 'system', content: getTaskBacklogCheckSystemPrompt() },
+    { role: 'user', content: userContent },
   ];
-  logger.info({ taskBacklogCheck: true, taskId: task.id, titleLen: task.title.length }, "task backlog-check LLM request");
+  logger.info(
+    { taskBacklogCheck: true, taskId: task.id, titleLen: task.title.length },
+    'task backlog-check LLM request'
+  );
 
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(`${base}/v1/chat/completions`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${key}`,
         ...optionalUpstreamHeaders(),
       },
@@ -504,23 +558,30 @@ export async function callTaskBacklogCheckCompletion(task) {
     try {
       data = raw ? JSON.parse(raw) : {};
     } catch {
-      logger.warn({ status: res.status }, "task backlog-check LLM resposta não-JSON");
+      logger.warn({ status: res.status }, 'task backlog-check LLM resposta não-JSON');
       throw new Error(`Resposta inválida do serviço de modelo (HTTP ${res.status}).`);
     }
     if (!res.ok) {
       const errMsg =
-        data?.error?.message || data?.error || data?.message || raw?.slice(0, 200) || `HTTP ${res.status}`;
-      logger.warn({ status: res.status, err: String(errMsg).slice(0, 200) }, "task backlog-check LLM upstream error");
-      throw new Error(typeof errMsg === "string" ? errMsg : "Erro do serviço de modelo.");
+        data?.error?.message ||
+        data?.error ||
+        data?.message ||
+        raw?.slice(0, 200) ||
+        `HTTP ${res.status}`;
+      logger.warn(
+        { status: res.status, err: String(errMsg).slice(0, 200) },
+        'task backlog-check LLM upstream error'
+      );
+      throw new Error(typeof errMsg === 'string' ? errMsg : 'Erro do serviço de modelo.');
     }
     const text = data?.choices?.[0]?.message?.content;
-    if (typeof text !== "string" || !text.trim()) {
-      throw new Error("Resposta vazia do modelo.");
+    if (typeof text !== 'string' || !text.trim()) {
+      throw new Error('Resposta vazia do modelo.');
     }
     return { text: text.trim() };
   } catch (e) {
-    if (e?.name === "AbortError") {
-      throw new Error("Tempo esgotado ao contactar o modelo.");
+    if (e?.name === 'AbortError') {
+      throw new Error('Tempo esgotado ao contactar o modelo.');
     }
     throw e;
   } finally {

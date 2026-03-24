@@ -3,11 +3,12 @@
  * Ordem: L1 framework → L2 project → L4 local (último ficheiro presente ganha em `agents_dir`).
  * Override absoluto: `AIOX_AGENTS_DIR`.
  */
-import fs from "fs";
-import path from "path";
-import yaml from "js-yaml";
+import fs from 'fs';
+import path from 'path';
 
-const DEFAULT_AGENTS_REL = ".aiox-core/development/agents";
+import yaml from 'js-yaml';
+
+const DEFAULT_AGENTS_REL = '.aiox-core/development/agents';
 
 function isPathUnderProject(projectRoot, candidatePath) {
   const root = path.resolve(projectRoot);
@@ -17,9 +18,9 @@ function isPathUnderProject(projectRoot, candidatePath) {
 }
 
 const CONFIG_LAYERS = [
-  path.join(".aiox-core", "framework-config.yaml"),
-  path.join(".aiox-core", "project-config.yaml"),
-  path.join(".aiox-core", "local-config.yaml"),
+  path.join('.aiox-core', 'framework-config.yaml'),
+  path.join('.aiox-core', 'project-config.yaml'),
+  path.join('.aiox-core', 'local-config.yaml'),
 ];
 
 /**
@@ -38,12 +39,12 @@ export function resolveAioxAgentsDir(aioxProjectRoot) {
     if (!fs.existsSync(fp)) continue;
     let doc;
     try {
-      doc = yaml.load(fs.readFileSync(fp, "utf8"));
+      doc = yaml.load(fs.readFileSync(fp, 'utf8'));
     } catch {
       continue;
     }
     const next = doc?.resource_locations?.agents_dir;
-    if (typeof next === "string" && next.trim()) rel = next.trim();
+    if (typeof next === 'string' && next.trim()) rel = next.trim();
   }
 
   const normalized = rel.replace(/\//g, path.sep);
@@ -51,7 +52,7 @@ export function resolveAioxAgentsDir(aioxProjectRoot) {
     ? path.normalize(normalized)
     : path.resolve(root, normalized);
   if (!isPathUnderProject(root, resolved)) {
-    return path.resolve(root, ...DEFAULT_AGENTS_REL.split("/"));
+    return path.resolve(root, ...DEFAULT_AGENTS_REL.split('/'));
   }
   return resolved;
 }

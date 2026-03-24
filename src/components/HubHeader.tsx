@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import type { FormEvent } from 'react';
 import {
   Eye,
   EyeOff,
@@ -15,12 +15,13 @@ import {
   SquareKanban,
   Sun,
   Terminal,
-} from "lucide-react";
-import { HubMascot } from "@/components/HubMascot";
-import { MAX_COMMAND_CHARS } from "@/constants";
-import type { ThemeMode } from "@/hooks/useTheme";
+} from 'lucide-react';
 
-export type HubViewMode = "hub" | "commandCenter" | "taskCanvas";
+import { HubMascot } from '@/components/HubMascot';
+import { MAX_COMMAND_CHARS } from '@/constants';
+import type { ThemeMode } from '@/hooks/useTheme';
+
+export type HubViewMode = 'hub' | 'commandCenter' | 'taskCanvas';
 
 type HubHeaderProps = {
   cmd: string;
@@ -76,7 +77,7 @@ export function HubHeader({
   helpVisible = true,
   onToggleHelpVisible,
   customizationSyncLabel,
-  viewMode = "hub",
+  viewMode = 'hub',
   onViewModeChange,
 }: HubHeaderProps) {
   return (
@@ -100,24 +101,24 @@ export function HubHeader({
         className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-secondary/30 px-2 py-1 text-[10px] font-medium text-muted-foreground"
         title={
           apiOnline === true
-            ? "Ponte /api a responder (em dev/preview o Express corre embebido no Vite; em produção costuma ser :8787)"
+            ? 'Ponte /api a responder (em dev/preview o Express corre embebido no Vite; em produção costuma ser :8787)'
             : apiOnline === false
-              ? "Sem resposta em /api — corre npm run dev (recomendado) ou npm run build && npm start"
-              : "A verificar ligação à API…"
+              ? 'Sem resposta em /api — corre npm run dev (recomendado) ou npm run build && npm start'
+              : 'A verificar ligação à API…'
         }
       >
         <span
           className={`h-1.5 w-1.5 shrink-0 rounded-full ${
             apiOnline === true
-              ? "bg-emerald-500 shadow-[0_0_6px_rgba(34,197,94,0.55)]"
+              ? 'bg-emerald-500 shadow-[0_0_6px_rgba(34,197,94,0.55)]'
               : apiOnline === false
-                ? "bg-red-500"
-                : "animate-pulse bg-amber-400"
+                ? 'bg-red-500'
+                : 'animate-pulse bg-amber-400'
           }`}
           aria-hidden
         />
         <span className="hidden max-w-[5.5rem] truncate sm:inline">
-          {apiOnline === true ? "API ligada" : apiOnline === false ? "API offline" : "API …"}
+          {apiOnline === true ? 'API ligada' : apiOnline === false ? 'API offline' : 'API …'}
         </span>
         <span className="font-mono text-[9px] opacity-80">/api</span>
       </div>
@@ -141,14 +142,20 @@ export function HubHeader({
         </button>
       </div>
 
-      <form onSubmit={onSubmit} className="min-w-[12rem] flex-1 max-w-2xl" aria-label="Comando global">
+      <form
+        onSubmit={onSubmit}
+        className="min-w-[12rem] flex-1 max-w-2xl"
+        aria-label="Comando global"
+      >
         <div
           className={`flex items-center gap-2 rounded-lg border bg-card px-3 py-2 transition-all duration-200 sm:gap-3 sm:px-4 sm:py-2.5 ${
-            cmdFocus ? "border-primary glow-blue-sm" : "border-border"
+            cmdFocus ? 'border-primary glow-blue-sm' : 'border-border'
           }`}
         >
           <Terminal className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-          <span className="hidden shrink-0 font-mono text-xs font-medium text-primary sm:inline">@hub</span>
+          <span className="hidden shrink-0 font-mono text-xs font-medium text-primary sm:inline">
+            @hub
+          </span>
           <input
             value={cmd}
             onChange={(e) => setCmd(e.target.value)}
@@ -171,7 +178,7 @@ export function HubHeader({
             ) : (
               <Sparkles className="h-3 w-3" aria-hidden />
             )}
-            <span className="hidden sm:inline">{cmdBusy ? "…" : "Executar"}</span>
+            <span className="hidden sm:inline">{cmdBusy ? '…' : 'Executar'}</span>
           </button>
         </div>
       </form>
@@ -181,42 +188,42 @@ export function HubHeader({
           <div className="mr-1 flex items-center gap-0.5 rounded-md border border-border p-0.5">
             <button
               type="button"
-              onClick={() => onViewModeChange("hub")}
+              onClick={() => onViewModeChange('hub')}
               className={`rounded px-2 py-1.5 transition-colors ${
-                viewMode === "hub"
-                  ? "bg-secondary text-foreground"
-                  : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+                viewMode === 'hub'
+                  ? 'bg-secondary text-foreground'
+                  : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
               }`}
               title="Vista em colunas (hub)"
-              aria-pressed={viewMode === "hub"}
+              aria-pressed={viewMode === 'hub'}
               aria-label="Vista em colunas"
             >
               <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
             </button>
             <button
               type="button"
-              onClick={() => onViewModeChange("commandCenter")}
+              onClick={() => onViewModeChange('commandCenter')}
               className={`rounded px-2 py-1.5 transition-colors ${
-                viewMode === "commandCenter"
-                  ? "bg-secondary text-foreground"
-                  : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+                viewMode === 'commandCenter'
+                  ? 'bg-secondary text-foreground'
+                  : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
               }`}
               title="Central de agentes (estilo OpenClaw)"
-              aria-pressed={viewMode === "commandCenter"}
+              aria-pressed={viewMode === 'commandCenter'}
               aria-label="Central de agentes"
             >
               <Monitor className="h-3.5 w-3.5" aria-hidden />
             </button>
             <button
               type="button"
-              onClick={() => onViewModeChange("taskCanvas")}
+              onClick={() => onViewModeChange('taskCanvas')}
               className={`rounded px-2 py-1.5 transition-colors ${
-                viewMode === "taskCanvas"
-                  ? "bg-secondary text-foreground"
-                  : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+                viewMode === 'taskCanvas'
+                  ? 'bg-secondary text-foreground'
+                  : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
               }`}
               title="Canvas de tarefas (Kanban modular)"
-              aria-pressed={viewMode === "taskCanvas"}
+              aria-pressed={viewMode === 'taskCanvas'}
               aria-label="Canvas de tarefas"
             >
               <SquareKanban className="h-3.5 w-3.5" aria-hidden />
@@ -261,20 +268,28 @@ export function HubHeader({
             type="button"
             onClick={onToggleHelpVisible}
             className="rounded-md border border-border p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            title={helpVisible ? "Ocultar dicas (global)" : "Mostrar dicas (global)"}
-            aria-label={helpVisible ? "Ocultar dicas globalmente" : "Mostrar dicas globalmente"}
+            title={helpVisible ? 'Ocultar dicas (global)' : 'Mostrar dicas (global)'}
+            aria-label={helpVisible ? 'Ocultar dicas globalmente' : 'Mostrar dicas globalmente'}
           >
-            {helpVisible ? <EyeOff className="h-3.5 w-3.5" aria-hidden /> : <Eye className="h-3.5 w-3.5" aria-hidden />}
+            {helpVisible ? (
+              <EyeOff className="h-3.5 w-3.5" aria-hidden />
+            ) : (
+              <Eye className="h-3.5 w-3.5" aria-hidden />
+            )}
           </button>
         ) : null}
         <button
           type="button"
           onClick={onToggleTheme}
           className="rounded-md border border-border p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          title={theme === "dark" ? "Tema claro" : "Tema escuro"}
-          aria-label={theme === "dark" ? "Activar tema claro" : "Activar tema escuro"}
+          title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
+          aria-label={theme === 'dark' ? 'Activar tema claro' : 'Activar tema escuro'}
         >
-          {theme === "dark" ? <Sun className="h-3.5 w-3.5" aria-hidden /> : <Moon className="h-3.5 w-3.5" aria-hidden />}
+          {theme === 'dark' ? (
+            <Sun className="h-3.5 w-3.5" aria-hidden />
+          ) : (
+            <Moon className="h-3.5 w-3.5" aria-hidden />
+          )}
         </button>
         <button
           type="button"
@@ -283,14 +298,20 @@ export function HubHeader({
           className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
           title="Actualizar dados"
         >
-          <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin motion-reduce:animate-none" : ""}`} aria-hidden />
+          <RefreshCw
+            className={`h-3 w-3 ${refreshing ? 'animate-spin motion-reduce:animate-none' : ''}`}
+            aria-hidden
+          />
           <span className="hidden sm:inline">{timeLabel}</span>
         </button>
         <span className="hidden sm:inline">
-          Ag.: <span className="font-medium text-accent">{loading ? "…" : agentsCount}</span>
+          Ag.: <span className="font-medium text-accent">{loading ? '…' : agentsCount}</span>
         </span>
-        <span className="hidden max-w-[7rem] truncate font-mono text-[10px] lg:inline" title={versionLine}>
-          {loading ? "…" : versionLine}
+        <span
+          className="hidden max-w-[7rem] truncate font-mono text-[10px] lg:inline"
+          title={versionLine}
+        >
+          {loading ? '…' : versionLine}
         </span>
       </div>
     </header>

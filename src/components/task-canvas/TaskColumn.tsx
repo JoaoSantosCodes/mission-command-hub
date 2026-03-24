@@ -1,9 +1,11 @@
-import { Fragment, useState } from "react";
-import { Plus } from "lucide-react";
-import type { AgentRow } from "@/types/hub";
-import type { FigmaContextResponse, TaskBacklogCheckResponse, TaskRunEntry } from "@/lib/api";
-import type { ColumnDef, ColumnId, TaskItem } from "./types";
-import { TaskCard } from "./TaskCard";
+import { Fragment, useState } from 'react';
+import { Plus } from 'lucide-react';
+
+import type { ColumnDef, ColumnId, TaskItem } from './types';
+import { TaskCard } from './TaskCard';
+
+import type { AgentRow } from '@/types/hub';
+import type { FigmaContextResponse, TaskBacklogCheckResponse, TaskRunEntry } from '@/lib/api';
 
 type TaskColumnProps = {
   def: ColumnDef;
@@ -23,7 +25,7 @@ type TaskColumnProps = {
   onAdd: (columnId: ColumnId, title: string) => void;
   onUpdate: (
     id: string,
-    patch: Partial<Pick<TaskItem, "title" | "note" | "priority" | "blocked">> & {
+    patch: Partial<Pick<TaskItem, 'title' | 'note' | 'priority' | 'blocked'>> & {
       assigneeAgentId?: string | null;
     }
   ) => void;
@@ -38,7 +40,7 @@ function InsertDropZone({
 }: {
   insertIndex: number;
   columnId: ColumnId;
-  onMove: TaskColumnProps["onMove"];
+  onMove: TaskColumnProps['onMove'];
 }) {
   return (
     <div
@@ -46,12 +48,12 @@ function InsertDropZone({
       onDragOver={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        e.dataTransfer.dropEffect = "move";
+        e.dataTransfer.dropEffect = 'move';
       }}
       onDrop={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        const id = e.dataTransfer.getData("text/task-id");
+        const id = e.dataTransfer.getData('text/task-id');
         if (!id) return;
         onMove(id, columnId, insertIndex);
       }}
@@ -80,11 +82,11 @@ export function TaskColumn({
   onRemove,
   onMove,
 }: TaskColumnProps) {
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState('');
 
   const onDropColumn = (e: React.DragEvent) => {
     e.preventDefault();
-    const id = e.dataTransfer.getData("text/task-id");
+    const id = e.dataTransfer.getData('text/task-id');
     if (!id) return;
     onMove(id, def.id);
   };
@@ -94,7 +96,7 @@ export function TaskColumn({
       className="flex min-h-0 min-w-[260px] max-w-full flex-1 flex-col rounded-2xl border border-border/80 bg-secondary/20 sm:min-w-[280px]"
       onDragOver={(e) => {
         e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
+        e.dataTransfer.dropEffect = 'move';
       }}
       onDrop={onDropColumn}
       aria-labelledby={`col-${def.id}`}
@@ -104,7 +106,9 @@ export function TaskColumn({
           {def.title}
         </h2>
         {def.hint ? <p className="mt-0.5 text-[10px] text-muted-foreground">{def.hint}</p> : null}
-        <p className="mt-1 font-mono text-[10px] text-muted-foreground/80">{tasks.length} tarefas</p>
+        <p className="mt-1 font-mono text-[10px] text-muted-foreground/80">
+          {tasks.length} tarefas
+        </p>
       </header>
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3 sm:p-4">
         {reorderEnabled ? (
@@ -164,7 +168,7 @@ export function TaskColumn({
           onSubmit={(e) => {
             e.preventDefault();
             onAdd(def.id, draft);
-            setDraft("");
+            setDraft('');
           }}
         >
           <input

@@ -1,10 +1,11 @@
 /**
  * Leitura partilhada do aiox-core no disco (API Express + servidor MCP).
  */
-import fs from "fs";
-import path from "path";
-import { execFileSync } from "child_process";
-import { resolveAioxAgentsDir } from "./resolve-aiox-agents-dir.mjs";
+import fs from 'fs';
+import path from 'path';
+import { execFileSync } from 'child_process';
+
+import { resolveAioxAgentsDir } from './resolve-aiox-agents-dir.mjs';
 
 /**
  * @param {string} missionRoot Raiz do pacote MissionAgent (pasta que contém server/)
@@ -16,14 +17,14 @@ export function resolveAioxPaths(missionRoot) {
     ? path.resolve(process.env.AIOX_CORE_PATH)
     : path.resolve(missionRoot);
   const AGENTS_DIR = resolveAioxAgentsDir(AIOX_ROOT);
-  const overrideBin = String(process.env.AIOX_BIN_PATH || "").trim();
+  const overrideBin = String(process.env.AIOX_BIN_PATH || '').trim();
   if (overrideBin) {
     const AIOX_BIN = path.resolve(overrideBin);
     return { AIOX_ROOT, AGENTS_DIR, AIOX_BIN };
   }
   const candidates = [
-    path.join(AIOX_ROOT, "bin", "aiox.js"),
-    path.resolve(missionRoot, "..", "aiox-core", "bin", "aiox.js"),
+    path.join(AIOX_ROOT, 'bin', 'aiox.js'),
+    path.resolve(missionRoot, '..', 'aiox-core', 'bin', 'aiox.js'),
   ];
   const AIOX_BIN = candidates.find((p) => fs.existsSync(p)) || candidates[0];
   return { AIOX_ROOT, AGENTS_DIR, AIOX_BIN };
@@ -37,14 +38,18 @@ export function readAgentFiles(agentsDir) {
     const names = fs.readdirSync(agentsDir, { withFileTypes: true });
     const agents = [];
     for (const d of names) {
-      if (!d.isFile() || !d.name.endsWith(".md")) continue;
-      const id = d.name.replace(/\.md$/i, "");
+      if (!d.isFile() || !d.name.endsWith('.md')) continue;
+      const id = d.name.replace(/\.md$/i, '');
       const full = path.join(agentsDir, d.name);
       let title = id;
       try {
-        const raw = fs.readFileSync(full, "utf8");
-        const first = raw.split(/\r?\n/).find((l) => l.trim().startsWith("#"));
-        if (first) title = first.replace(/^#+\s*/, "").trim().slice(0, 80);
+        const raw = fs.readFileSync(full, 'utf8');
+        const first = raw.split(/\r?\n/).find((l) => l.trim().startsWith('#'));
+        if (first)
+          title = first
+            .replace(/^#+\s*/, '')
+            .trim()
+            .slice(0, 80);
       } catch {
         /* ignore */
       }
@@ -66,8 +71,8 @@ export function getAioxVersion(aioxRoot, aioxBin) {
     return { ok: false, error: `CLI não encontrado: ${aioxBin}` };
   }
   try {
-    const out = execFileSync(process.execPath, [aioxBin, "--version"], {
-      encoding: "utf8",
+    const out = execFileSync(process.execPath, [aioxBin, '--version'], {
+      encoding: 'utf8',
       timeout: 15000,
       cwd: aioxRoot,
       env: { ...process.env },
@@ -81,4 +86,4 @@ export function getAioxVersion(aioxRoot, aioxBin) {
 export const MAX_COMMAND_LEN = 4000;
 
 export const COMMAND_FORWARD_HINT =
-  "Comando registado. O motor real é a CLI no aiox-core — usa `npx aiox-core doctor` no repositório ou activa um agente na IDE.";
+  'Comando registado. O motor real é a CLI no aiox-core — usa `npx aiox-core doctor` no repositório ou activa um agente na IDE.';

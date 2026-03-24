@@ -1,6 +1,6 @@
-import { logger } from "./logger.mjs";
+import { logger } from './logger.mjs';
 
-const TABLE = "mission_task_runs";
+const TABLE = 'mission_task_runs';
 
 export async function createTaskRunStorePg(pool) {
   await pool.query(`
@@ -41,15 +41,15 @@ export async function createTaskRunStorePg(pool) {
       [
         run.taskId,
         run.runId,
-        run.assigneeAgentId || "",
+        run.assigneeAgentId || '',
         run.status,
         run.startedAt,
         run.finishedAt ?? null,
         run.updatedAt,
-        run.message || "",
-        run.suggestedColumn || "manter",
+        run.message || '',
+        run.suggestedColumn || 'manter',
         run.blocked === true,
-        run.signature || "",
+        run.signature || '',
       ]
     );
     return run;
@@ -68,15 +68,15 @@ export async function createTaskRunStorePg(pool) {
     return {
       taskId: r.task_id,
       runId: r.run_id,
-      assigneeAgentId: r.assignee_agent_id || "",
+      assigneeAgentId: r.assignee_agent_id || '',
       status: r.status,
       startedAt: new Date(r.started_at).toISOString(),
       finishedAt: r.finished_at ? new Date(r.finished_at).toISOString() : null,
       updatedAt: new Date(r.updated_at).toISOString(),
-      message: r.message || "",
-      suggestedColumn: r.suggested_column || "manter",
+      message: r.message || '',
+      suggestedColumn: r.suggested_column || 'manter',
       blocked: r.blocked === true,
-      signature: r.signature || "",
+      signature: r.signature || '',
     };
   }
 
@@ -92,20 +92,20 @@ export async function createTaskRunStorePg(pool) {
     return (q.rows || []).map((r) => ({
       taskId: r.task_id,
       runId: r.run_id,
-      assigneeAgentId: r.assignee_agent_id || "",
+      assigneeAgentId: r.assignee_agent_id || '',
       status: r.status,
       startedAt: new Date(r.started_at).toISOString(),
       finishedAt: r.finished_at ? new Date(r.finished_at).toISOString() : null,
       updatedAt: new Date(r.updated_at).toISOString(),
-      message: r.message || "",
-      suggestedColumn: r.suggested_column || "manter",
+      message: r.message || '',
+      suggestedColumn: r.suggested_column || 'manter',
       blocked: r.blocked === true,
-      signature: r.signature || "",
+      signature: r.signature || '',
     }));
   }
 
   return {
-    backend: "postgres",
+    backend: 'postgres',
     upsertRun,
     getRun,
     listRuns,
@@ -116,7 +116,7 @@ export async function createTaskRunStorePgSafe(pool) {
   try {
     return await createTaskRunStorePg(pool);
   } catch (e) {
-    logger.warn({ err: String(e?.message || e) }, "task run pg store unavailable");
+    logger.warn({ err: String(e?.message || e) }, 'task run pg store unavailable');
     throw e;
   }
 }

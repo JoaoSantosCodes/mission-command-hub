@@ -1,10 +1,10 @@
 /**
  * Feed de atividade em PostgreSQL (mesma forma que o JSON em memória).
  */
-import { logger } from "./logger.mjs";
-import { ACTIVITY_MAX_ENTRIES, isDuplicateActivityHead } from "./activity-store.mjs";
+import { logger } from './logger.mjs';
+import { ACTIVITY_MAX_ENTRIES, isDuplicateActivityHead } from './activity-store.mjs';
 
-const TABLE = "mission_activity_log";
+const TABLE = 'mission_activity_log';
 
 /**
  * @param {import("pg").Pool} pool
@@ -66,12 +66,12 @@ export async function createPgActivityStore(pool) {
     );
   }
 
-  async function pushLog(agent, action, type = "output", kind) {
+  async function pushLog(agent, action, type = 'output', kind) {
     if (isDuplicateActivityHead(logs, agent, action, type, kind)) {
       return logs[0];
     }
     const now = new Date();
-    const timestamp = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+    const timestamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     const entry = {
       id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       timestamp,
@@ -89,7 +89,7 @@ export async function createPgActivityStore(pool) {
       if (logs.length > ACTIVITY_MAX_ENTRIES) logs.length = ACTIVITY_MAX_ENTRIES;
       await trimExcess();
     } catch (e) {
-      logger.warn({ err: String(e?.message || e) }, "activity pg insert failed");
+      logger.warn({ err: String(e?.message || e) }, 'activity pg insert failed');
       throw e;
     }
     return entry;
@@ -102,6 +102,6 @@ export async function createPgActivityStore(pool) {
   return {
     pushLog,
     getLogs,
-    backend: "postgres",
+    backend: 'postgres',
   };
 }

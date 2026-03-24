@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
-import { X } from "lucide-react";
-import { useDocumentVisible } from "@/hooks/useDocumentVisible";
-import { useTheme } from "@/hooks/useTheme";
-import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
+import { useCallback, useEffect, useState } from 'react';
+import { X } from 'lucide-react';
+
+import { useDocumentVisible } from '@/hooks/useDocumentVisible';
+import { useTheme } from '@/hooks/useTheme';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 import {
   consumeFishFood,
   fetchJson,
@@ -14,35 +15,35 @@ import {
   postCommand,
   putIntegrationsConfig,
   putCustomization,
-} from "@/lib/api";
+} from '@/lib/api';
 import {
   AGENT_PROFILE_CHANGED_EVENT,
   readAllAgentProfiles,
   replaceAllAgentProfiles,
-} from "@/lib/agent-profile-store";
+} from '@/lib/agent-profile-store';
 import {
   OFFICE_THEME_CHANGED_EVENT,
   readOfficeTheme,
   writeOfficeTheme,
-} from "@/lib/office-customization-store";
-import { formatUserFacingError } from "@/lib/format-error";
-import { POLL_INTERVAL_MS } from "@/constants";
-import type { ActivityEntry, AgentRow, AioxInfo, AioxOverviewResponse } from "@/types/hub";
-import { SkipLink } from "@/components/SkipLink";
-import { CommandCenterView } from "@/components/CommandCenterView";
-import { HubHeader, type HubViewMode } from "@/components/HubHeader";
-import { AgentsSidebar } from "@/components/AgentsSidebar";
-import { MainWorkspace } from "@/components/MainWorkspace";
-import { ActivityPanel } from "@/components/ActivityPanel";
-import { MobileSummary } from "@/components/MobileSummary";
-import { AgentDetailModal } from "@/components/AgentDetailModal";
-import { CreateAgentModal } from "@/components/CreateAgentModal";
-import { TaskCanvasView } from "@/components/task-canvas";
-import { DoubtsChatPanel } from "@/components/DoubtsChatPanel";
-import { CustomizationPanel } from "@/components/CustomizationPanel";
-import { IntegrationsConfigPanel } from "@/components/IntegrationsConfigPanel";
+} from '@/lib/office-customization-store';
+import { formatUserFacingError } from '@/lib/format-error';
+import { POLL_INTERVAL_MS } from '@/constants';
+import type { ActivityEntry, AgentRow, AioxInfo, AioxOverviewResponse } from '@/types/hub';
+import { SkipLink } from '@/components/SkipLink';
+import { CommandCenterView } from '@/components/CommandCenterView';
+import { HubHeader, type HubViewMode } from '@/components/HubHeader';
+import { AgentsSidebar } from '@/components/AgentsSidebar';
+import { MainWorkspace } from '@/components/MainWorkspace';
+import { ActivityPanel } from '@/components/ActivityPanel';
+import { MobileSummary } from '@/components/MobileSummary';
+import { AgentDetailModal } from '@/components/AgentDetailModal';
+import { CreateAgentModal } from '@/components/CreateAgentModal';
+import { TaskCanvasView } from '@/components/task-canvas';
+import { DoubtsChatPanel } from '@/components/DoubtsChatPanel';
+import { CustomizationPanel } from '@/components/CustomizationPanel';
+import { IntegrationsConfigPanel } from '@/components/IntegrationsConfigPanel';
 
-const GLOBAL_HELP_VISIBLE_STORAGE_KEY = "mission-agent-global-help-visible";
+const GLOBAL_HELP_VISIBLE_STORAGE_KEY = 'mission-agent-global-help-visible';
 
 export default function App() {
   const docVisible = useDocumentVisible();
@@ -55,7 +56,7 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
 
-  const [cmd, setCmd] = useState("");
+  const [cmd, setCmd] = useState('');
   const [cmdFocus, setCmdFocus] = useState(false);
   const [cmdBusy, setCmdBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -67,24 +68,34 @@ export default function App() {
   const [customizationOpen, setCustomizationOpen] = useState(false);
   const [integrationsConfigOpen, setIntegrationsConfigOpen] = useState(false);
   const [integrationsConfigSaving, setIntegrationsConfigSaving] = useState(false);
-  const [integrationsConfigRev, setIntegrationsConfigRev] = useState("0:0");
-  const [integrationsConfigDraft, setIntegrationsConfigDraft] = useState<import("@/lib/api").IntegrationsConfigPayload>({});
-  const [integrationsConfigRedacted, setIntegrationsConfigRedacted] = useState<Record<string, string>>({});
+  const [integrationsConfigRev, setIntegrationsConfigRev] = useState('0:0');
+  const [integrationsConfigDraft, setIntegrationsConfigDraft] = useState<
+    import('@/lib/api').IntegrationsConfigPayload
+  >({});
+  const [integrationsConfigRedacted, setIntegrationsConfigRedacted] = useState<
+    Record<string, string>
+  >({});
   const [agentsDrawerOpen, setAgentsDrawerOpen] = useState(false);
   const [activityDrawerOpen, setActivityDrawerOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<HubViewMode>("hub");
+  const [viewMode, setViewMode] = useState<HubViewMode>('hub');
   /** `null` até ao primeiro refresh; depois indica se a API Express respondeu. */
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
-  const [customRev, setCustomRev] = useState("0:0");
+  const [customRev, setCustomRev] = useState('0:0');
   const [customHydrated, setCustomHydrated] = useState(false);
-  const [customSyncState, setCustomSyncState] = useState<"local" | "syncing" | "synced" | "conflict" | "error">(
-    "local"
+  const [customSyncState, setCustomSyncState] = useState<
+    'local' | 'syncing' | 'synced' | 'conflict' | 'error'
+  >('local');
+  const [fishFood, setFishFood] = useState<{
+    food: number;
+    maxFood: number;
+    mood: 'feliz' | 'normal' | 'fome' | 'critico';
+  } | null>(null);
+  const [integrations, setIntegrations] = useState<import('@/lib/api').IntegrationsStatus | null>(
+    null
   );
-  const [fishFood, setFishFood] = useState<{ food: number; maxFood: number; mood: "feliz" | "normal" | "fome" | "critico" } | null>(null);
-  const [integrations, setIntegrations] = useState<import("@/lib/api").IntegrationsStatus | null>(null);
   const [globalHelpVisible, setGlobalHelpVisible] = useState<boolean>(() => {
     try {
-      return localStorage.getItem(GLOBAL_HELP_VISIBLE_STORAGE_KEY) !== "0";
+      return localStorage.getItem(GLOBAL_HELP_VISIBLE_STORAGE_KEY) !== '0';
     } catch {
       return true;
     }
@@ -110,7 +121,7 @@ export default function App() {
     const silent = opts?.silent ?? false;
     try {
       if (!silent) setRefreshing(true);
-      const o = await fetchJson<AioxOverviewResponse>("/api/aiox/overview");
+      const o = await fetchJson<AioxOverviewResponse>('/api/aiox/overview');
       setInfo(o.bridge);
       setAgents(o.agents);
       setLogs(o.logs);
@@ -132,7 +143,7 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(GLOBAL_HELP_VISIBLE_STORAGE_KEY, globalHelpVisible ? "1" : "0");
+      localStorage.setItem(GLOBAL_HELP_VISIBLE_STORAGE_KEY, globalHelpVisible ? '1' : '0');
     } catch {
       /* ignore */
     }
@@ -174,10 +185,10 @@ export default function App() {
   const hydrateCustomizationFromServer = useCallback(async () => {
     const r = await getCustomization();
     replaceAllAgentProfiles(r.data.agents || {});
-    if (r.data.office?.theme === "neon" || r.data.office?.theme === "default") {
+    if (r.data.office?.theme === 'neon' || r.data.office?.theme === 'default') {
       writeOfficeTheme(r.data.office.theme, { emit: false });
     }
-    setCustomRev(r.revision || "0:0");
+    setCustomRev(r.revision || '0:0');
     return r;
   }, []);
 
@@ -186,9 +197,9 @@ export default function App() {
     void (async () => {
       try {
         await hydrateCustomizationFromServer();
-        if (alive) setCustomSyncState("synced");
+        if (alive) setCustomSyncState('synced');
       } catch {
-        if (alive) setCustomSyncState("local");
+        if (alive) setCustomSyncState('local');
       } finally {
         if (alive) setCustomHydrated(true);
       }
@@ -199,27 +210,27 @@ export default function App() {
   }, [hydrateCustomizationFromServer]);
 
   const syncCustomizationNow = useCallback(async () => {
-    setCustomSyncState("syncing");
+    setCustomSyncState('syncing');
     const payload = {
       agents: readAllAgentProfiles(),
       office: { theme: readOfficeTheme() },
     };
     try {
-      const r = await putCustomization(payload, customRev || "0:0");
+      const r = await putCustomization(payload, customRev || '0:0');
       setCustomRev(r.revision || customRev);
-      setCustomSyncState("synced");
+      setCustomSyncState('synced');
     } catch (e) {
-      if (String(e).includes("CONFLICT_CUSTOMIZATION")) {
-        setCustomSyncState("conflict");
+      if (String(e).includes('CONFLICT_CUSTOMIZATION')) {
+        setCustomSyncState('conflict');
         try {
           await hydrateCustomizationFromServer();
-          setCustomSyncState("synced");
+          setCustomSyncState('synced');
         } catch {
-          setCustomSyncState("error");
+          setCustomSyncState('error');
         }
         return;
       }
-      setCustomSyncState("error");
+      setCustomSyncState('error');
     }
   }, [customRev, hydrateCustomizationFromServer]);
 
@@ -258,10 +269,10 @@ export default function App() {
         void refresh({ silent: true });
       }, debounceMs);
     };
-    window.addEventListener("mission-team-activity", onTeamActivity as EventListener);
+    window.addEventListener('mission-team-activity', onTeamActivity as EventListener);
     return () => {
       if (debounceTimer != null) window.clearTimeout(debounceTimer);
-      window.removeEventListener("mission-team-activity", onTeamActivity as EventListener);
+      window.removeEventListener('mission-team-activity', onTeamActivity as EventListener);
     };
   }, [refresh]);
 
@@ -270,12 +281,13 @@ export default function App() {
       const d = (evt as CustomEvent<{ amount?: number; to?: string }>).detail;
       const amount = Number(d?.amount ?? 0);
       if (!Number.isFinite(amount) || amount <= 0) return;
-      void consumeFishFood(amount, `task:${String(d?.to ?? "move")}`)
+      void consumeFishFood(amount, `task:${String(d?.to ?? 'move')}`)
         .then((next) => setFishFood({ food: next.food, maxFood: next.maxFood, mood: next.mood }))
         .catch(() => void 0);
     };
-    window.addEventListener("mission-task-token-spent", onTaskTokenSpent as EventListener);
-    return () => window.removeEventListener("mission-task-token-spent", onTaskTokenSpent as EventListener);
+    window.addEventListener('mission-task-token-spent', onTaskTokenSpent as EventListener);
+    return () =>
+      window.removeEventListener('mission-task-token-spent', onTaskTokenSpent as EventListener);
   }, []);
 
   useEffect(() => {
@@ -297,7 +309,7 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
+      if (e.key !== 'Escape') return;
       if (doubtsOpen) {
         setDoubtsOpen(false);
         return;
@@ -324,24 +336,34 @@ export default function App() {
       }
       if (err) setErr(null);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [err, detailAgentId, agentsDrawerOpen, activityDrawerOpen, createAgentOpen, doubtsOpen, customizationOpen, integrationsConfigOpen]);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [
+    err,
+    detailAgentId,
+    agentsDrawerOpen,
+    activityDrawerOpen,
+    createAgentOpen,
+    doubtsOpen,
+    customizationOpen,
+    integrationsConfigOpen,
+  ]);
 
   /** Toggle painel Dúvidas: Ctrl+/ ou Cmd+/ (não dispara dentro de inputs). */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "/" || (!e.ctrlKey && !e.metaKey)) return;
+      if (e.key !== '/' || (!e.ctrlKey && !e.metaKey)) return;
       const el = e.target as HTMLElement | null;
       if (el) {
         const tag = el.tagName;
-        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable) return;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable)
+          return;
       }
       e.preventDefault();
       setDoubtsOpen((v) => !v);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   const onSelectAgentFromCommandCenter = useCallback((id: string) => {
@@ -361,12 +383,12 @@ export default function App() {
     try {
       const data = await postCommand(t);
       try {
-        const fish = await consumeFishFood(3, "command");
+        const fish = await consumeFishFood(3, 'command');
         setFishFood({ food: fish.food, maxFood: fish.maxFood, mood: fish.mood });
       } catch {
         /* ignore fish failures */
       }
-      setCmd("");
+      setCmd('');
       if (data.message) setToast(data.message);
       await refresh();
     } catch (e) {
@@ -378,20 +400,24 @@ export default function App() {
 
   const timeLabel =
     lastSynced != null
-      ? lastSynced.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
-      : "—";
+      ? lastSynced.toLocaleTimeString('pt-PT', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        })
+      : '—';
 
-  const versionLine = loading ? "…" : (info?.version ?? info?.versionError ?? "—");
+  const versionLine = loading ? '…' : (info?.version ?? info?.versionError ?? '—');
   const customSyncLabelPt =
-    customSyncState === "syncing"
-      ? "sincronizando"
-      : customSyncState === "synced"
-        ? "sincronizado"
-        : customSyncState === "conflict"
-          ? "conflito"
-          : customSyncState === "error"
-            ? "erro"
-            : "local";
+    customSyncState === 'syncing'
+      ? 'sincronizando'
+      : customSyncState === 'synced'
+        ? 'sincronizado'
+        : customSyncState === 'conflict'
+          ? 'conflito'
+          : customSyncState === 'error'
+            ? 'erro'
+            : 'local';
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
@@ -461,7 +487,7 @@ export default function App() {
       ) : null}
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {viewMode === "hub" ? (
+        {viewMode === 'hub' ? (
           <>
             <AgentsSidebar
               agents={agents}
@@ -490,7 +516,7 @@ export default function App() {
               onMobileClose={() => setActivityDrawerOpen(false)}
             />
           </>
-        ) : viewMode === "commandCenter" ? (
+        ) : viewMode === 'commandCenter' ? (
           <CommandCenterView
             agents={agents}
             logs={logs}
@@ -513,7 +539,7 @@ export default function App() {
         )}
       </div>
 
-      {viewMode === "hub" ? (
+      {viewMode === 'hub' ? (
         <MobileSummary
           agentsCount={agents.length}
           timeLabel={timeLabel}
@@ -573,15 +599,20 @@ export default function App() {
             setIntegrationsConfigSaving(true);
             setErr(null);
             try {
-              const r = await putIntegrationsConfig(integrationsConfigDraft, integrationsConfigRev || "0:0");
+              const r = await putIntegrationsConfig(
+                integrationsConfigDraft,
+                integrationsConfigRev || '0:0'
+              );
               setIntegrationsConfigRev(r.revision);
               setIntegrationsConfigRedacted(r.redacted);
-              setToast("Configurações guardadas. A validar integrações…");
+              setToast('Configurações guardadas. A validar integrações…');
               await refreshIntegrations();
             } catch (e) {
               const msg = String(e);
-              if (msg.includes("CONFLICT_INTEGRATIONS_CONFIG")) {
-                setErr("Conflito na configuração de integrações. Recarreguei os valores do servidor.");
+              if (msg.includes('CONFLICT_INTEGRATIONS_CONFIG')) {
+                setErr(
+                  'Conflito na configuração de integrações. Recarreguei os valores do servidor.'
+                );
                 await refreshIntegrationsConfig();
               } else {
                 setErr(msg);

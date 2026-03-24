@@ -1,9 +1,9 @@
-import { X } from "lucide-react";
+import { X } from 'lucide-react';
 
 type MobileDrawerProps = {
   open: boolean;
   onClose: () => void;
-  side: "left" | "right";
+  side: 'left' | 'right';
   title: string;
   children: React.ReactNode;
 };
@@ -12,7 +12,12 @@ export function MobileDrawer({ open, onClose, side, title, children }: MobileDra
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal aria-labelledby="mobile-drawer-title">
+    <div
+      className="fixed inset-0 z-40 lg:hidden"
+      role="dialog"
+      aria-modal
+      aria-labelledby="mobile-drawer-title"
+    >
       <button
         type="button"
         className="absolute inset-0 bg-background/70 backdrop-blur-sm"
@@ -21,11 +26,14 @@ export function MobileDrawer({ open, onClose, side, title, children }: MobileDra
       />
       <div
         className={`absolute top-0 flex h-full w-[min(100vw-2rem,20rem)] flex-col border-border bg-card shadow-2xl ${
-          side === "left" ? "left-0 border-r" : "right-0 border-l"
+          side === 'left' ? 'left-0 border-r' : 'right-0 border-l'
         }`}
       >
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2.5">
-          <h2 id="mobile-drawer-title" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <h2
+            id="mobile-drawer-title"
+            className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
+          >
             {title}
           </h2>
           <button

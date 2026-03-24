@@ -1,11 +1,22 @@
-import { type ChangeEvent, useEffect, useRef, useState } from "react";
-import { BookOpen, Copy, Download, Loader2, MessageCircle, RotateCcw, Send, Upload, X } from "lucide-react";
-import { fetchJson, postDoubtsChatStream } from "@/lib/api";
-import type { AioxDoubtsCapabilities } from "@/types/hub";
+import { type ChangeEvent, useEffect, useRef, useState } from 'react';
+import {
+  BookOpen,
+  Copy,
+  Download,
+  Loader2,
+  MessageCircle,
+  RotateCcw,
+  Send,
+  Upload,
+  X,
+} from 'lucide-react';
 
-const STORAGE_KEY = "mission-agent-doubts-chat-v1";
+import { fetchJson, postDoubtsChatStream } from '@/lib/api';
+import type { AioxDoubtsCapabilities } from '@/types/hub';
 
-type Msg = { id: string; role: "user" | "assistant"; text: string; at: number };
+const STORAGE_KEY = 'mission-agent-doubts-chat-v1';
+
+type Msg = { id: string; role: 'user' | 'assistant'; text: string; at: number };
 
 function loadMsgs(): Msg[] {
   try {
@@ -20,12 +31,12 @@ function loadMsgs(): Msg[] {
 
 function welcomeMsg(): Msg {
   return {
-    id: "welcome",
-    role: "assistant",
+    id: 'welcome',
+    role: 'assistant',
     at: Date.now(),
     text:
-      "Bem-vindo ao Architecture Agents Hub. Escreve abaixo para registar notas ou dúvidas (ficam na sessão deste separador).\n\n" +
-      "Podes exportar ou importar o histórico em JSON na barra acima. Para respostas com IA, usa o Chat do Cursor (Ctrl+L ou Cmd+L). Documentação: MissionAgent/docs/ — INTEGRATIONS.md, MCP.md, CHECKLIST.md.",
+      'Bem-vindo ao Architecture Agents Hub. Escreve abaixo para registar notas ou dúvidas (ficam na sessão deste separador).\n\n' +
+      'Podes exportar ou importar o histórico em JSON na barra acima. Para respostas com IA, usa o Chat do Cursor (Ctrl+L ou Cmd+L). Documentação: MissionAgent/docs/ — INTEGRATIONS.md, MCP.md, CHECKLIST.md.',
   };
 }
 
@@ -35,21 +46,26 @@ const MAX_DRAFT_LEN = 16_000;
 function normalizeImported(raw: unknown): Msg[] | null {
   let arr: unknown[];
   if (Array.isArray(raw)) arr = raw;
-  else if (raw && typeof raw === "object" && "messages" in raw && Array.isArray((raw as { messages: unknown }).messages)) {
+  else if (
+    raw &&
+    typeof raw === 'object' &&
+    'messages' in raw &&
+    Array.isArray((raw as { messages: unknown }).messages)
+  ) {
     arr = (raw as { messages: unknown[] }).messages;
   } else return null;
   const out: Msg[] = [];
   for (const item of arr) {
-    if (!item || typeof item !== "object") continue;
+    if (!item || typeof item !== 'object') continue;
     const o = item as Record<string, unknown>;
-    const role = o.role === "user" || o.role === "assistant" ? o.role : null;
-    const text = typeof o.text === "string" ? o.text : "";
+    const role = o.role === 'user' || o.role === 'assistant' ? o.role : null;
+    const text = typeof o.text === 'string' ? o.text : '';
     if (!role || !text.trim()) continue;
     out.push({
-      id: typeof o.id === "string" ? o.id : `import-${Date.now()}-${out.length}`,
+      id: typeof o.id === 'string' ? o.id : `import-${Date.now()}-${out.length}`,
       role,
       text,
-      at: typeof o.at === "number" && Number.isFinite(o.at) ? o.at : Date.now(),
+      at: typeof o.at === 'number' && Number.isFinite(o.at) ? o.at : Date.now(),
     });
   }
   return out.length > 0 ? out : null;
@@ -59,83 +75,83 @@ async function copyText(text: string) {
   try {
     await navigator.clipboard.writeText(text);
   } catch {
-    const ta = document.createElement("textarea");
+    const ta = document.createElement('textarea');
     ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.left = "-9999px";
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
     document.body.appendChild(ta);
     ta.select();
-    document.execCommand("copy");
+    document.execCommand('copy');
     document.body.removeChild(ta);
   }
 }
 
 const FAQ = [
   {
-    q: "A API não responde / erro JSON",
+    q: 'A API não responde / erro JSON',
     a:
-      "1) Em desenvolvimento, corre `npm run dev` na pasta MissionAgent (API embebida no Vite :5179).\n" +
-      "2) Alternativa split: `npm run dev:split` (Express :8787 + Vite proxy).\n" +
-      "3) Valida ligação: `GET /api/health` deve devolver `{ ok: true }`.\n" +
-      "4) Se receberes HTML em vez de JSON, reinicia o dev server e recarrega a página.",
+      '1) Em desenvolvimento, corre `npm run dev` na pasta MissionAgent (API embebida no Vite :5179).\n' +
+      '2) Alternativa split: `npm run dev:split` (Express :8787 + Vite proxy).\n' +
+      '3) Valida ligação: `GET /api/health` deve devolver `{ ok: true }`.\n' +
+      '4) Se receberes HTML em vez de JSON, reinicia o dev server e recarrega a página.',
   },
   {
-    q: "Onde ficam os agentes?",
-    a: "Ficheiros `.md` em `aiox-core/.aiox-core/development/agents/` (raiz do clone ao lado de `MissionAgent/`). Podes criar novos pela sidebar (**Novo**) se a edição estiver permitida.",
+    q: 'Onde ficam os agentes?',
+    a: 'Ficheiros `.md` em `aiox-core/.aiox-core/development/agents/` (raiz do clone ao lado de `MissionAgent/`). Podes criar novos pela sidebar (**Novo**) se a edição estiver permitida.',
   },
   {
-    q: "Manual — configurar integrações no app (formulário)",
+    q: 'Manual — configurar integrações no app (formulário)',
     a:
-      "Abre o botão de configuração de integrações no header (ícone Sparkles) e preenche os campos.\n\n" +
-      "LLM (Dúvidas + Retorno no Canvas):\n" +
-      "• `MISSION_LLM_API_KEY` (preferencial) ou `OPENAI_API_KEY`.\n" +
-      "• `MISSION_DOUBTS_LLM=1` para activar respostas no servidor.\n" +
-      "• Opcional: `MISSION_LLM_BASE_URL`, `MISSION_LLM_MODEL`.\n\n" +
-      "Slack (espelho de atividade):\n" +
-      "• `SLACK_WEBHOOK_URL` com Incoming Webhook válido.\n" +
-      "• Guarda, cria uma atividade no canvas e confirma no workspace em https://app.slack.com/.\n\n" +
-      "Notion / Figma:\n" +
-      "• `NOTION_TOKEN` e `FIGMA_ACCESS_TOKEN`.\n" +
-      "• Valida no painel Integrações (tab lateral) e em `GET /api/aiox/integrations-status?validate=1`.\n\n" +
-      "Infra opcional:\n" +
-      "• `DATABASE_URL` (PostgreSQL).\n" +
-      "• `ENABLE_AIOX_CLI_EXEC=1` + `AIOX_EXEC_SECRET` para execução controlada.",
+      'Abre o botão de configuração de integrações no header (ícone Sparkles) e preenche os campos.\n\n' +
+      'LLM (Dúvidas + Retorno no Canvas):\n' +
+      '• `MISSION_LLM_API_KEY` (preferencial) ou `OPENAI_API_KEY`.\n' +
+      '• `MISSION_DOUBTS_LLM=1` para activar respostas no servidor.\n' +
+      '• Opcional: `MISSION_LLM_BASE_URL`, `MISSION_LLM_MODEL`.\n\n' +
+      'Slack (espelho de atividade):\n' +
+      '• `SLACK_WEBHOOK_URL` com Incoming Webhook válido.\n' +
+      '• Guarda, cria uma atividade no canvas e confirma no workspace em https://app.slack.com/.\n\n' +
+      'Notion / Figma:\n' +
+      '• `NOTION_TOKEN` e `FIGMA_ACCESS_TOKEN`.\n' +
+      '• Valida no painel Integrações (tab lateral) e em `GET /api/aiox/integrations-status?validate=1`.\n\n' +
+      'Infra opcional:\n' +
+      '• `DATABASE_URL` (PostgreSQL).\n' +
+      '• `ENABLE_AIOX_CLI_EXEC=1` + `AIOX_EXEC_SECRET` para execução controlada.',
   },
   {
-    q: "Manual — checklist de validação por integração",
-    a: "GET /api/aiox/doubts indica se o LLM no servidor está activo. Com MISSION_DOUBTS_LLM=1, chave MISSION_LLM_API_KEY (ou OPENAI_API_KEY legado) e opcional MISSION_LLM_BASE_URL apontando ao teu fornecedor (qualquer API compatível com /v1/chat/completions), o chat usa streaming em POST /api/aiox/doubts/chat/stream.",
+    q: 'Manual — checklist de validação por integração',
+    a: 'GET /api/aiox/doubts indica se o LLM no servidor está activo. Com MISSION_DOUBTS_LLM=1, chave MISSION_LLM_API_KEY (ou OPENAI_API_KEY legado) e opcional MISSION_LLM_BASE_URL apontando ao teu fornecedor (qualquer API compatível com /v1/chat/completions), o chat usa streaming em POST /api/aiox/doubts/chat/stream.',
   },
   {
-    q: "LLM (OpenAI-compatible) — como validar",
+    q: 'LLM (OpenAI-compatible) — como validar',
     a:
-      "1) Preencher chave + `MISSION_DOUBTS_LLM=1`.\n" +
-      "2) Guardar no formulário e abrir Integrações.\n" +
-      "3) Esperado: `llmEnabled=true` e `llmValidated=true`.\n" +
-      "4) Testar no canvas com botão `Retorno` num cartão atribuído.",
+      '1) Preencher chave + `MISSION_DOUBTS_LLM=1`.\n' +
+      '2) Guardar no formulário e abrir Integrações.\n' +
+      '3) Esperado: `llmEnabled=true` e `llmValidated=true`.\n' +
+      '4) Testar no canvas com botão `Retorno` num cartão atribuído.',
   },
   {
-    q: "Slack — como validar ponta-a-ponta",
+    q: 'Slack — como validar ponta-a-ponta',
     a:
-      "1) Criar Incoming Webhook no Slack e colar `SLACK_WEBHOOK_URL`.\n" +
-      "2) Guardar configuração e confirmar no status: `mirrorReady=true`.\n" +
-      "3) Gerar atividade no Hub (movimento de tarefa/comando).\n" +
-      "4) Confirmar mensagem no canal em https://app.slack.com/.\n" +
-      "Se `webhookConfigured=true` e `mirrorReady=false`, a URL está mal formatada ou inválida.",
+      '1) Criar Incoming Webhook no Slack e colar `SLACK_WEBHOOK_URL`.\n' +
+      '2) Guardar configuração e confirmar no status: `mirrorReady=true`.\n' +
+      '3) Gerar atividade no Hub (movimento de tarefa/comando).\n' +
+      '4) Confirmar mensagem no canal em https://app.slack.com/.\n' +
+      'Se `webhookConfigured=true` e `mirrorReady=false`, a URL está mal formatada ou inválida.',
   },
   {
-    q: "Notion e Figma — como validar",
+    q: 'Notion e Figma — como validar',
     a:
-      "1) Preencher `NOTION_TOKEN` e/ou `FIGMA_ACCESS_TOKEN`.\n" +
-      "2) Guardar configuração.\n" +
-      "3) Verificar em Integrações: `tokenConfigured=true` e `tokenValidated=true`.\n" +
-      "4) Se falhar, rever permissões do token e escopos no provedor.",
+      '1) Preencher `NOTION_TOKEN` e/ou `FIGMA_ACCESS_TOKEN`.\n' +
+      '2) Guardar configuração.\n' +
+      '3) Verificar em Integrações: `tokenConfigured=true` e `tokenValidated=true`.\n' +
+      '4) Se falhar, rever permissões do token e escopos no provedor.',
   },
   {
-    q: "PostgreSQL e execução CLI — quando activar",
+    q: 'PostgreSQL e execução CLI — quando activar',
     a:
-      "• PostgreSQL: define `DATABASE_URL` para persistência robusta (feed/runs).\n" +
-      "• CLI controlada: `ENABLE_AIOX_CLI_EXEC=1` + `AIOX_EXEC_SECRET`.\n" +
-      "• Mantém allowlist/policy por agente para reduzir risco operacional.",
+      '• PostgreSQL: define `DATABASE_URL` para persistência robusta (feed/runs).\n' +
+      '• CLI controlada: `ENABLE_AIOX_CLI_EXEC=1` + `AIOX_EXEC_SECRET`.\n' +
+      '• Mantém allowlist/policy por agente para reduzir risco operacional.',
   },
 ];
 
@@ -148,33 +164,40 @@ type DoubtsChatPanelProps = {
 
 function exportJson(messages: Msg[]) {
   const payload = { exportedAt: new Date().toISOString(), messages };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
-  const a = document.createElement("a");
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json;charset=utf-8',
+  });
+  const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `mission-agent-duvidas-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
+  a.download = `mission-agent-duvidas-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
 }
 
 function exportMarkdown(messages: Msg[]) {
   const lines = messages.map((m) => {
-    const who = m.role === "user" ? "Tu" : "Nota";
-    const when = new Date(m.at).toLocaleString("pt-PT");
+    const who = m.role === 'user' ? 'Tu' : 'Nota';
+    const when = new Date(m.at).toLocaleString('pt-PT');
     return `### ${who} (${when})\n\n${m.text}`;
   });
-  const body = [`# Architecture Agents Hub — notas (export)`, "", ...lines].join("\n\n---\n\n");
-  const blob = new Blob([body], { type: "text/markdown;charset=utf-8" });
-  const a = document.createElement("a");
+  const body = [`# Architecture Agents Hub — notas (export)`, '', ...lines].join('\n\n---\n\n');
+  const blob = new Blob([body], { type: 'text/markdown;charset=utf-8' });
+  const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `mission-agent-duvidas-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.md`;
+  a.download = `mission-agent-duvidas-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.md`;
   a.click();
   URL.revokeObjectURL(a.href);
 }
 
-export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChange }: DoubtsChatPanelProps) {
-  const [tab, setTab] = useState<"chat" | "faq">("chat");
+export function DoubtsChatPanel({
+  open,
+  onClose,
+  helpVisible,
+  onHelpVisibleChange,
+}: DoubtsChatPanelProps) {
+  const [tab, setTab] = useState<'chat' | 'faq'>('chat');
   const [messages, setMessages] = useState<Msg[]>(loadMsgs);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState('');
   const [serverCaps, setServerCaps] = useState<AioxDoubtsCapabilities | null>(null);
   const [llmBusy, setLlmBusy] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
@@ -189,14 +212,14 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
   }, [messages]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, open, tab]);
 
   useEffect(() => {
     if (!open) return;
     const id = window.setTimeout(() => {
-      if (tab !== "chat") return;
-      document.getElementById("doubts-input")?.focus();
+      if (tab !== 'chat') return;
+      document.getElementById('doubts-input')?.focus();
     }, 0);
     return () => window.clearTimeout(id);
   }, [open, tab]);
@@ -204,7 +227,7 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    void fetchJson<AioxDoubtsCapabilities>("/api/aiox/doubts")
+    void fetchJson<AioxDoubtsCapabilities>('/api/aiox/doubts')
       .then((d) => {
         if (!cancelled && d?.ok) setServerCaps(d);
       })
@@ -227,15 +250,17 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
 
   const onImportFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    e.target.value = "";
+    e.target.value = '';
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const parsed = JSON.parse(String(reader.result ?? "")) as unknown;
+        const parsed = JSON.parse(String(reader.result ?? '')) as unknown;
         const msgs = normalizeImported(parsed);
         if (!msgs) {
-          window.alert("Ficheiro JSON inválido: espera-se um array de mensagens ou { \"messages\": [...] }.");
+          window.alert(
+            'Ficheiro JSON inválido: espera-se um array de mensagens ou { "messages": [...] }.'
+          );
           return;
         }
         if (
@@ -247,10 +272,10 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
         }
         applyImported(msgs);
       } catch {
-        window.alert("Não foi possível ler o JSON.");
+        window.alert('Não foi possível ler o JSON.');
       }
     };
-    reader.readAsText(file, "utf-8");
+    reader.readAsText(file, 'utf-8');
   };
 
   if (!open) return null;
@@ -260,17 +285,21 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
       const t = draft.trim();
       if (!t || t.length > MAX_DRAFT_LEN || llmBusy) return;
       const uid = `u-${Date.now()}`;
-      const userMsg: Msg = { id: uid, role: "user", text: t, at: Date.now() };
-      setDraft("");
+      const userMsg: Msg = { id: uid, role: 'user', text: t, at: Date.now() };
+      setDraft('');
 
       if (serverCaps?.llmEnabled) {
         const aid = `a-${Date.now()}`;
-        const nextMessages = [...messages, userMsg, { id: aid, role: "assistant" as const, text: "", at: Date.now() }];
+        const nextMessages = [
+          ...messages,
+          userMsg,
+          { id: aid, role: 'assistant' as const, text: '', at: Date.now() },
+        ];
         setMessages(nextMessages);
         setLlmBusy(true);
         try {
           const apiMessages = [...messages, userMsg]
-            .filter((m) => m.id !== "welcome")
+            .filter((m) => m.id !== 'welcome')
             .map((m) => ({ role: m.role, content: m.text }));
           await postDoubtsChatStream(apiMessages, (delta) => {
             setMessages((prev) =>
@@ -302,13 +331,13 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
         userMsg,
         {
           id: `a-${Date.now()}`,
-          role: "assistant",
+          role: 'assistant',
           at: Date.now(),
           text:
-            "Esta janela não envia o teu texto a um servidor LLM — é apenas um bloco de notas com histórico na sessão.\n\n" +
-            "• Perguntas técnicas com modelo: Chat do Cursor.\n" +
-            "• Contrato HTTP: docs/openapi.yaml.\n" +
-            "• MCP / Notion / Figma: docs/INTEGRATIONS.md.",
+            'Esta janela não envia o teu texto a um servidor LLM — é apenas um bloco de notas com histórico na sessão.\n\n' +
+            '• Perguntas técnicas com modelo: Chat do Cursor.\n' +
+            '• Contrato HTTP: docs/openapi.yaml.\n' +
+            '• MCP / Notion / Figma: docs/INTEGRATIONS.md.',
         },
       ]);
     })();
@@ -317,7 +346,7 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
   const clearHistory = () => {
     if (
       !window.confirm(
-        "Apagar todo o histórico de notas desta sessão? (A mensagem de boas-vindas volta a aparecer.)"
+        'Apagar todo o histórico de notas desta sessão? (A mensagem de boas-vindas volta a aparecer.)'
       )
     ) {
       return;
@@ -414,16 +443,18 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
             className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
             title="Mostrar/ocultar dicas e FAQ"
           >
-            {helpVisible ? "Ocultar dicas" : "Mostrar dicas"}
+            {helpVisible ? 'Ocultar dicas' : 'Mostrar dicas'}
           </button>
         </div>
 
         <div className="flex shrink-0 gap-1 border-b border-border px-2 py-2">
           <button
             type="button"
-            onClick={() => setTab("chat")}
+            onClick={() => setTab('chat')}
             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              tab === "chat" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/80"
+              tab === 'chat'
+                ? 'bg-secondary text-foreground'
+                : 'text-muted-foreground hover:bg-secondary/80'
             }`}
           >
             Chat
@@ -431,9 +462,11 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
           {helpVisible ? (
             <button
               type="button"
-              onClick={() => setTab("faq")}
+              onClick={() => setTab('faq')}
               className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                tab === "faq" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/80"
+                tab === 'faq'
+                  ? 'bg-secondary text-foreground'
+                  : 'text-muted-foreground hover:bg-secondary/80'
               }`}
             >
               <BookOpen className="h-3.5 w-3.5" aria-hidden />
@@ -442,13 +475,15 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
           ) : null}
         </div>
 
-        {tab === "faq" ? (
+        {tab === 'faq' ? (
           <div className="min-h-0 flex-1 overflow-y-auto p-4 scrollbar-thin">
             <ul className="space-y-4">
               {FAQ.map((item) => (
                 <li key={item.q} className="rounded-xl border border-border bg-background/40 p-3">
                   <p className="text-xs font-semibold text-foreground">{item.q}</p>
-                  <p className="mt-1.5 whitespace-pre-wrap text-[11px] leading-relaxed text-muted-foreground">{item.a}</p>
+                  <p className="mt-1.5 whitespace-pre-wrap text-[11px] leading-relaxed text-muted-foreground">
+                    {item.a}
+                  </p>
                 </li>
               ))}
             </ul>
@@ -460,7 +495,9 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
                 className="shrink-0 border-b border-border bg-amber-500/5 px-3 py-2 dark:bg-amber-500/10"
                 role="note"
               >
-                <p className="text-[10px] leading-relaxed text-muted-foreground">{serverCaps.dataPolicyNotice}</p>
+                <p className="text-[10px] leading-relaxed text-muted-foreground">
+                  {serverCaps.dataPolicyNotice}
+                </p>
                 {serverCaps.dataPolicyUrl ? (
                   <a
                     href={serverCaps.dataPolicyUrl}
@@ -473,7 +510,8 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
                 ) : null}
                 {serverCaps.rateLimitMax != null && serverCaps.rateLimitWindowMs != null ? (
                   <p className="mt-1.5 text-[10px] text-muted-foreground/90">
-                    Limite de API: até {serverCaps.rateLimitMax} pedidos (chat + stream) por IP por janela de{" "}
+                    Limite de API: até {serverCaps.rateLimitMax} pedidos (chat + stream) por IP por
+                    janela de{' '}
                     {serverCaps.rateLimitWindowMs >= 60_000
                       ? `${serverCaps.rateLimitWindowMs / 60_000} min`
                       : `${Math.round(serverCaps.rateLimitWindowMs / 1000)} s`}
@@ -488,13 +526,15 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
                   <li
                     key={m.id}
                     className={`max-w-[95%] rounded-xl px-3 py-2 text-[11px] leading-relaxed ${
-                      m.role === "user"
-                        ? "ml-auto bg-primary/15 text-foreground"
-                        : "mr-auto border border-border/80 bg-secondary/30 text-muted-foreground"
+                      m.role === 'user'
+                        ? 'ml-auto bg-primary/15 text-foreground'
+                        : 'mr-auto border border-border/80 bg-secondary/30 text-muted-foreground'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <span className={`min-w-0 flex-1 whitespace-pre-wrap ${m.role === "user" ? "text-foreground" : ""}`}>
+                      <span
+                        className={`min-w-0 flex-1 whitespace-pre-wrap ${m.role === 'user' ? 'text-foreground' : ''}`}
+                      >
                         {m.text}
                       </span>
                       <button
@@ -523,7 +563,7 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
                   maxLength={MAX_DRAFT_LEN}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
                       send();
                     }
@@ -539,18 +579,21 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
                   disabled={!draft.trim() || llmBusy}
                   className="shrink-0 self-end rounded-lg bg-primary p-2.5 text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
                   title="Enviar"
-                  aria-label={llmBusy ? "A aguardar resposta" : "Enviar mensagem"}
+                  aria-label={llmBusy ? 'A aguardar resposta' : 'Enviar mensagem'}
                 >
-                  {llmBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Send className="h-4 w-4" />}
+                  {llmBusy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
                 </button>
               </div>
               {helpVisible ? (
                 <p className="mt-2 text-[10px] text-muted-foreground">
-                  Atalho global (fora de campos de texto): <strong className="font-medium text-foreground">Ctrl+/</strong>{" "}
-                  ou <strong className="font-medium text-foreground">Cmd+/</strong>. Máx. {MAX_DRAFT_LEN.toLocaleString(
-                    "pt-PT"
-                  )}{" "}
-                  caracteres por nota.
+                  Atalho global (fora de campos de texto):{' '}
+                  <strong className="font-medium text-foreground">Ctrl+/</strong> ou{' '}
+                  <strong className="font-medium text-foreground">Cmd+/</strong>. Máx.{' '}
+                  {MAX_DRAFT_LEN.toLocaleString('pt-PT')} caracteres por nota.
                   {!serverCaps ? (
                     <> Sem LLM no servidor — usa o Chat do Cursor para IA.</>
                   ) : serverCaps.llmEnabled ? (
@@ -566,7 +609,7 @@ export function DoubtsChatPanel({ open, onClose, helpVisible, onHelpVisibleChang
                   {serverCaps.message}
                   {serverCaps.docsUrl ? (
                     <>
-                      {" "}
+                      {' '}
                       <a
                         href={serverCaps.docsUrl}
                         target="_blank"

@@ -5,7 +5,12 @@ type MobileSummaryProps = {
   onOpenActivity: () => void;
 };
 
-export function MobileSummary({ agentsCount, timeLabel, onOpenAgents, onOpenActivity }: MobileSummaryProps) {
+export function MobileSummary({
+  agentsCount,
+  timeLabel,
+  onOpenAgents,
+  onOpenActivity,
+}: MobileSummaryProps) {
   return (
     <section
       className="border-t border-border bg-card/30 px-3 py-3 lg:hidden"

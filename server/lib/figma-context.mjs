@@ -1,17 +1,19 @@
 function toTrimmed(value) {
-  return String(value ?? "").trim();
+  return String(value ?? '').trim();
 }
 
 function normalizeNodeId(rawNodeId) {
   const node = toTrimmed(rawNodeId);
-  if (!node) return "";
-  return node.replace(/-/g, ":");
+  if (!node) return '';
+  return node.replace(/-/g, ':');
 }
 
 export function parseFigmaReference({ figmaUrl, fileKey, nodeId, depth }) {
   let outFileKey = toTrimmed(fileKey);
   let outNodeId = normalizeNodeId(nodeId);
-  const outDepth = Number.isFinite(Number(depth)) ? Math.max(1, Math.min(8, Number(depth))) : undefined;
+  const outDepth = Number.isFinite(Number(depth))
+    ? Math.max(1, Math.min(8, Number(depth)))
+    : undefined;
 
   const maybeUrl = toTrimmed(figmaUrl);
   if (maybeUrl) {
@@ -19,25 +21,25 @@ export function parseFigmaReference({ figmaUrl, fileKey, nodeId, depth }) {
     try {
       u = new URL(maybeUrl);
     } catch {
-      throw new Error("URL Figma inválida.");
+      throw new Error('URL Figma inválida.');
     }
     if (!/figma\.com$/i.test(u.hostname)) {
-      throw new Error("A URL precisa ser do domínio figma.com.");
+      throw new Error('A URL precisa ser do domínio figma.com.');
     }
-    const parts = u.pathname.split("/").filter(Boolean);
-    const markerIdx = parts.findIndex((p) => p === "file" || p === "design");
+    const parts = u.pathname.split('/').filter(Boolean);
+    const markerIdx = parts.findIndex((p) => p === 'file' || p === 'design');
     if (markerIdx >= 0 && parts[markerIdx + 1]) {
       outFileKey = parts[markerIdx + 1];
     }
-    const qNode = toTrimmed(u.searchParams.get("node-id"));
+    const qNode = toTrimmed(u.searchParams.get('node-id'));
     if (qNode) outNodeId = normalizeNodeId(qNode);
   }
 
   if (!/^[a-zA-Z0-9]+$/.test(outFileKey)) {
-    throw new Error("fileKey inválido (esperado alfanumérico).");
+    throw new Error('fileKey inválido (esperado alfanumérico).');
   }
   if (outNodeId && !/^I?\d+:\d+(;\d+:\d+)*$/.test(outNodeId)) {
-    throw new Error("nodeId inválido (esperado formato 123:456).");
+    throw new Error('nodeId inválido (esperado formato 123:456).');
   }
 
   return {
@@ -48,7 +50,7 @@ export function parseFigmaReference({ figmaUrl, fileKey, nodeId, depth }) {
 }
 
 function countDocumentNodes(root) {
-  if (!root || typeof root !== "object") return 0;
+  if (!root || typeof root !== 'object') return 0;
   const children = Array.isArray(root.children) ? root.children : [];
   let total = 1;
   for (const child of children) total += countDocumentNodes(child);
@@ -75,20 +77,20 @@ async function fetchWithTimeout(url, options, timeoutMs) {
 
 export async function fetchFigmaContext({ token, fileKey, nodeId, depth, timeoutMs = 8000 }) {
   const cleanToken = toTrimmed(token);
-  if (!cleanToken) throw new Error("Sem FIGMA_ACCESS_TOKEN.");
+  if (!cleanToken) throw new Error('Sem FIGMA_ACCESS_TOKEN.');
 
   const query = [];
   if (Number.isFinite(depth)) query.push(`depth=${encodeURIComponent(String(depth))}`);
 
   const url = nodeId
-    ? `https://api.figma.com/v1/files/${encodeURIComponent(fileKey)}/nodes?ids=${encodeURIComponent(nodeId)}${query.length ? `&${query.join("&")}` : ""}`
-    : `https://api.figma.com/v1/files/${encodeURIComponent(fileKey)}${query.length ? `?${query.join("&")}` : ""}`;
+    ? `https://api.figma.com/v1/files/${encodeURIComponent(fileKey)}/nodes?ids=${encodeURIComponent(nodeId)}${query.length ? `&${query.join('&')}` : ''}`
+    : `https://api.figma.com/v1/files/${encodeURIComponent(fileKey)}${query.length ? `?${query.join('&')}` : ''}`;
 
   const r = await fetchWithTimeout(
     url,
     {
-      method: "GET",
-      headers: { "X-Figma-Token": cleanToken },
+      method: 'GET',
+      headers: { 'X-Figma-Token': cleanToken },
     },
     timeoutMs
   );

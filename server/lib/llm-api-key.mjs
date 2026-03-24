@@ -4,18 +4,19 @@
  * Sem importar `doubts-llm.mjs` (evita dependência circular).
  */
 export function getLlmApiKeyFromEnv() {
-  const k = process.env.MISSION_LLM_API_KEY || process.env.OPENAI_API_KEY || "";
-  return typeof k === "string" ? k.trim() : "";
+  const k = process.env.MISSION_LLM_API_KEY || process.env.OPENAI_API_KEY || '';
+  return typeof k === 'string' ? k.trim() : '';
 }
 
 export function getLlmBaseUrlFromEnv() {
-  const raw = process.env.MISSION_LLM_BASE_URL || process.env.OPENAI_BASE_URL || "https://api.openai.com";
-  return String(raw).replace(/\/$/, "");
+  const raw =
+    process.env.MISSION_LLM_BASE_URL || process.env.OPENAI_BASE_URL || 'https://api.openai.com';
+  return String(raw).replace(/\/$/, '');
 }
 
 /** `MISSION_LLM_VALIDATE=0` — não faz GET de sondagem (útil se o upstream não expõe `/v1/models`). */
 export function isLlmUpstreamValidateDisabled() {
-  return String(process.env.MISSION_LLM_VALIDATE || "").trim() === "0";
+  return String(process.env.MISSION_LLM_VALIDATE || '').trim() === '0';
 }
 
 /**
@@ -23,8 +24,10 @@ export function isLlmUpstreamValidateDisabled() {
  * Alguns hosts compatíveis usam outro caminho — define `MISSION_LLM_PROBE_PATH` (sem barra inicial).
  */
 export function getLlmProbePath() {
-  const p = String(process.env.MISSION_LLM_PROBE_PATH || "v1/models").trim().replace(/^\/+/, "");
-  return p || "v1/models";
+  const p = String(process.env.MISSION_LLM_PROBE_PATH || 'v1/models')
+    .trim()
+    .replace(/^\/+/, '');
+  return p || 'v1/models';
 }
 
 export function buildLlmProbeUrl() {

@@ -1,5 +1,5 @@
-export const AGENT_PROFILE_KEY = "mission-agent-profile-v1";
-export const AGENT_PROFILE_CHANGED_EVENT = "mission-agent-profile-changed";
+export const AGENT_PROFILE_KEY = 'mission-agent-profile-v1';
+export const AGENT_PROFILE_CHANGED_EVENT = 'mission-agent-profile-changed';
 
 export type AgentProfile = {
   displayName?: string;
@@ -10,17 +10,17 @@ export type AgentProfile = {
 };
 
 function clampInt(v: unknown, min: number, max: number): number | undefined {
-  if (typeof v !== "number" || !Number.isFinite(v)) return undefined;
+  if (typeof v !== 'number' || !Number.isFinite(v)) return undefined;
   return Math.max(min, Math.min(max, Math.round(v)));
 }
 
 function sanitizeProfile(v: AgentProfile): AgentProfile {
   return {
-    displayName: (v.displayName || "").trim() || undefined,
+    displayName: (v.displayName || '').trim() || undefined,
     avatarIndex: clampInt(v.avatarIndex, 0, 5),
     avatarOffsetX: clampInt(v.avatarOffsetX, -6, 6),
     avatarOffsetY: clampInt(v.avatarOffsetY, -6, 6),
-    accentColor: (v.accentColor || "").trim() || undefined,
+    accentColor: (v.accentColor || '').trim() || undefined,
   };
 }
 
@@ -29,7 +29,7 @@ function loadProfilesMap(): Record<string, AgentProfile> {
     const raw = localStorage.getItem(AGENT_PROFILE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as Record<string, AgentProfile>;
-    return parsed && typeof parsed === "object" ? parsed : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
   } catch {
     return {};
   }
@@ -73,4 +73,3 @@ export function pickDisplayName(agentId: string, title?: string): string {
   const p = readAgentProfile(agentId);
   return (p.displayName || title || agentId).trim();
 }
-

@@ -1,19 +1,22 @@
-import { useState } from "react";
-import { Check, Copy, Loader2, Play, Terminal } from "lucide-react";
-import { postAioxExec } from "@/lib/api";
+import { useState } from 'react';
+import { Check, Copy, Loader2, Play, Terminal } from 'lucide-react';
+
+import { postAioxExec } from '@/lib/api';
 
 type AioxCliPanelProps = {
   onRan: () => void;
 };
 
 export function AioxCliPanel({ onRan }: AioxCliPanelProps) {
-  const [confirm, setConfirm] = useState("");
+  const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [out, setOut] = useState<{ sub: string; exitCode: number | null; text: string } | null>(null);
+  const [out, setOut] = useState<{ sub: string; exitCode: number | null; text: string } | null>(
+    null
+  );
   const [copied, setCopied] = useState(false);
 
-  const run = async (sub: "doctor" | "info") => {
+  const run = async (sub: 'doctor' | 'info') => {
     if (!confirm.trim() || busy) return;
     setBusy(true);
     setErr(null);
@@ -21,11 +24,14 @@ export function AioxCliPanel({ onRan }: AioxCliPanelProps) {
     setCopied(false);
     try {
       const r = await postAioxExec(sub, confirm.trim());
-      const text = [r.stdout && `--- stdout ---\n${r.stdout}`, r.stderr && `--- stderr ---\n${r.stderr}`]
+      const text = [
+        r.stdout && `--- stdout ---\n${r.stdout}`,
+        r.stderr && `--- stderr ---\n${r.stderr}`,
+      ]
         .filter(Boolean)
-        .join("\n\n");
-      setOut({ sub, exitCode: r.exitCode, text: text || "(sem saída)" });
-      setConfirm("");
+        .join('\n\n');
+      setOut({ sub, exitCode: r.exitCode, text: text || '(sem saída)' });
+      setConfirm('');
       onRan();
     } catch (e) {
       setErr(String(e));
@@ -41,7 +47,7 @@ export function AioxCliPanel({ onRan }: AioxCliPanelProps) {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      setErr("Não foi possível copiar para a área de transferência.");
+      setErr('Não foi possível copiar para a área de transferência.');
     }
   };
 
@@ -52,8 +58,9 @@ export function AioxCliPanel({ onRan }: AioxCliPanelProps) {
         CLI aiox-core (opcional)
       </div>
       <p className="mb-3 text-[11px] leading-relaxed text-muted-foreground">
-        Executa <span className="font-mono">aiox doctor</span> ou <span className="font-mono">aiox info</span> no
-        repositório configurado. Requer <span className="font-mono">ENABLE_AIOX_CLI_EXEC</span> e o mesmo segredo em{" "}
+        Executa <span className="font-mono">aiox doctor</span> ou{' '}
+        <span className="font-mono">aiox info</span> no repositório configurado. Requer{' '}
+        <span className="font-mono">ENABLE_AIOX_CLI_EXEC</span> e o mesmo segredo em{' '}
         <span className="font-mono">AIOX_EXEC_SECRET</span> no servidor.
       </p>
       <label className="sr-only" htmlFor="aiox-exec-secret">
@@ -72,19 +79,27 @@ export function AioxCliPanel({ onRan }: AioxCliPanelProps) {
         <button
           type="button"
           disabled={busy || !confirm.trim()}
-          onClick={() => void run("doctor")}
+          onClick={() => void run('doctor')}
           className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
-          {busy ? <Loader2 className="h-3 w-3 animate-spin motion-reduce:animate-none" aria-hidden /> : <Play className="h-3 w-3" aria-hidden />}
+          {busy ? (
+            <Loader2 className="h-3 w-3 animate-spin motion-reduce:animate-none" aria-hidden />
+          ) : (
+            <Play className="h-3 w-3" aria-hidden />
+          )}
           doctor
         </button>
         <button
           type="button"
           disabled={busy || !confirm.trim()}
-          onClick={() => void run("info")}
+          onClick={() => void run('info')}
           className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
         >
-          {busy ? <Loader2 className="h-3 w-3 animate-spin motion-reduce:animate-none" aria-hidden /> : <Play className="h-3 w-3" aria-hidden />}
+          {busy ? (
+            <Loader2 className="h-3 w-3 animate-spin motion-reduce:animate-none" aria-hidden />
+          ) : (
+            <Play className="h-3 w-3" aria-hidden />
+          )}
           info
         </button>
       </div>
@@ -104,8 +119,12 @@ export function AioxCliPanel({ onRan }: AioxCliPanelProps) {
               onClick={() => void copyOut()}
               className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[10px] font-medium text-foreground transition-colors hover:bg-secondary"
             >
-              {copied ? <Check className="h-3 w-3 text-accent" aria-hidden /> : <Copy className="h-3 w-3" aria-hidden />}
-              {copied ? "Copiado" : "Copiar saída"}
+              {copied ? (
+                <Check className="h-3 w-3 text-accent" aria-hidden />
+              ) : (
+                <Copy className="h-3 w-3" aria-hidden />
+              )}
+              {copied ? 'Copiado' : 'Copiar saída'}
             </button>
           </div>
           <pre className="max-h-48 overflow-auto rounded-md border border-border bg-background/80 p-2 font-mono text-[10px] leading-relaxed text-foreground">

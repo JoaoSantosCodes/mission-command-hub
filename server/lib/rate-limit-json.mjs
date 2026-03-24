@@ -1,7 +1,7 @@
 /**
  * express-rate-limit com resposta JSON consistente com o resto da API (`{ ok, error }`).
  */
-import rateLimit from "express-rate-limit";
+import rateLimit from 'express-rate-limit';
 
 /** @param {Record<string, unknown>} partial */
 export function rateLimitJson(partial) {
@@ -17,7 +17,7 @@ export function rateLimitJson(partial) {
           : undefined;
       res.status(opts.statusCode ?? 429).json({
         ok: false,
-        error: "Demasiados pedidos; tenta novamente dentro de instantes.",
+        error: 'Demasiados pedidos; tenta novamente dentro de instantes.',
         ...(retryAfterSec !== undefined ? { retryAfterSec } : {}),
       });
     },

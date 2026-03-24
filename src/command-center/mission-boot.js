@@ -2,9 +2,9 @@
  * Arranque da central (canvas + terminal) inspirada no OpenClaw — sem WebSocket nem voz;
  * liga-se aos agentes reais do aiox-core e ao feed da API.
  */
-import * as terminal from "./terminal.js";
-import * as mascot from "./mascot.js";
-import * as office from "./office.js";
+import * as terminal from './terminal.js';
+import * as mascot from './mascot.js';
+import * as office from './office.js';
 
 let rafId = null;
 let lastTime = performance.now();
@@ -50,18 +50,21 @@ export function startMissionCommandCenter(opts) {
   const { agentRows = [], onSelectAgent } = opts;
   running = true;
 
-  terminal.init("terminal-output");
-  mascot.init("mascot-canvas");
-  office.init("office-canvas", {
+  terminal.init('terminal-output');
+  mascot.init('mascot-canvas');
+  office.init('office-canvas', {
     agents: agentRows.map((a) => ({ id: a.id, title: a.title })),
   });
 
   const bootLines = [
-    ["[mission] Architecture Agents Hub — central", "system"],
-    ["[mission] Mascote + escritório: OK", "info"],
-    ["[mission] Métricas + tempo: API /api/aiox/metrics", "info"],
-    ["[mission] Toca num agente para abrir o Markdown", "agent"],
-    ["[mission] Alt+arrastar: secretária do agente · Shift+Alt: mobiliário (mesa, sofá, …)", "info"],
+    ['[mission] Architecture Agents Hub — central', 'system'],
+    ['[mission] Mascote + escritório: OK', 'info'],
+    ['[mission] Métricas + tempo: API /api/aiox/metrics', 'info'],
+    ['[mission] Toca num agente para abrir o Markdown', 'agent'],
+    [
+      '[mission] Alt+arrastar: secretária do agente · Shift+Alt: mobiliário (mesa, sofá, …)',
+      'info',
+    ],
   ];
   let bi = 0;
   function bootStep() {
@@ -75,30 +78,30 @@ export function startMissionCommandCenter(opts) {
   }
   bootStep();
 
-  const mascotZone = document.getElementById("zone-mascot");
+  const mascotZone = document.getElementById('zone-mascot');
   const onMascotClick = () => {
-    mascot.setEmotion("happy");
-    setTimeout(() => mascot.setEmotion("idle"), 1200);
-    terminal.log("[dica] Regista comandos na barra superior.", "system");
+    mascot.setEmotion('happy');
+    setTimeout(() => mascot.setEmotion('idle'), 1200);
+    terminal.log('[dica] Regista comandos na barra superior.', 'system');
   };
-  mascotZone?.addEventListener("click", onMascotClick);
-  cleanup.push(() => mascotZone?.removeEventListener("click", onMascotClick));
+  mascotZone?.addEventListener('click', onMascotClick);
+  cleanup.push(() => mascotZone?.removeEventListener('click', onMascotClick));
 
-  const officeCanvas = document.getElementById("office-canvas");
+  const officeCanvas = document.getElementById('office-canvas');
   const onOfficeClick = (e) => {
     if (!officeCanvas) return;
     if (office.consumeSuppressOfficeClick()) return;
     const rect = officeCanvas.getBoundingClientRect();
     const id = office.getAgentAtPoint(e.clientX - rect.left, e.clientY - rect.top);
     if (!id) return;
-    if (String(id).startsWith("demo-")) {
-      terminal.log("[demo] Coloca ficheiros .md em aiox-core/…/agents/", "info");
+    if (String(id).startsWith('demo-')) {
+      terminal.log('[demo] Coloca ficheiros .md em aiox-core/…/agents/', 'info');
       return;
     }
     onSelectAgent?.(id);
   };
-  officeCanvas?.addEventListener("click", onOfficeClick);
-  cleanup.push(() => officeCanvas?.removeEventListener("click", onOfficeClick));
+  officeCanvas?.addEventListener('click', onOfficeClick);
+  cleanup.push(() => officeCanvas?.removeEventListener('click', onOfficeClick));
 
   lastTime = performance.now();
   rafId = requestAnimationFrame(frame);

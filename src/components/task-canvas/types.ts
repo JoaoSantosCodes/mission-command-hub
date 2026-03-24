@@ -1,7 +1,7 @@
 /** Identificadores estáveis de coluna (presets só mudam títulos). */
-export type ColumnId = "todo" | "doing" | "review" | "done";
+export type ColumnId = 'todo' | 'doing' | 'review' | 'done';
 
-export type TaskPriority = "low" | "medium" | "high" | "urgent";
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export type TaskItem = {
   id: string;
@@ -21,7 +21,7 @@ export type TaskItem = {
   assigneeAgentId?: string;
 };
 
-export type BoardPresetId = "standard" | "agents" | "delivery";
+export type BoardPresetId = 'standard' | 'agents' | 'delivery';
 
 export type ColumnDef = { id: ColumnId; title: string; hint?: string };
 
@@ -33,4 +33,4 @@ export type BoardPreset = {
 };
 
 /** Vista do quadro: ordem manual (drag), data ou prioridade. */
-export type CanvasSortMode = "manual" | "createdDesc" | "priorityAsc";
+export type CanvasSortMode = 'manual' | 'createdDesc' | 'priorityAsc';

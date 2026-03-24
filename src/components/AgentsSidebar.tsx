@@ -1,19 +1,31 @@
-import { useEffect, useMemo, useState } from "react";
-import { TeamStatusOverview } from "@/components/TeamStatusOverview";
-import { AlertTriangle, Bot, BookOpen, Database, FileText, Layers, MessageSquare, Plus, Sparkles, Terminal } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import type { ActivityEntry, AgentRow } from "@/types/hub";
-import { MobileDrawer } from "@/components/MobileDrawer";
+import { useEffect, useMemo, useState } from 'react';
+import {
+  AlertTriangle,
+  Bot,
+  BookOpen,
+  Database,
+  FileText,
+  Layers,
+  MessageSquare,
+  Plus,
+  Sparkles,
+  Terminal,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+
+import { TeamStatusOverview } from '@/components/TeamStatusOverview';
+import type { ActivityEntry, AgentRow } from '@/types/hub';
+import { MobileDrawer } from '@/components/MobileDrawer';
 import {
   AGENT_PROFILE_CHANGED_EVENT,
   pickDisplayName,
   readAgentProfile,
-} from "@/lib/agent-profile-store";
+} from '@/lib/agent-profile-store';
 import {
   doubtsLlmIntegrationErrorHint,
   doubtsLlmIntegrationSeemsOk,
   type IntegrationsStatus,
-} from "@/lib/api";
+} from '@/lib/api';
 
 type AgentsSidebarProps = {
   agents: AgentRow[];
@@ -29,12 +41,12 @@ type AgentsSidebarProps = {
 };
 
 const AGENT_ACCENTS = [
-  "bg-sky-500/15 text-sky-400 ring-sky-500/25",
-  "bg-emerald-500/15 text-emerald-400 ring-emerald-500/25",
-  "bg-violet-500/15 text-violet-400 ring-violet-500/25",
-  "bg-amber-500/15 text-amber-400 ring-amber-500/25",
-  "bg-cyan-500/15 text-cyan-400 ring-cyan-500/25",
-  "bg-rose-500/15 text-rose-400 ring-rose-500/25",
+  'bg-sky-500/15 text-sky-400 ring-sky-500/25',
+  'bg-emerald-500/15 text-emerald-400 ring-emerald-500/25',
+  'bg-violet-500/15 text-violet-400 ring-violet-500/25',
+  'bg-amber-500/15 text-amber-400 ring-amber-500/25',
+  'bg-cyan-500/15 text-cyan-400 ring-cyan-500/25',
+  'bg-rose-500/15 text-rose-400 ring-rose-500/25',
 ];
 
 export function AgentsSidebar({
@@ -48,20 +60,23 @@ export function AgentsSidebar({
   onCreateAgent,
   integrations = null,
 }: AgentsSidebarProps) {
-  const [sideTab, setSideTab] = useState<"team" | "list" | "integrations">("team");
+  const [sideTab, setSideTab] = useState<'team' | 'list' | 'integrations'>('team');
   const [profileTick, setProfileTick] = useState(0);
   const latestTeamActivity = useMemo(
-    () => logs.find((l) => l.kind === "command" || l.kind === "agent" || l.kind === "bridge") ?? logs[0] ?? null,
+    () =>
+      logs.find((l) => l.kind === 'command' || l.kind === 'agent' || l.kind === 'bridge') ??
+      logs[0] ??
+      null,
     [logs]
   );
 
   useEffect(() => {
     const onChanged = () => setProfileTick((v) => v + 1);
     window.addEventListener(AGENT_PROFILE_CHANGED_EVENT, onChanged as EventListener);
-    window.addEventListener("storage", onChanged);
+    window.addEventListener('storage', onChanged);
     return () => {
       window.removeEventListener(AGENT_PROFILE_CHANGED_EVENT, onChanged as EventListener);
-      window.removeEventListener("storage", onChanged);
+      window.removeEventListener('storage', onChanged);
     };
   }, []);
 
@@ -100,12 +115,12 @@ export function AgentsSidebar({
           <button
             type="button"
             role="tab"
-            aria-selected={sideTab === "team"}
-            onClick={() => setSideTab("team")}
+            aria-selected={sideTab === 'team'}
+            onClick={() => setSideTab('team')}
             className={`flex-1 rounded px-2 py-1 text-[10px] font-medium uppercase tracking-wide transition-colors ${
-              sideTab === "team"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+              sideTab === 'team'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Estado
@@ -113,12 +128,12 @@ export function AgentsSidebar({
           <button
             type="button"
             role="tab"
-            aria-selected={sideTab === "list"}
-            onClick={() => setSideTab("list")}
+            aria-selected={sideTab === 'list'}
+            onClick={() => setSideTab('list')}
             className={`flex-1 rounded px-2 py-1 text-[10px] font-medium uppercase tracking-wide transition-colors ${
-              sideTab === "list"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+              sideTab === 'list'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Lista
@@ -126,12 +141,12 @@ export function AgentsSidebar({
           <button
             type="button"
             role="tab"
-            aria-selected={sideTab === "integrations"}
-            onClick={() => setSideTab("integrations")}
+            aria-selected={sideTab === 'integrations'}
+            onClick={() => setSideTab('integrations')}
             className={`flex-1 rounded px-2 py-1 text-[10px] font-medium uppercase tracking-wide transition-colors ${
-              sideTab === "integrations"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+              sideTab === 'integrations'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
             title="Status de integrações"
           >
@@ -140,26 +155,30 @@ export function AgentsSidebar({
         </div>
         {latestTeamActivity ? (
           <div className="mb-2 rounded-md border border-border/80 bg-background/60 px-2.5 py-2">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Última atividade</p>
-            <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-foreground/90">{latestTeamActivity.action}</p>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Última atividade
+            </p>
+            <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-foreground/90">
+              {latestTeamActivity.action}
+            </p>
             <p className="mt-1 text-[10px] text-muted-foreground">
               {latestTeamActivity.agent} · {latestTeamActivity.timestamp}
             </p>
           </div>
         ) : null}
-        {sideTab === "team" ? (
+        {sideTab === 'team' ? (
           <TeamStatusOverview
             agents={agents}
             logs={logs}
             loading={loading}
             onSelectAgent={pickAgent}
           />
-        ) : sideTab === "list" ? (
+        ) : sideTab === 'list' ? (
           loading ? (
             <p className="text-xs text-muted-foreground">A carregar…</p>
           ) : agents.length === 0 ? (
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Nenhum ficheiro <span className="font-mono">.md</span> na pasta de agentes. Verifica{" "}
+              Nenhum ficheiro <span className="font-mono">.md</span> na pasta de agentes. Verifica{' '}
               <span className="font-mono">AIOX_CORE_PATH</span>.
             </p>
           ) : (
@@ -206,7 +225,10 @@ export function AgentsSidebar({
                               aria-hidden
                             />
                           </div>
-                          <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground" title={a.title}>
+                          <p
+                            className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground"
+                            title={a.title}
+                          >
                             {a.title}
                           </p>
                         </div>
@@ -222,21 +244,27 @@ export function AgentsSidebar({
             <div className="rounded-xl border border-border/80 bg-background/50 p-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                <Database className="h-3.5 w-3.5 text-primary" aria-hidden />
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Integrações</p>
+                  <Database className="h-3.5 w-3.5 text-primary" aria-hidden />
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Integrações
+                  </p>
                 </div>
                 <span className="rounded-full border border-border bg-primary/10 px-2 py-1 text-[10px] font-mono text-primary">
                   {integrations?.summary?.healthScore ?? 0}%
                 </span>
               </div>
               <p className="mt-1 text-[10px] text-muted-foreground">
-                Saúde geral:{" "}
+                Saúde geral:{' '}
                 <span className="font-mono text-foreground">
-                  {integrations?.summary ? `${integrations.summary.okCount}/${integrations.summary.total}` : "—"}
-                </span>{" "}
-                · atualizado{" "}
+                  {integrations?.summary
+                    ? `${integrations.summary.okCount}/${integrations.summary.total}`
+                    : '—'}
+                </span>{' '}
+                · atualizado{' '}
                 <span className="font-mono text-foreground">
-                  {integrations?.generatedAt ? new Date(integrations.generatedAt).toLocaleTimeString("pt-PT") : "—"}
+                  {integrations?.generatedAt
+                    ? new Date(integrations.generatedAt).toLocaleTimeString('pt-PT')
+                    : '—'}
                 </span>
               </p>
               {integrations?.alerts?.length ? (
@@ -246,16 +274,16 @@ export function AgentsSidebar({
                     Alertas ativos ({integrations.alerts.length})
                   </p>
                   <p className="mt-1 line-clamp-3 text-[10px] leading-snug text-muted-foreground">
-                    {integrations.alerts.slice(0, 2).join(" | ")}
+                    {integrations.alerts.slice(0, 2).join(' | ')}
                   </p>
                 </div>
               ) : null}
               {integrations?.history?.length ? (
                 <p className="mt-2 text-[10px] text-muted-foreground">
-                  Tendência (24 snapshots):{" "}
+                  Tendência (24 snapshots):{' '}
                   <span className="font-mono text-foreground">
-                    {integrations.history[0]?.healthScore ?? "—"}% →{" "}
-                    {integrations.history[integrations.history.length - 1]?.healthScore ?? "—"}%
+                    {integrations.history[0]?.healthScore ?? '—'}% →{' '}
+                    {integrations.history[integrations.history.length - 1]?.healthScore ?? '—'}%
                   </span>
                 </p>
               ) : null}
@@ -263,104 +291,116 @@ export function AgentsSidebar({
                 <IntegrationServiceCard
                   icon={Database}
                   name="DB / FEED"
-                  status={integrations?.database.activityBackend === "postgres" ? "OK" : "PENDENTE"}
-                  statusTone={integrations?.database.activityBackend === "postgres" ? "ok" : "pending"}
-                  value={integrations?.database.activityBackend ?? "—"}
-                  hint={integrations?.database.activityBackend === "postgres" ? undefined : integrations?.database.configured ? "DB env ok, mas fallback em runtime" : "Sem DATABASE_URL (fallback para ficheiro)"}
+                  status={integrations?.database.activityBackend === 'postgres' ? 'OK' : 'PENDENTE'}
+                  statusTone={
+                    integrations?.database.activityBackend === 'postgres' ? 'ok' : 'pending'
+                  }
+                  value={integrations?.database.activityBackend ?? '—'}
+                  hint={
+                    integrations?.database.activityBackend === 'postgres'
+                      ? undefined
+                      : integrations?.database.configured
+                        ? 'DB env ok, mas fallback em runtime'
+                        : 'Sem DATABASE_URL (fallback para ficheiro)'
+                  }
                 />
                 <IntegrationServiceCard
                   icon={Terminal}
                   name="CLI AIOX"
-                  status={integrations?.exec.configured === true ? "OK" : "PENDENTE"}
-                  statusTone={integrations?.exec.configured === true ? "ok" : "pending"}
-                  value={integrations?.exec.configured === true ? "ENABLE_AIOX_CLI_EXEC=1" : "—"}
+                  status={integrations?.exec.configured === true ? 'OK' : 'PENDENTE'}
+                  statusTone={integrations?.exec.configured === true ? 'ok' : 'pending'}
+                  value={integrations?.exec.configured === true ? 'ENABLE_AIOX_CLI_EXEC=1' : '—'}
                 />
                 <IntegrationServiceCard
                   icon={Sparkles}
                   name="LLM (Dúvidas)"
                   status={
-                    integrations?.doubts && doubtsLlmIntegrationSeemsOk(integrations.doubts) ? "OK" : "PENDENTE"
+                    integrations?.doubts && doubtsLlmIntegrationSeemsOk(integrations.doubts)
+                      ? 'OK'
+                      : 'PENDENTE'
                   }
                   statusTone={
-                    integrations?.doubts && doubtsLlmIntegrationSeemsOk(integrations.doubts) ? "ok" : "pending"
+                    integrations?.doubts && doubtsLlmIntegrationSeemsOk(integrations.doubts)
+                      ? 'ok'
+                      : 'pending'
                   }
                   value={
                     integrations?.doubts.llmEnabled
                       ? doubtsLlmIntegrationSeemsOk(integrations.doubts)
                         ? integrations.doubts.llmValidationSkipped
-                          ? "Chave OK (validação HTTP desligada)"
+                          ? 'Chave OK (validação HTTP desligada)'
                           : integrations.doubts.llmValidated === undefined &&
                               integrations.doubts.openaiValidated === undefined
-                            ? "Activo (sondagem não efectuada)"
-                            : "Validação OK"
-                        : "Falhou validação"
-                      : "Desligado (opt-in)"
+                            ? 'Activo (sondagem não efectuada)'
+                            : 'Validação OK'
+                        : 'Falhou validação'
+                      : 'Desligado (opt-in)'
                   }
                   hint={(() => {
                     const d = integrations?.doubts;
-                    if (!d) return "MISSION_DOUBTS_LLM=1 + MISSION_LLM_API_KEY";
+                    if (!d) return 'MISSION_DOUBTS_LLM=1 + MISSION_LLM_API_KEY';
                     const err = doubtsLlmIntegrationErrorHint(d);
                     if (err) return err.slice(0, 90);
                     return d.doubtsOptIn
-                      ? "API compatível: MISSION_LLM_API_KEY + MISSION_LLM_BASE_URL"
-                      : "MISSION_DOUBTS_LLM=1 + MISSION_LLM_API_KEY";
+                      ? 'API compatível: MISSION_LLM_API_KEY + MISSION_LLM_BASE_URL'
+                      : 'MISSION_DOUBTS_LLM=1 + MISSION_LLM_API_KEY';
                   })()}
                 />
                 <IntegrationServiceCard
                   icon={BookOpen}
                   name="NOTION (MCP)"
-                  status={integrations?.notion.tokenValidated === true ? "OK" : "PENDENTE"}
-                  statusTone={integrations?.notion.tokenValidated === true ? "ok" : "pending"}
-                  value={integrations?.notion.tokenConfigured ? "Token presente" : "Sem token"}
+                  status={integrations?.notion.tokenValidated === true ? 'OK' : 'PENDENTE'}
+                  statusTone={integrations?.notion.tokenValidated === true ? 'ok' : 'pending'}
+                  value={integrations?.notion.tokenConfigured ? 'Token presente' : 'Sem token'}
                   hint={
                     integrations?.notion.tokenValidated === false
-                      ? String(integrations.notion.tokenError ?? "Token não válido").slice(0, 90)
+                      ? String(integrations.notion.tokenError ?? 'Token não válido').slice(0, 90)
                       : undefined
                   }
                 />
                 <IntegrationServiceCard
                   icon={Layers}
                   name="FIGMA (MCP)"
-                  status={integrations?.figma.tokenValidated === true ? "OK" : "PENDENTE"}
-                  statusTone={integrations?.figma.tokenValidated === true ? "ok" : "pending"}
-                  value={integrations?.figma.tokenConfigured ? "Token presente" : "Sem token"}
+                  status={integrations?.figma.tokenValidated === true ? 'OK' : 'PENDENTE'}
+                  statusTone={integrations?.figma.tokenValidated === true ? 'ok' : 'pending'}
+                  value={integrations?.figma.tokenConfigured ? 'Token presente' : 'Sem token'}
                   hint={
                     integrations?.figma.tokenValidated === false
-                      ? String(integrations.figma.tokenError ?? "Token não válido").slice(0, 90)
+                      ? String(integrations.figma.tokenError ?? 'Token não válido').slice(0, 90)
                       : undefined
                   }
                 />
                 <IntegrationServiceCard
                   icon={Database}
                   name="FISH (persistência)"
-                  status={integrations?.fish.enabled ? "OK" : "PENDENTE"}
-                  statusTone={integrations?.fish.enabled ? "ok" : "pending"}
-                  value={integrations?.fish.persistence ?? "file"}
+                  status={integrations?.fish.enabled ? 'OK' : 'PENDENTE'}
+                  statusTone={integrations?.fish.enabled ? 'ok' : 'pending'}
+                  value={integrations?.fish.persistence ?? 'file'}
                   hint="Persistência local (sem chamadas externas)."
                 />
                 <IntegrationServiceCard
                   icon={MessageSquare}
                   name="SLACK (feed)"
-                  status={integrations?.slack.mirrorReady ? "OK" : "PENDENTE"}
-                  statusTone={integrations?.slack.mirrorReady ? "ok" : "pending"}
+                  status={integrations?.slack.mirrorReady ? 'OK' : 'PENDENTE'}
+                  statusTone={integrations?.slack.mirrorReady ? 'ok' : 'pending'}
                   value={
                     integrations?.slack.mirrorReady
-                      ? "Webhook OK · espelha atividade"
+                      ? 'Webhook OK · espelha atividade'
                       : integrations?.slack.webhookConfigured
-                        ? "URL inválida"
-                        : "Sem SLACK_WEBHOOK_URL"
+                        ? 'URL inválida'
+                        : 'Sem SLACK_WEBHOOK_URL'
                   }
                   hint={
                     integrations?.slack.webhookConfigured && !integrations?.slack.mirrorReady
-                      ? "Usa Incoming Webhook: https://hooks.slack.com/services/…"
-                      : "Cria em Slack → Apps → Incoming Webhooks e cola o URL em .env.local"
+                      ? 'Usa Incoming Webhook: https://hooks.slack.com/services/…'
+                      : 'Cria em Slack → Apps → Incoming Webhooks e cola o URL em .env.local'
                   }
                 />
               </div>
             </div>
             <p className="text-[10px] leading-relaxed text-muted-foreground">
-              Este painel valida integrações no servidor com chamadas HTTP leves. Funciona em qualquer IDE (VSCODE/VS/...) — o que importa é o
-              `.env` do projeto.
+              Este painel valida integrações no servidor com chamadas HTTP leves. Funciona em
+              qualquer IDE (VSCODE/VS/...) — o que importa é o `.env` do projeto.
             </p>
           </div>
         )}
@@ -399,31 +439,44 @@ function IntegrationServiceCard({
 }: {
   icon: LucideIcon;
   name: string;
-  status: "OK" | "PENDENTE";
-  statusTone: "ok" | "pending";
+  status: 'OK' | 'PENDENTE';
+  statusTone: 'ok' | 'pending';
   value: string;
   hint?: string;
 }) {
   const badge =
-    statusTone === "ok"
-      ? "bg-emerald-500/10 text-emerald-700 ring-emerald-500/25 dark:text-emerald-400"
-      : "bg-amber-500/10 text-amber-700 ring-amber-500/25 dark:text-amber-400";
+    statusTone === 'ok'
+      ? 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/25 dark:text-emerald-400'
+      : 'bg-amber-500/10 text-amber-700 ring-amber-500/25 dark:text-amber-400';
 
   return (
     <div className="rounded-xl border border-border/80 bg-card/80 p-3 shadow-sm transition-all hover:border-primary/30 hover:bg-card">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 ring-1 ring-primary/25" aria-hidden>
+        <div
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 ring-1 ring-primary/25"
+          aria-hidden
+        >
           <Icon className="h-[18px] w-[18px] text-primary" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-foreground">{name}</p>
+            <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-foreground">
+              {name}
+            </p>
           </div>
-          <div className={`mt-1 inline-flex rounded-full border border-border px-2 py-1 text-[10px] font-mono ${badge}`}>
+          <div
+            className={`mt-1 inline-flex rounded-full border border-border px-2 py-1 text-[10px] font-mono ${badge}`}
+          >
             {status}
           </div>
-          <p className="mt-1 line-clamp-1 text-[10px] leading-snug text-muted-foreground font-mono">{value}</p>
-          {hint ? <p className="mt-1 line-clamp-2 text-[10px] leading-snug text-muted-foreground">{hint}</p> : null}
+          <p className="mt-1 line-clamp-1 text-[10px] leading-snug text-muted-foreground font-mono">
+            {value}
+          </p>
+          {hint ? (
+            <p className="mt-1 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
+              {hint}
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

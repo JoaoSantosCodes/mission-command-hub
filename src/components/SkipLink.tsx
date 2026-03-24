@@ -6,7 +6,7 @@ export function SkipLink() {
       href="#conteudo-principal"
       onClick={(e) => {
         e.preventDefault();
-        document.getElementById("conteudo-principal")?.focus();
+        document.getElementById('conteudo-principal')?.focus();
       }}
     >
       Saltar para o conteúdo

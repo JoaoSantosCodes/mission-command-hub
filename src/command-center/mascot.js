@@ -2,13 +2,13 @@
 // Designed with setSpriteSheet() for easy upgrade to real sprites
 
 const EMOTIONS = {
-  idle:      { color: '#00DDFF', eyeAnim: 'blink',   mouthAnim: 'neutral',  particles: 'float' },
-  listening: { color: '#00FF66', eyeAnim: 'wide',     mouthAnim: 'open',     particles: 'pulse' },
-  thinking:  { color: '#FFCC00', eyeAnim: 'squint',   mouthAnim: 'hmm',      particles: 'spin' },
-  working:   { color: '#AA66FF', eyeAnim: 'focused',  mouthAnim: 'neutral',  particles: 'spark' },
-  happy:     { color: '#00FF66', eyeAnim: 'happy',    mouthAnim: 'smile',    particles: 'burst' },
-  error:     { color: '#FF4466', eyeAnim: 'x',        mouthAnim: 'frown',    particles: 'shake' },
-  sleeping:  { color: '#334466', eyeAnim: 'closed',   mouthAnim: 'neutral',  particles: 'zzz' },
+  idle: { color: '#00DDFF', eyeAnim: 'blink', mouthAnim: 'neutral', particles: 'float' },
+  listening: { color: '#00FF66', eyeAnim: 'wide', mouthAnim: 'open', particles: 'pulse' },
+  thinking: { color: '#FFCC00', eyeAnim: 'squint', mouthAnim: 'hmm', particles: 'spin' },
+  working: { color: '#AA66FF', eyeAnim: 'focused', mouthAnim: 'neutral', particles: 'spark' },
+  happy: { color: '#00FF66', eyeAnim: 'happy', mouthAnim: 'smile', particles: 'burst' },
+  error: { color: '#FF4466', eyeAnim: 'x', mouthAnim: 'frown', particles: 'shake' },
+  sleeping: { color: '#334466', eyeAnim: 'closed', mouthAnim: 'neutral', particles: 'zzz' },
 };
 
 let canvas, ctx;
@@ -172,8 +172,10 @@ function drawEyes(cx, baseY, anim, t, color) {
       if (blinkPhase < 0.1) {
         // Blinking - horizontal line
         ctx.fillStyle = '#FFFFFF';
-        pixel(lx, baseY, PX); pixel(lx + PX, baseY, PX);
-        pixel(rx, baseY, PX); pixel(rx + PX, baseY, PX);
+        pixel(lx, baseY, PX);
+        pixel(lx + PX, baseY, PX);
+        pixel(rx, baseY, PX);
+        pixel(rx + PX, baseY, PX);
       } else {
         drawNormalEyes(lx, rx, baseY);
       }
@@ -181,10 +183,14 @@ function drawEyes(cx, baseY, anim, t, color) {
     }
     case 'wide':
       ctx.fillStyle = '#FFFFFF';
-      pixel(lx, baseY - PX, PX); pixel(lx + PX, baseY - PX, PX);
-      pixel(lx, baseY, PX); pixel(lx + PX, baseY, PX);
-      pixel(rx, baseY - PX, PX); pixel(rx + PX, baseY - PX, PX);
-      pixel(rx, baseY, PX); pixel(rx + PX, baseY, PX);
+      pixel(lx, baseY - PX, PX);
+      pixel(lx + PX, baseY - PX, PX);
+      pixel(lx, baseY, PX);
+      pixel(lx + PX, baseY, PX);
+      pixel(rx, baseY - PX, PX);
+      pixel(rx + PX, baseY - PX, PX);
+      pixel(rx, baseY, PX);
+      pixel(rx + PX, baseY, PX);
       // Pupils
       ctx.fillStyle = '#111';
       pixel(lx + PX, baseY, PX);
@@ -192,8 +198,10 @@ function drawEyes(cx, baseY, anim, t, color) {
       break;
     case 'squint':
       ctx.fillStyle = '#FFFFFF';
-      pixel(lx, baseY, PX); pixel(lx + PX, baseY, PX);
-      pixel(rx, baseY, PX); pixel(rx + PX, baseY, PX);
+      pixel(lx, baseY, PX);
+      pixel(lx + PX, baseY, PX);
+      pixel(rx, baseY, PX);
+      pixel(rx + PX, baseY, PX);
       break;
     case 'focused': {
       drawNormalEyes(lx, rx, baseY);
@@ -208,28 +216,40 @@ function drawEyes(cx, baseY, anim, t, color) {
     case 'happy':
       // Upside down U shapes
       ctx.fillStyle = '#FFFFFF';
-      pixel(lx, baseY - PX, PX); pixel(lx + PX, baseY - PX, PX);
-      pixel(lx, baseY, PX); pixel(lx + PX, baseY, PX);
+      pixel(lx, baseY - PX, PX);
+      pixel(lx + PX, baseY - PX, PX);
+      pixel(lx, baseY, PX);
+      pixel(lx + PX, baseY, PX);
       ctx.fillStyle = '#111';
-      pixel(lx, baseY, PX); pixel(lx + PX, baseY, PX);
+      pixel(lx, baseY, PX);
+      pixel(lx + PX, baseY, PX);
       ctx.fillStyle = '#FFFFFF';
-      pixel(rx, baseY - PX, PX); pixel(rx + PX, baseY - PX, PX);
-      pixel(rx, baseY, PX); pixel(rx + PX, baseY, PX);
+      pixel(rx, baseY - PX, PX);
+      pixel(rx + PX, baseY - PX, PX);
+      pixel(rx, baseY, PX);
+      pixel(rx + PX, baseY, PX);
       ctx.fillStyle = '#111';
-      pixel(rx, baseY, PX); pixel(rx + PX, baseY, PX);
+      pixel(rx, baseY, PX);
+      pixel(rx + PX, baseY, PX);
       break;
     case 'x':
       // X eyes for error
       ctx.fillStyle = '#FF4466';
-      pixel(lx, baseY - PX, PX); pixel(lx + PX, baseY, PX);
-      pixel(lx + PX, baseY - PX, PX); pixel(lx, baseY, PX);
-      pixel(rx, baseY - PX, PX); pixel(rx + PX, baseY, PX);
-      pixel(rx + PX, baseY - PX, PX); pixel(rx, baseY, PX);
+      pixel(lx, baseY - PX, PX);
+      pixel(lx + PX, baseY, PX);
+      pixel(lx + PX, baseY - PX, PX);
+      pixel(lx, baseY, PX);
+      pixel(rx, baseY - PX, PX);
+      pixel(rx + PX, baseY, PX);
+      pixel(rx + PX, baseY - PX, PX);
+      pixel(rx, baseY, PX);
       break;
     case 'closed':
       ctx.fillStyle = '#FFFFFF';
-      pixel(lx, baseY, PX); pixel(lx + PX, baseY, PX);
-      pixel(rx, baseY, PX); pixel(rx + PX, baseY, PX);
+      pixel(lx, baseY, PX);
+      pixel(lx + PX, baseY, PX);
+      pixel(rx, baseY, PX);
+      pixel(rx + PX, baseY, PX);
       break;
     default:
       drawNormalEyes(lx, rx, baseY);
@@ -238,10 +258,14 @@ function drawEyes(cx, baseY, anim, t, color) {
 
 function drawNormalEyes(lx, rx, baseY) {
   ctx.fillStyle = '#FFFFFF';
-  pixel(lx, baseY - PX, PX); pixel(lx + PX, baseY - PX, PX);
-  pixel(lx, baseY, PX); pixel(lx + PX, baseY, PX);
-  pixel(rx, baseY - PX, PX); pixel(rx + PX, baseY - PX, PX);
-  pixel(rx, baseY, PX); pixel(rx + PX, baseY, PX);
+  pixel(lx, baseY - PX, PX);
+  pixel(lx + PX, baseY - PX, PX);
+  pixel(lx, baseY, PX);
+  pixel(lx + PX, baseY, PX);
+  pixel(rx, baseY - PX, PX);
+  pixel(rx + PX, baseY - PX, PX);
+  pixel(rx, baseY, PX);
+  pixel(rx + PX, baseY, PX);
   // Pupils
   ctx.fillStyle = '#111';
   pixel(lx + PX, baseY, PX);
@@ -329,8 +353,8 @@ function updateParticles(dt) {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.life -= dt;
-    p.x += p.vx * dt / 1000;
-    p.y += p.vy * dt / 1000;
+    p.x += (p.vx * dt) / 1000;
+    p.y += (p.vy * dt) / 1000;
     p.alpha = Math.max(0, p.life / p.maxLife);
 
     if (p.life <= 0) {
@@ -345,7 +369,8 @@ function createParticle(cx, cy, type, color) {
   const base = {
     x: cx + Math.cos(angle) * dist,
     y: cy + Math.sin(angle) * dist,
-    vx: 0, vy: 0,
+    vx: 0,
+    vy: 0,
     life: 2000 + Math.random() * 1000,
     maxLife: 3000,
     size: PX * (0.5 + Math.random() * 0.5),

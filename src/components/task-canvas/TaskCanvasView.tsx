@@ -1,6 +1,12 @@
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Download, LayoutList, RotateCcw, Search, Upload, Users } from "lucide-react";
-import { pickDisplayName } from "@/lib/agent-profile-store";
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Download, LayoutList, RotateCcw, Search, Upload, Users } from 'lucide-react';
+
+import { BOARD_PRESETS, PRESET_ORDER } from './presets';
+import type { BoardPresetId, CanvasSortMode, ColumnId, TaskItem } from './types';
+import { TaskColumn } from './TaskColumn';
+import { exportTaskBoardBlob, parseTaskBoardJson, useTaskBoard } from './useTaskBoard';
+
+import type { AgentRow } from '@/types/hub';
 import {
   getTaskRuns,
   postActivityEvent,
@@ -10,20 +16,17 @@ import {
   type TaskBacklogCheckResponse,
   type FigmaContextResponse,
   type TaskRunEntry,
-} from "@/lib/api";
-import type { AgentRow } from "@/types/hub";
-import { BOARD_PRESETS, PRESET_ORDER } from "./presets";
-import type { BoardPresetId, CanvasSortMode, ColumnId, TaskItem } from "./types";
-import { TaskColumn } from "./TaskColumn";
-import { exportTaskBoardBlob, parseTaskBoardJson, useTaskBoard } from "./useTaskBoard";
+} from '@/lib/api';
+import { pickDisplayName } from '@/lib/agent-profile-store';
 
-const SORT_STORAGE_KEY = "mission-agent-task-canvas-sort";
-const EXEC_MODE_STORAGE_KEY = "mission-agent-task-canvas-exec-mode";
-const EXEC_PRIORITY_PROFILE_STORAGE_KEY = "mission-agent-task-canvas-exec-priority-profile";
-const EXEC_PRIORITY_CUSTOM_ORDER_STORAGE_KEY = "mission-agent-task-canvas-exec-priority-custom-order";
-const BACKLOG_CHECK_THRESHOLD_STORAGE_KEY = "mission-agent-task-canvas-backlog-check-threshold";
+const SORT_STORAGE_KEY = 'mission-agent-task-canvas-sort';
+const EXEC_MODE_STORAGE_KEY = 'mission-agent-task-canvas-exec-mode';
+const EXEC_PRIORITY_PROFILE_STORAGE_KEY = 'mission-agent-task-canvas-exec-priority-profile';
+const EXEC_PRIORITY_CUSTOM_ORDER_STORAGE_KEY =
+  'mission-agent-task-canvas-exec-priority-custom-order';
+const BACKLOG_CHECK_THRESHOLD_STORAGE_KEY = 'mission-agent-task-canvas-backlog-check-threshold';
 
-const PRIORITY_RANK: Record<NonNullable<TaskItem["priority"]>, number> = {
+const PRIORITY_RANK: Record<NonNullable<TaskItem['priority']>, number> = {
   urgent: 0,
   high: 1,
   medium: 2,
@@ -31,76 +34,76 @@ const PRIORITY_RANK: Record<NonNullable<TaskItem["priority"]>, number> = {
 };
 
 function extractFigmaUrl(text?: string): string | null {
-  const s = String(text ?? "");
+  const s = String(text ?? '');
   const m = s.match(/https?:\/\/(?:www\.)?figma\.com\/[^\s)]+/i);
   return m?.[0] ?? null;
 }
 
 function isSortMode(s: string): s is CanvasSortMode {
-  return s === "manual" || s === "createdDesc" || s === "priorityAsc";
+  return s === 'manual' || s === 'createdDesc' || s === 'priorityAsc';
 }
 
-type CanvasExecMode = "manual" | "autoTodo" | "autoTodoDoing" | "autoAll";
+type CanvasExecMode = 'manual' | 'autoTodo' | 'autoTodoDoing' | 'autoAll';
 function isExecMode(s: string): s is CanvasExecMode {
-  return s === "manual" || s === "autoTodo" || s === "autoTodoDoing" || s === "autoAll";
+  return s === 'manual' || s === 'autoTodo' || s === 'autoTodoDoing' || s === 'autoAll';
 }
 
 type AgentKeywordProfile = { prefer: string[]; avoid?: string[] };
 const AGENT_PROFILE_BY_COLUMN: Record<ColumnId, AgentKeywordProfile> = {
   todo: {
-    prefer: ["analyst", "product", "planner", "pm", "master"],
-    avoid: ["qa", "review"],
+    prefer: ['analyst', 'product', 'planner', 'pm', 'master'],
+    avoid: ['qa', 'review'],
   },
   doing: {
-    prefer: ["dev", "developer", "frontend", "backend", "architect", "engineer"],
-    avoid: ["qa", "review"],
+    prefer: ['dev', 'developer', 'frontend', 'backend', 'architect', 'engineer'],
+    avoid: ['qa', 'review'],
   },
   review: {
-    prefer: ["qa", "review", "tester", "test", "auditor"],
+    prefer: ['qa', 'review', 'tester', 'test', 'auditor'],
   },
   done: {
-    prefer: ["master", "manager", "lead", "ops", "delivery"],
+    prefer: ['master', 'manager', 'lead', 'ops', 'delivery'],
   },
 };
-const EXEC_PRIORITY_BY_MODE: Record<Exclude<CanvasExecMode, "manual">, ColumnId[]> = {
-  autoTodo: ["todo"],
-  autoTodoDoing: ["doing", "todo"],
-  autoAll: ["doing", "review", "todo", "done"],
+const EXEC_PRIORITY_BY_MODE: Record<Exclude<CanvasExecMode, 'manual'>, ColumnId[]> = {
+  autoTodo: ['todo'],
+  autoTodoDoing: ['doing', 'todo'],
+  autoAll: ['doing', 'review', 'todo', 'done'],
 };
-type ExecPriorityProfile = "flowFirst" | "backlogFirst" | "reviewFirst" | "custom";
+type ExecPriorityProfile = 'flowFirst' | 'backlogFirst' | 'reviewFirst' | 'custom';
 const EXEC_PRIORITY_PROFILES: Record<ExecPriorityProfile, { label: string; order: ColumnId[] }> = {
   flowFirst: {
-    label: "Fluxo (Em Curso -> Revisao -> Backlog -> Feito)",
-    order: ["doing", "review", "todo", "done"],
+    label: 'Fluxo (Em Curso -> Revisao -> Backlog -> Feito)',
+    order: ['doing', 'review', 'todo', 'done'],
   },
   backlogFirst: {
-    label: "Backlog primeiro (Backlog -> Em Curso -> Revisao -> Feito)",
-    order: ["todo", "doing", "review", "done"],
+    label: 'Backlog primeiro (Backlog -> Em Curso -> Revisao -> Feito)',
+    order: ['todo', 'doing', 'review', 'done'],
   },
   reviewFirst: {
-    label: "Revisao primeiro (Revisao -> Em Curso -> Backlog -> Feito)",
-    order: ["review", "doing", "todo", "done"],
+    label: 'Revisao primeiro (Revisao -> Em Curso -> Backlog -> Feito)',
+    order: ['review', 'doing', 'todo', 'done'],
   },
   custom: {
-    label: "Personalizada",
-    order: ["doing", "review", "todo", "done"],
+    label: 'Personalizada',
+    order: ['doing', 'review', 'todo', 'done'],
   },
 };
 function isExecPriorityProfile(s: string): s is ExecPriorityProfile {
-  return s === "flowFirst" || s === "backlogFirst" || s === "reviewFirst" || s === "custom";
+  return s === 'flowFirst' || s === 'backlogFirst' || s === 'reviewFirst' || s === 'custom';
 }
 const COLUMN_LABEL_BY_ID: Record<ColumnId, string> = {
-  todo: "Backlog",
-  doing: "Em Curso",
-  review: "Revisao",
-  done: "Feito",
+  todo: 'Backlog',
+  doing: 'Em Curso',
+  review: 'Revisao',
+  done: 'Feito',
 };
 function parseCustomOrder(raw: string | null): ColumnId[] | null {
   if (!raw) return null;
   const parts = raw
-    .split(",")
+    .split(',')
     .map((x) => x.trim())
-    .filter((x): x is ColumnId => x === "todo" || x === "doing" || x === "review" || x === "done");
+    .filter((x): x is ColumnId => x === 'todo' || x === 'doing' || x === 'review' || x === 'done');
   const uniq = Array.from(new Set(parts));
   if (uniq.length !== 4) return null;
   return uniq;
@@ -111,8 +114,8 @@ function pickBestAgentForColumn(agents: AgentRow[], columnId: ColumnId): string 
   const profile = AGENT_PROFILE_BY_COLUMN[columnId];
   let best: { id: string; score: number } | null = null;
   for (const a of agents) {
-    const id = (a.id ?? "").toLowerCase();
-    const title = (a.title ?? "").toLowerCase();
+    const id = (a.id ?? '').toLowerCase();
+    const title = (a.title ?? '').toLowerCase();
     const hay = `${id} ${title}`;
     let score = 0;
     for (const kw of profile.prefer) {
@@ -133,15 +136,13 @@ function applySearchAndSort(
 ): Record<ColumnId, TaskItem[]> {
   const q = search.trim().toLowerCase();
   const match = (t: TaskItem) =>
-    !q ||
-    t.title.toLowerCase().includes(q) ||
-    (t.note && t.note.toLowerCase().includes(q));
+    !q || t.title.toLowerCase().includes(q) || (t.note && t.note.toLowerCase().includes(q));
 
   const sortList = (list: TaskItem[]): TaskItem[] => {
     const filtered = list.filter(match);
-    if (sortMode === "manual") return filtered;
+    if (sortMode === 'manual') return filtered;
     const copy = [...filtered];
-    if (sortMode === "createdDesc") {
+    if (sortMode === 'createdDesc') {
       copy.sort((a, b) => b.createdAt - a.createdAt || a.order - b.order);
     } else {
       copy.sort((a, b) => {
@@ -175,25 +176,29 @@ type TaskCanvasViewProps = {
 export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: TaskCanvasViewProps) {
   const [presetId, setPresetId] = useState<BoardPresetId>(() => {
     try {
-      const s = localStorage.getItem("mission-agent-task-preset");
+      const s = localStorage.getItem('mission-agent-task-preset');
       if (s && s in BOARD_PRESETS) return s as BoardPresetId;
     } catch {
       /* ignore */
     }
-    return "standard";
+    return 'standard';
   });
 
   const preset = BOARD_PRESETS[presetId];
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const [agentStepLoadingId, setAgentStepLoadingId] = useState<string | null>(null);
   const [agentStepError, setAgentStepError] = useState<string | null>(null);
   const [runsByTaskId, setRunsByTaskId] = useState<Record<string, TaskRunEntry | undefined>>({});
-  const [figmaContextByTaskId, setFigmaContextByTaskId] = useState<Record<string, FigmaContextResponse | undefined>>({});
+  const [figmaContextByTaskId, setFigmaContextByTaskId] = useState<
+    Record<string, FigmaContextResponse | undefined>
+  >({});
   const [figmaLoadingTaskId, setFigmaLoadingTaskId] = useState<string | null>(null);
-  const [backlogCheckByTaskId, setBacklogCheckByTaskId] = useState<Record<string, TaskBacklogCheckResponse | undefined>>({});
+  const [backlogCheckByTaskId, setBacklogCheckByTaskId] = useState<
+    Record<string, TaskBacklogCheckResponse | undefined>
+  >({});
   const [backlogCheckLoadingTaskId, setBacklogCheckLoadingTaskId] = useState<string | null>(null);
-  const [runBackend, setRunBackend] = useState<string>("file");
+  const [runBackend, setRunBackend] = useState<string>('file');
   const [policyDefaults, setPolicyDefaults] = useState<string[]>([]);
   const [sortMode, setSortMode] = useState<CanvasSortMode>(() => {
     try {
@@ -202,7 +207,7 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
     } catch {
       /* ignore */
     }
-    return "manual";
+    return 'manual';
   });
   const [execMode, setExecMode] = useState<CanvasExecMode>(() => {
     try {
@@ -211,7 +216,7 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
     } catch {
       /* ignore */
     }
-    return "manual";
+    return 'manual';
   });
   const [execPriorityProfile, setExecPriorityProfile] = useState<ExecPriorityProfile>(() => {
     try {
@@ -220,20 +225,25 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
     } catch {
       /* ignore */
     }
-    return "flowFirst";
+    return 'flowFirst';
   });
   const [execPriorityCustomOrder, setExecPriorityCustomOrder] = useState<ColumnId[]>(() => {
     try {
       return (
-        parseCustomOrder(localStorage.getItem(EXEC_PRIORITY_CUSTOM_ORDER_STORAGE_KEY)) ?? ["doing", "review", "todo", "done"]
+        parseCustomOrder(localStorage.getItem(EXEC_PRIORITY_CUSTOM_ORDER_STORAGE_KEY)) ?? [
+          'doing',
+          'review',
+          'todo',
+          'done',
+        ]
       );
     } catch {
-      return ["doing", "review", "todo", "done"];
+      return ['doing', 'review', 'todo', 'done'];
     }
   });
   const [backlogCheckThreshold, setBacklogCheckThreshold] = useState<number>(() => {
     try {
-      const raw = Number(localStorage.getItem(BACKLOG_CHECK_THRESHOLD_STORAGE_KEY) || "70");
+      const raw = Number(localStorage.getItem(BACKLOG_CHECK_THRESHOLD_STORAGE_KEY) || '70');
       return Number.isFinite(raw) ? Math.max(0, Math.min(100, Math.round(raw))) : 70;
     } catch {
       return 70;
@@ -267,7 +277,7 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
   const persistExecPriorityCustomOrder = (order: ColumnId[]) => {
     setExecPriorityCustomOrder(order);
     try {
-      localStorage.setItem(EXEC_PRIORITY_CUSTOM_ORDER_STORAGE_KEY, order.join(","));
+      localStorage.setItem(EXEC_PRIORITY_CUSTOM_ORDER_STORAGE_KEY, order.join(','));
     } catch {
       /* ignore */
     }
@@ -317,7 +327,9 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
           : task;
       const figmaUrl = extractFigmaUrl(task.note);
       if (figmaUrl && !figmaContextByTaskId[task.id]) {
-        setAgentStepError("Esta tarefa tem link Figma. Clica em «Figma» no cartão para ler o contexto antes do retorno.");
+        setAgentStepError(
+          'Esta tarefa tem link Figma. Clica em «Figma» no cartão para ler o contexto antes do retorno.'
+        );
         return;
       }
       setAgentStepError(null);
@@ -340,37 +352,41 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
           },
           assigneeLabel,
         });
-        const stamp = new Date().toLocaleString("pt-PT");
+        const stamp = new Date().toLocaleString('pt-PT');
         const block = `\n\n---\n[${stamp} · retorno do agente]\n${r.retorno}`;
-        const baseNote = (effectiveTask.note ?? "").trimEnd();
+        const baseNote = (effectiveTask.note ?? '').trimEnd();
         const newNote = (baseNote + block).trim();
-        const patch: Partial<Pick<TaskItem, "note" | "blocked" | "assigneeAgentId">> = { note: newNote };
-        if (typeof r.bloqueada === "boolean") patch.blocked = r.bloqueada;
+        const patch: Partial<Pick<TaskItem, 'note' | 'blocked' | 'assigneeAgentId'>> = {
+          note: newNote,
+        };
+        if (typeof r.bloqueada === 'boolean') patch.blocked = r.bloqueada;
         if (assigneeOverrideId && assigneeOverrideId !== task.assigneeAgentId) {
           patch.assigneeAgentId = assigneeOverrideId;
         }
         updateTask(effectiveTask.id, patch);
-        if (r.sugestao_coluna !== "manter" && r.sugestao_coluna !== effectiveTask.columnId) {
+        if (r.sugestao_coluna !== 'manter' && r.sugestao_coluna !== effectiveTask.columnId) {
           moveTask(effectiveTask.id, r.sugestao_coluna);
         }
         const ag = effectiveTask.assigneeAgentId?.trim();
-        const agentTag = ag ? (ag.startsWith("@") ? ag : `@${ag}`) : "@task-canvas";
+        const agentTag = ag ? (ag.startsWith('@') ? ag : `@${ag}`) : '@task-canvas';
         const shortTitle =
-          effectiveTask.title.length > 48 ? `${effectiveTask.title.slice(0, 48)}…` : effectiveTask.title;
+          effectiveTask.title.length > 48
+            ? `${effectiveTask.title.slice(0, 48)}…`
+            : effectiveTask.title;
         const action = `Quadro: retorno «${shortTitle}» → coluna ${r.sugestao_coluna}`;
         try {
           await postActivityEvent({
             agent: agentTag,
             action: action.slice(0, 240),
-            type: "output",
-            kind: "agent",
+            type: 'output',
+            kind: 'agent',
           });
         } catch {
           /* feed opcional */
         }
         window.dispatchEvent(
-          new CustomEvent("mission-team-activity", {
-            detail: { source: "task-canvas-agent", action },
+          new CustomEvent('mission-team-activity', {
+            detail: { source: 'task-canvas-agent', action },
           })
         );
       } catch (e) {
@@ -385,7 +401,7 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
   const handleReadFigmaContext = useCallback(async (task: TaskItem) => {
     const figmaUrl = extractFigmaUrl(task.note);
     if (!figmaUrl) {
-      setAgentStepError("Não foi encontrado link do Figma na nota desta tarefa.");
+      setAgentStepError('Não foi encontrado link do Figma na nota desta tarefa.');
       return;
     }
     setAgentStepError(null);
@@ -397,10 +413,10 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
       const action = `Quadro: contexto Figma lido «${shortTitle}» (${ctx.designSummary.nodeCount} nós)`;
       try {
         await postActivityEvent({
-          agent: "@task-canvas",
+          agent: '@task-canvas',
           action: action.slice(0, 240),
-          type: "output",
-          kind: "figma",
+          type: 'output',
+          kind: 'figma',
         });
       } catch {
         /* feed opcional */
@@ -459,7 +475,7 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
         const map: Record<string, TaskRunEntry | undefined> = {};
         for (const r of data.runs) map[r.taskId] = r;
         setRunsByTaskId(map);
-        setRunBackend(data.backend || "file");
+        setRunBackend(data.backend || 'file');
         setPolicyDefaults(Array.isArray(data.policy?.defaults) ? data.policy.defaults : []);
         const next = Math.min(Math.max(data.pollMs || 5000, 1500), 20_000);
         timer = window.setTimeout(poll, next);
@@ -476,11 +492,11 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
   }, []);
 
   useEffect(() => {
-    if (execMode === "manual") return;
+    if (execMode === 'manual') return;
     if (agentStepLoadingId) return;
     const priority =
-      execMode === "autoAll"
-        ? execPriorityProfile === "custom"
+      execMode === 'autoAll'
+        ? execPriorityProfile === 'custom'
           ? execPriorityCustomOrder
           : EXEC_PRIORITY_PROFILES[execPriorityProfile].order
         : EXEC_PRIORITY_BY_MODE[execMode];
@@ -489,18 +505,20 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
       candidate = tasks.find((t) => {
         if (t.blocked === true) return false;
         if (t.columnId !== col) return false;
-        if ((t.note ?? "").includes("retorno do agente")) return false;
+        if ((t.note ?? '').includes('retorno do agente')) return false;
         const run = runsByTaskId[t.id];
-        if (run?.status === "running") return false;
+        if (run?.status === 'running') return false;
         const figmaUrl = extractFigmaUrl(t.note);
         if (figmaUrl && !figmaContextByTaskId[t.id]) return false;
-        const sig = [t.title, t.columnId, t.assigneeAgentId ?? "", String(Boolean(t.blocked))].join("|");
+        const sig = [t.title, t.columnId, t.assigneeAgentId ?? '', String(Boolean(t.blocked))].join(
+          '|'
+        );
         return autoExecSigByTaskIdRef.current[t.id] !== sig;
       });
       if (candidate) break;
     }
     if (!candidate) return;
-    if (candidate.columnId === "todo") {
+    if (candidate.columnId === 'todo') {
       const checked = backlogCheckByTaskId[candidate.id];
       if (!checked) {
         void handleBacklogCheck(candidate);
@@ -510,7 +528,12 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
         return;
       }
     }
-    const sig = [candidate.title, candidate.columnId, candidate.assigneeAgentId ?? "", String(Boolean(candidate.blocked))].join("|");
+    const sig = [
+      candidate.title,
+      candidate.columnId,
+      candidate.assigneeAgentId ?? '',
+      String(Boolean(candidate.blocked)),
+    ].join('|');
     autoExecSigByTaskIdRef.current[candidate.id] = sig;
     const bestAgentId = pickBestAgentForColumn(agents, candidate.columnId);
     void handleAgentStep(candidate, bestAgentId);
@@ -530,12 +553,12 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
   ]);
 
   /** Índices de drop batem com a lista visível; só é seguro com ordem manual e sem filtro. */
-  const reorderEnabled = sortMode === "manual" && !search.trim();
+  const reorderEnabled = sortMode === 'manual' && !search.trim();
 
   const persistPreset = (id: BoardPresetId) => {
     setPresetId(id);
     try {
-      localStorage.setItem("mission-agent-task-preset", id);
+      localStorage.setItem('mission-agent-task-preset', id);
     } catch {
       /* ignore */
     }
@@ -543,21 +566,21 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
 
   const exportJson = () => {
     const blob = exportTaskBoardBlob(tasks);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `mission-agent-tasks-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
+    a.download = `mission-agent-tasks-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
   };
 
   const onImportFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    e.target.value = "";
+    e.target.value = '';
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const parsed = JSON.parse(String(reader.result ?? "")) as unknown;
+        const parsed = JSON.parse(String(reader.result ?? '')) as unknown;
         const next = parseTaskBoardJson(parsed);
         if (!next) {
           window.alert('JSON inválido: espera-se { "tasks": [...] } ou um array de tarefas.');
@@ -572,10 +595,10 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
         }
         replaceTasks(next);
       } catch {
-        window.alert("Não foi possível ler o JSON.");
+        window.alert('Não foi possível ler o JSON.');
       }
     };
-    reader.readAsText(file, "utf-8");
+    reader.readAsText(file, 'utf-8');
   };
 
   return (
@@ -595,11 +618,13 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
             <p className="mt-1 max-w-2xl text-xs text-muted-foreground">{preset.description}</p>
             {taskBoardSync && taskBoardSyncHydrated ? (
               <p className="mt-1 max-w-2xl text-[10px] text-muted-foreground/90">
-                Sincronização com o servidor activa (`VITE_TASK_BOARD_SYNC`) — quadro em ficheiro na API.
+                Sincronização com o servidor activa (`VITE_TASK_BOARD_SYNC`) — quadro em ficheiro na
+                API.
               </p>
             ) : null}
             <p className="mt-1 max-w-2xl text-[10px] text-muted-foreground/90">
-              Tarefas com agente aparecem no feed e no quadro do escritório (vista Central). Atribui no cartão ou usa «Distribuir fila».
+              Tarefas com agente aparecem no feed e no quadro do escritório (vista Central). Atribui
+              no cartão ou usa «Distribuir fila».
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -636,7 +661,7 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
                 if (!agents.length) return;
                 if (
                   !window.confirm(
-                    "Distribuir tarefas na fila (coluna inicial) sem agente atribuído, em round-robin pelos agentes listados?"
+                    'Distribuir tarefas na fila (coluna inicial) sem agente atribuído, em round-robin pelos agentes listados?'
                   )
                 ) {
                   return;
@@ -654,7 +679,7 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
               onClick={() => {
                 if (
                   window.confirm(
-                    "Eliminar todas as tarefas de todas as colunas? Esta acção não pode ser desfeita (exporta antes se precisares de cópia)."
+                    'Eliminar todas as tarefas de todas as colunas? Esta acção não pode ser desfeita (exporta antes se precisares de cópia).'
                   )
                 ) {
                   clearAll();
@@ -713,7 +738,7 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
               <select
                 value={execPriorityProfile}
                 onChange={(e) => persistExecPriorityProfile(e.target.value as ExecPriorityProfile)}
-                disabled={execMode !== "autoAll"}
+                disabled={execMode !== 'autoAll'}
                 className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-normal normal-case text-foreground outline-none focus:border-primary disabled:opacity-50"
                 aria-label="Prioridade de colunas no auto-run do canvas"
                 title="Aplica apenas no modo Automático em todo o canvas."
@@ -740,12 +765,17 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
                 <option value="90">90</option>
               </select>
             </label>
-            {execMode === "autoAll" && execPriorityProfile === "custom" ? (
+            {execMode === 'autoAll' && execPriorityProfile === 'custom' ? (
               <div className="flex min-w-[280px] flex-col gap-1 rounded-lg border border-border bg-background px-2 py-2">
-                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Ordem personalizada</p>
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Ordem personalizada
+                </p>
                 <div className="flex flex-wrap gap-1">
                   {execPriorityCustomOrder.map((col, idx) => (
-                    <div key={col} className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 text-[10px]">
+                    <div
+                      key={col}
+                      className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 text-[10px]"
+                    >
                       <span>{COLUMN_LABEL_BY_ID[col]}</span>
                       <button
                         type="button"
@@ -787,7 +817,7 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
             <button
               type="button"
               onClick={() => {
-                if (confirm("Limpar todas as tarefas na coluna «Feito»?")) clearDone();
+                if (confirm('Limpar todas as tarefas na coluna «Feito»?')) clearDone();
               }}
               className="self-end rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >
@@ -799,7 +829,7 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
               className="self-end rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
               title="Mostrar/ocultar textos de ajuda do canvas"
             >
-              {helpVisible ? "Ocultar dicas" : "Mostrar dicas"}
+              {helpVisible ? 'Ocultar dicas' : 'Mostrar dicas'}
             </button>
           </div>
           <div className="mt-2 w-full basis-full">
@@ -811,40 +841,43 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
             {helpVisible ? (
               <>
                 <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
-                  Em cada cartão, <strong className="font-medium text-foreground">Retorno</strong> pede ao LLM (mesma
-                  configuração que o painel Dúvidas) um parecer JSON: texto na nota, sugestão de coluna e bloqueio. Requer{" "}
+                  Em cada cartão, <strong className="font-medium text-foreground">Retorno</strong>{' '}
+                  pede ao LLM (mesma configuração que o painel Dúvidas) um parecer JSON: texto na
+                  nota, sugestão de coluna e bloqueio. Requer{' '}
                   <code className="rounded bg-muted px-1">MISSION_DOUBTS_LLM=1</code> e chave LLM.
                 </p>
                 <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground/90">
-                  Auto-run: backend <code className="rounded bg-muted px-1">{runBackend}</code>; policy default{" "}
+                  Auto-run: backend <code className="rounded bg-muted px-1">{runBackend}</code>;
+                  policy default{' '}
                   <code className="rounded bg-muted px-1">
-                    {policyDefaults.length ? policyDefaults.join(",") : "none"}
+                    {policyDefaults.length ? policyDefaults.join(',') : 'none'}
                   </code>
                   .
                 </p>
                 <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground/90">
-                  Modo do canvas:{" "}
+                  Modo do canvas:{' '}
                   <code className="rounded bg-muted px-1">
-                    {execMode === "manual"
-                      ? "manual"
-                      : execMode === "autoTodo"
-                        ? "auto(todo)"
-                        : execMode === "autoTodoDoing"
-                          ? "auto(todo+doing)"
-                          : "auto(todo+doing+review+done)"}
+                    {execMode === 'manual'
+                      ? 'manual'
+                      : execMode === 'autoTodo'
+                        ? 'auto(todo)'
+                        : execMode === 'autoTodoDoing'
+                          ? 'auto(todo+doing)'
+                          : 'auto(todo+doing+review+done)'}
                   </code>
                   .
                 </p>
                 <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground/90">
-                  Corretor backlog (auto):{" "}
-                  <code className="rounded bg-muted px-1">score &gt;= {backlogCheckThreshold}</code>.
+                  Corretor backlog (auto):{' '}
+                  <code className="rounded bg-muted px-1">score &gt;= {backlogCheckThreshold}</code>
+                  .
                 </p>
-                {execMode === "autoAll" ? (
+                {execMode === 'autoAll' ? (
                   <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground/90">
-                    Prioridade activa:{" "}
+                    Prioridade activa:{' '}
                     <code className="rounded bg-muted px-1">
-                      {execPriorityProfile === "custom"
-                        ? execPriorityCustomOrder.map((c) => COLUMN_LABEL_BY_ID[c]).join(" -> ")
+                      {execPriorityProfile === 'custom'
+                        ? execPriorityCustomOrder.map((c) => COLUMN_LABEL_BY_ID[c]).join(' -> ')
                         : EXEC_PRIORITY_PROFILES[execPriorityProfile].label}
                     </code>
                     .

@@ -7,17 +7,18 @@ import {
   Shell,
   Sparkles,
   Terminal,
-} from "lucide-react";
-import type { ActivityEntry } from "@/types/hub";
-import { MobileDrawer } from "@/components/MobileDrawer";
+} from 'lucide-react';
+
+import type { ActivityEntry } from '@/types/hub';
+import { MobileDrawer } from '@/components/MobileDrawer';
 
 function FeedKindIcon({ kind, type }: { kind?: string; type: string }) {
-  const k = (kind || type || "").toLowerCase();
-  const cls = "h-3.5 w-3.5 shrink-0 text-primary/85";
-  if (k === "agent") return <FileText className={cls} aria-hidden />;
-  if (k === "cli") return <Shell className={cls} aria-hidden />;
-  if (k === "command") return <Terminal className={cls} aria-hidden />;
-  if (k === "bridge") return <Sparkles className={cls} aria-hidden />;
+  const k = (kind || type || '').toLowerCase();
+  const cls = 'h-3.5 w-3.5 shrink-0 text-primary/85';
+  if (k === 'agent') return <FileText className={cls} aria-hidden />;
+  if (k === 'cli') return <Shell className={cls} aria-hidden />;
+  if (k === 'command') return <Terminal className={cls} aria-hidden />;
+  if (k === 'bridge') return <Sparkles className={cls} aria-hidden />;
   return <MessageSquare className={cls} aria-hidden />;
 }
 
@@ -49,8 +50,8 @@ function ActivityEmptyState() {
       </div>
       <p className="mt-3 text-xs font-medium text-foreground">Ainda sem eventos</p>
       <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-        Usa o comando <span className="font-mono text-foreground/90">@hub</span> na barra superior. Cada envio válido
-        aparece aqui com agente e hora.
+        Usa o comando <span className="font-mono text-foreground/90">@hub</span> na barra superior.
+        Cada envio válido aparece aqui com agente e hora.
       </p>
       <ul className="mt-4 space-y-2 text-left text-[10px] text-muted-foreground">
         <li className="flex gap-2">
@@ -70,13 +71,18 @@ function ActivityFeedList({ logs }: { logs: ActivityEntry[] }) {
   return (
     <ul className="space-y-1">
       {unique.map((log) => (
-        <li key={log.id} className="rounded-lg border border-border/90 bg-background/60 p-2.5 shadow-sm">
+        <li
+          key={log.id}
+          className="rounded-lg border border-border/90 bg-background/60 p-2.5 shadow-sm"
+        >
           <div className="mb-1 flex items-center gap-2">
             <FeedKindIcon kind={log.kind} type={log.type} />
             <span className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-medium text-primary">
               {log.agent}
             </span>
-            <span className="ml-auto font-mono text-[10px] text-muted-foreground">{log.timestamp}</span>
+            <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+              {log.timestamp}
+            </span>
           </div>
           <p className="text-[11px] leading-relaxed text-foreground">{log.action}</p>
         </li>
@@ -137,7 +143,12 @@ export function ActivityPanel({
         </aside>
       )}
 
-      <MobileDrawer open={mobileOpen} onClose={onMobileClose} side="right" title="Feed de atividade">
+      <MobileDrawer
+        open={mobileOpen}
+        onClose={onMobileClose}
+        side="right"
+        title="Feed de atividade"
+      >
         <div className="scrollbar-thin flex h-full flex-col overflow-auto p-3">
           <ActivityFeedList logs={logs} />
         </div>

@@ -1,9 +1,9 @@
-import type { ActivityEntry, AgentRow } from "@/types/hub";
+import type { ActivityEntry, AgentRow } from '@/types/hub';
 
 /** Alinhado com `FEED_LOG_WINDOW` em office.js — feed sem ISO completo. */
 export const AGENT_STATUS_LOG_WINDOW = 48;
 
-export type AgentLiveStatus = "idle" | "working" | "thinking";
+export type AgentLiveStatus = 'idle' | 'working' | 'thinking';
 
 export type AgentStatusInfo = {
   status: AgentLiveStatus;
@@ -12,16 +12,16 @@ export type AgentStatusInfo = {
 };
 
 function normalizeAgentToken(s: string): string {
-  return String(s || "")
-    .replace(/^@/, "")
+  return String(s || '')
+    .replace(/^@/, '')
     .trim()
     .toLowerCase()
-    .replace(/\.md$/i, "");
+    .replace(/\.md$/i, '');
 }
 
 export function matchLogAgentToRowId(logAgent: string, agentRows: AgentRow[]): string | null {
   const key = normalizeAgentToken(logAgent);
-  if (!key || key === "mission-hub") return null;
+  if (!key || key === 'mission-hub') return null;
   for (const row of agentRows) {
     const rid = normalizeAgentToken(row.id);
     if (rid === key) return row.id;
@@ -34,7 +34,7 @@ export function matchLogAgentToRowId(logAgent: string, agentRows: AgentRow[]): s
  */
 export function getAgentStatusesFromLogs(
   agents: AgentRow[],
-  logs: ActivityEntry[],
+  logs: ActivityEntry[]
 ): Map<string, AgentStatusInfo> {
   const out = new Map<string, AgentStatusInfo>();
   const n = Math.min(AGENT_STATUS_LOG_WINDOW, logs.length);
@@ -48,18 +48,18 @@ export function getAgentStatusesFromLogs(
   for (const a of agents) {
     const log = matched.get(a.id);
     if (!log) {
-      out.set(a.id, { status: "idle", hint: "" });
+      out.set(a.id, { status: 'idle', hint: '' });
       continue;
     }
-    const actionLower = String(log.action || "").toLowerCase();
+    const actionLower = String(log.action || '').toLowerCase();
     const isErr =
-      actionLower.includes("erro") ||
-      actionLower.includes("error") ||
-      actionLower.includes("fail") ||
-      log.type === "error";
-    const status: AgentLiveStatus = isErr ? "thinking" : "working";
-    const hint = String(log.action || "")
-      .replace(/\s+/g, " ")
+      actionLower.includes('erro') ||
+      actionLower.includes('error') ||
+      actionLower.includes('fail') ||
+      log.type === 'error';
+    const status: AgentLiveStatus = isErr ? 'thinking' : 'working';
+    const hint = String(log.action || '')
+      .replace(/\s+/g, ' ')
       .trim()
       .slice(0, 100);
     out.set(a.id, { status, hint });

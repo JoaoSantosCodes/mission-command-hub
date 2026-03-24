@@ -25,7 +25,13 @@ export function syncAgentsFromLogs(
 ): void;
 /** Espelha tarefas do canvas modular no quadro branco (colunas FILA / CURSO / FEITO). */
 export function syncTaskBoardFromCanvas(
-  tasks: Array<{ id: string; title?: string; columnId?: string; order?: number; assigneeAgentId?: string }>,
+  tasks: Array<{
+    id: string;
+    title?: string;
+    columnId?: string;
+    order?: number;
+    assigneeAgentId?: string;
+  }>,
   agentRows: Array<{ id: string; title?: string }>
 ): void;
 export function setAgentAccentOverrides(overridesMap: Record<string, string>): void;
@@ -33,7 +39,7 @@ export function setAgentAccentOverrides(overridesMap: Record<string, string>): v
 export function setFishFoodState(state: {
   food: number;
   maxFood: number;
-  mood: "feliz" | "normal" | "fome" | "critico" | string;
+  mood: 'feliz' | 'normal' | 'fome' | 'critico' | string;
 }): void;
 
 export function getOfficeLayoutExportJSON(): string;

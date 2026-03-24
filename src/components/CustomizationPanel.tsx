@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { Palette, RefreshCw, Save, SlidersHorizontal, UserRound, X } from "lucide-react";
-import type { AgentRow } from "@/types/hub";
-import { readAgentProfile, writeAgentProfile } from "@/lib/agent-profile-store";
-import { readOfficeTheme, writeOfficeTheme, type OfficeTheme } from "@/lib/office-customization-store";
+import { useEffect, useMemo, useState } from 'react';
+import { Palette, RefreshCw, Save, SlidersHorizontal, UserRound, X } from 'lucide-react';
+
+import type { AgentRow } from '@/types/hub';
+import { readAgentProfile, writeAgentProfile } from '@/lib/agent-profile-store';
+import {
+  readOfficeTheme,
+  writeOfficeTheme,
+  type OfficeTheme,
+} from '@/lib/office-customization-store';
 
 type CustomizationPanelProps = {
   open: boolean;
@@ -32,15 +37,15 @@ export function CustomizationPanel({
   syncStateLabel,
   onSyncNow,
 }: CustomizationPanelProps) {
-  const [tab, setTab] = useState<"agents" | "office">("agents");
-  const [selectedAgentId, setSelectedAgentId] = useState<string>("");
+  const [tab, setTab] = useState<'agents' | 'office'>('agents');
+  const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [draft, setDraft] = useState<Draft>({
-    displayName: "",
+    displayName: '',
     avatarIndex: 0,
     avatarOffsetX: 0,
     avatarOffsetY: 0,
-    accentColor: "",
-    officeTheme: "default",
+    accentColor: '',
+    officeTheme: 'default',
   });
 
   useEffect(() => {
@@ -56,13 +61,13 @@ export function CustomizationPanel({
   const loadFromCurrent = () => {
     const id = selected?.id;
     const p = id ? readAgentProfile(id) : {};
-    const baseName = selected ? p.displayName || selected.title || selected.id : "";
+    const baseName = selected ? p.displayName || selected.title || selected.id : '';
     setDraft({
       displayName: baseName,
-      avatarIndex: typeof p.avatarIndex === "number" ? p.avatarIndex : 0,
-      avatarOffsetX: typeof p.avatarOffsetX === "number" ? p.avatarOffsetX : 0,
-      avatarOffsetY: typeof p.avatarOffsetY === "number" ? p.avatarOffsetY : 0,
-      accentColor: p.accentColor || "",
+      avatarIndex: typeof p.avatarIndex === 'number' ? p.avatarIndex : 0,
+      avatarOffsetX: typeof p.avatarOffsetX === 'number' ? p.avatarOffsetX : 0,
+      avatarOffsetY: typeof p.avatarOffsetY === 'number' ? p.avatarOffsetY : 0,
+      accentColor: p.accentColor || '',
       officeTheme: readOfficeTheme(),
     });
   };
@@ -95,12 +100,21 @@ export function CustomizationPanel({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/80 p-4 backdrop-blur-sm sm:items-center">
-      <button type="button" className="absolute inset-0 cursor-default" aria-label="Fechar" onClick={onClose} />
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default"
+        aria-label="Fechar"
+        onClick={onClose}
+      />
       <div className="relative z-10 flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-primary/[0.08] ring-1 ring-primary/15">
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-gradient-to-br from-primary/[0.1] via-card to-secondary/25 px-4 py-3 sm:px-5">
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Architecture Agents Hub</p>
-            <h2 className="text-sm font-semibold tracking-tight text-foreground">Painel de personalização</h2>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              Architecture Agents Hub
+            </p>
+            <h2 className="text-sm font-semibold tracking-tight text-foreground">
+              Painel de personalização
+            </h2>
           </div>
           <div className="flex items-center gap-2">
             <span className="rounded-full border border-border bg-background/40 px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -120,11 +134,11 @@ export function CustomizationPanel({
         <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2 sm:px-5">
           <button
             type="button"
-            onClick={() => setTab("agents")}
+            onClick={() => setTab('agents')}
             className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs ${
-              tab === "agents"
-                ? "border-primary/35 bg-primary/10 text-primary"
-                : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+              tab === 'agents'
+                ? 'border-primary/35 bg-primary/10 text-primary'
+                : 'border-border text-muted-foreground hover:bg-secondary hover:text-foreground'
             }`}
           >
             <UserRound className="h-3.5 w-3.5" aria-hidden />
@@ -132,11 +146,11 @@ export function CustomizationPanel({
           </button>
           <button
             type="button"
-            onClick={() => setTab("office")}
+            onClick={() => setTab('office')}
             className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs ${
-              tab === "office"
-                ? "border-primary/35 bg-primary/10 text-primary"
-                : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+              tab === 'office'
+                ? 'border-primary/35 bg-primary/10 text-primary'
+                : 'border-border text-muted-foreground hover:bg-secondary hover:text-foreground'
             }`}
           >
             <Palette className="h-3.5 w-3.5" aria-hidden />
@@ -145,10 +159,12 @@ export function CustomizationPanel({
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-5">
-          {tab === "agents" ? (
+          {tab === 'agents' ? (
             <div className="grid gap-4 md:grid-cols-[240px_1fr]">
               <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Selecionar agente</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Selecionar agente
+                </p>
                 <select
                   value={selectedAgentId}
                   onChange={(e) => setSelectedAgentId(e.target.value)}
@@ -179,7 +195,9 @@ export function CustomizationPanel({
                   Foto (avatar)
                   <select
                     value={draft.avatarIndex}
-                    onChange={(e) => setDraft((d) => ({ ...d, avatarIndex: Number(e.target.value) }))}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, avatarIndex: Number(e.target.value) }))
+                    }
                     className="rounded-lg border border-border bg-background px-2.5 py-2 text-xs normal-case text-foreground outline-none focus:border-primary"
                   >
                     {Array.from({ length: 6 }, (_, i) => (
@@ -197,7 +215,9 @@ export function CustomizationPanel({
                     max={6}
                     step={1}
                     value={draft.avatarOffsetX}
-                    onChange={(e) => setDraft((d) => ({ ...d, avatarOffsetX: Number(e.target.value) }))}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, avatarOffsetX: Number(e.target.value) }))
+                    }
                   />
                 </label>
                 <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -208,7 +228,9 @@ export function CustomizationPanel({
                     max={6}
                     step={1}
                     value={draft.avatarOffsetY}
-                    onChange={(e) => setDraft((d) => ({ ...d, avatarOffsetY: Number(e.target.value) }))}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, avatarOffsetY: Number(e.target.value) }))
+                    }
                   />
                 </label>
                 <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground sm:col-span-2">
@@ -229,7 +251,10 @@ export function CustomizationPanel({
                 <select
                   value={draft.officeTheme}
                   onChange={(e) =>
-                    setDraft((d) => ({ ...d, officeTheme: e.target.value === "neon" ? "neon" : "default" }))
+                    setDraft((d) => ({
+                      ...d,
+                      officeTheme: e.target.value === 'neon' ? 'neon' : 'default',
+                    }))
                   }
                   className="rounded-lg border border-border bg-background px-2.5 py-2 text-xs normal-case text-foreground outline-none focus:border-primary"
                 >
@@ -238,7 +263,8 @@ export function CustomizationPanel({
                 </select>
               </label>
               <p className="text-[11px] text-muted-foreground">
-                O tema aplica no escritório da Central. Use Aplicar para preview local e Guardar para sincronizar.
+                O tema aplica no escritório da Central. Use Aplicar para preview local e Guardar
+                para sincronizar.
               </p>
             </div>
           )}
@@ -282,4 +308,3 @@ export function CustomizationPanel({
     </div>
   );
 }
-

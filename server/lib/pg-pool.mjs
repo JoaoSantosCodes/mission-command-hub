@@ -1,7 +1,7 @@
 /**
  * Pool PostgreSQL partilhado (opcional — só com DATABASE_URL).
  */
-import pg from "pg";
+import pg from 'pg';
 
 const { Pool } = pg;
 
@@ -11,7 +11,7 @@ let pool = null;
 export function getPool() {
   const url = process.env.DATABASE_URL?.trim();
   if (!url) {
-    throw new Error("DATABASE_URL não definido");
+    throw new Error('DATABASE_URL não definido');
   }
   if (!pool) {
     pool = new Pool({
@@ -20,8 +20,8 @@ export function getPool() {
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
     });
-    pool.on("error", (err) => {
-      console.error("[mission-agent] PostgreSQL pool error:", err?.message || err);
+    pool.on('error', (err) => {
+      console.error('[mission-agent] PostgreSQL pool error:', err?.message || err);
     });
   }
   return pool;
