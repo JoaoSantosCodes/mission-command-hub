@@ -51,6 +51,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 - [x] **Integrações com alertas e histórico**: `GET /api/aiox/integrations-status` devolve `alerts` + `history`; com `validate=1` persiste snapshots de saúde para tendência operacional
 - [x] **Slack (espelho do feed)**: `SLACK_WEBHOOK_URL` (Incoming Webhook) — cada `pushLog` do feed pode ser espelhado no canal; estado `slack` (`mirrorReady`, etc.) no painel Integrações e em `docs/INTEGRATIONS.md`
 - [x] **Verificação de ambiente**: `npm run verify:env` (+ opcional `MISSION_VERIFY_UPSTREAM=1`) em `scripts/verify-real-env.mjs`
+- [x] **Preflight produção**: `npm run verify:real` (`scripts/preflight-real-env.mjs`) — aiox-core, `dist/`, CORS, proxy, edição de agentes; aviso em log se produção sem `CORS_ORIGINS` (`create-app.mjs`)
 
 ---
 

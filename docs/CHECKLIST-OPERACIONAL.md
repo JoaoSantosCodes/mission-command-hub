@@ -34,11 +34,14 @@ Lista curta para **arranque**, **PR**, **release** e **processo de equipa**. O i
 
 ## 3. Antes de release / deploy
 
-- [ ] `NODE_ENV=production` e `npm run build` + `npm start` (ou imagem Docker) testados localmente
+- [ ] `npm run build` e `NODE_ENV=production npm run verify:real` (sem aiox no CI: `MISSION_PREFLIGHT_SKIP_AIOX=1`)
+- [ ] `NODE_ENV=production` e `npm start` (ou imagem Docker) testados localmente
+- [ ] `AIOX_CORE_PATH` (ou `../aiox-core`) correcto no **servidor** — senão **agentes** não aparecem
 - [ ] `CORS_ORIGINS` definido para as origens reais (produção)
 - [ ] `TRUST_PROXY=1` se houver reverse proxy
 - [ ] Não expor o serviço à internet sem **auth** no perímetro (o hub não tem login integrado)
 - [ ] `MASK_PATHS_IN_UI=1` se o ecrã for partilhado
+- [ ] `MISSION_AGENT_EDIT=0` se não quiseres criar/editar agentes pela UI em produção
 
 ---
 

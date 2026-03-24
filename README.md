@@ -125,6 +125,16 @@ npm start
 
 O servidor Express serve o `dist/` e a API nos mesmos endpoints `/api/*`.
 
+Em **produção** (`NODE_ENV=production`), se `CORS_ORIGINS` estiver vazio, o servidor escreve um **aviso** nos logs: convém definir origens explícitas para o browser não aceder à API de qualquer site.
+
+### Ambiente real — agentes e projecto prontos
+
+1. **`AIOX_CORE_PATH`** — aponta para a pasta do projecto AIOX que contém `.aiox-core` (onde estão os agentes `.md`). Sem isto o hub arranca mas a **lista de agentes fica vazia**.
+2. **Segredos da equipa** — usa **`.env.local`** no servidor (sobrescreve `.env`; não commitar): chaves LLM, `DATABASE_URL`, `SLACK_WEBHOOK_URL`, Notion/Figma, etc.
+3. **Preflight:** após `npm run build`, corre `NODE_ENV=production npm run verify:real` — valida `dist/`, aiox-core (opcional), CORS, `TRUST_PROXY`, edição de agentes, Slack/LLM óbvios. Em CI sem clone aiox: `MISSION_PREFLIGHT_SKIP_AIOX=1`.
+4. **Hardening:** `CORS_ORIGINS` com URLs reais; `TRUST_PROXY=1` atrás de reverse proxy; `MASK_PATHS_IN_UI=1` em demonstrações; **`MISSION_AGENT_EDIT=0`** se o hub em produção for só leitura dos `.md`.
+5. Ver **[CHECKLIST-OPERACIONAL.md](./docs/CHECKLIST-OPERACIONAL.md)** (secção release) e **`npm run verify:env`** para máscaras de variáveis.
+
 **`npm run preview`:** o bundle estático + a mesma API **embebida** em `/api` (sem precisar de :8787). O `vite.config.ts` mantém **proxy** `/api` → `8787` só como redundância se usares `MISSION_EMBED_API=0`.
 
 | Comando | O que faz |
@@ -142,7 +152,7 @@ npm test
 
 Testes automatizados (**39** testes Vitest + Supertest em `api.smoke`, `fish-api` e `e2e-basic-flow`): `health`, 404/JSON inválido, métricas, tempo, `info` (incl. **`taskBoard`**), **`overview`**, `doubts` / `doubts/chat` / **`doubts/chat/stream`**, **`integrations-status`** (+ `validate=1`, `alerts`, `history`), **`task-board`** GET/PUT/409, `agents`, `exec`, validação de `command`, **`activity/event`**, GET/PUT agente ( **`revision`** + conflito **409** ), `MISSION_AGENT_EDIT`, caminhos mascarados, persistência do feed, fish API e fluxo E2E básico.
 
-**CI:** o workflow [`.github/workflows/mission-agent-ci.yml`](./.github/workflows/mission-agent-ci.yml) corre `npm ci`, `npm test` e `npm run build` em cada push ou PR para `main` / `master` (quando o repositório Git tem a raiz em `MissionAgent/`).
+**CI:** o workflow [`.github/workflows/mission-agent-ci.yml`](./.github/workflows/mission-agent-ci.yml) corre `npm ci`, `npm test`, `npm run build` e **`npm run verify:real`** (com `NODE_ENV=production` e `MISSION_PREFLIGHT_SKIP_AIOX=1`) em cada push ou PR para `main` / `master` (quando o repositório Git tem a raiz em `MissionAgent/`).
 
 ### Sincronizar com o GitHub
 

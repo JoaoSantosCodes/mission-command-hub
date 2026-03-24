@@ -30,3 +30,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Preflight ambiente real (CI sem aiox)
+        run: MISSION_PREFLIGHT_SKIP_AIOX=1 NODE_ENV=production npm run verify:real

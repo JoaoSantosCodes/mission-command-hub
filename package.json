@@ -18,6 +18,7 @@
     "mcp": "node server/mcp-server.mjs",
     "test": "vitest run",
     "verify:env": "node scripts/verify-real-env.mjs",
+    "verify:real": "node scripts/preflight-real-env.mjs",
     "postinstall": "node scripts/init-env.mjs"
   },
   "dependencies": {

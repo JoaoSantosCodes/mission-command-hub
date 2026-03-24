@@ -135,6 +135,11 @@ export async function createBridgeApp(missionRoot, options = {}) {
         : { origin: true }
     )
   );
+  if (isProd && (!corsOrigins || corsOrigins.length === 0)) {
+    logger.warn(
+      "Produção sem CORS_ORIGINS: o CORS fica permissivo (origin: true). Define CORS_ORIGINS com as origens reais do browser."
+    );
+  }
   app.use(express.json({ limit: "1mb" }));
 
   const commandLimiter = rateLimitJson({
