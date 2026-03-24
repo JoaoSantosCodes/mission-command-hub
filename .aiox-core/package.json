@@ -1,0 +1,12 @@
+{
+  "name": "aiox-core",
+  "version": "0.1.0-dev",
+  "description": "AIOX Core Toolkit - Development Environment",
+  "type": "commonjs",
+  "bin": {
+    "aiox": "./bin/aiox.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
