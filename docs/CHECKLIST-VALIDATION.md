@@ -8,15 +8,15 @@ Registo de auditorias cruzadas entre **`docs/CHECKLIST.md`** e o código / repos
 
 | Campo | Valor |
 |--------|--------|
-| **Data** | 2026-03-23 |
-| **Âmbito** | MissionAgent — Integrações com `alerts/history` e snapshot em `integrations-status?validate=1`, evento de atividade entre abas (`POST /api/aiox/activity/event`) e fluxo E2E básico; OpenAPI/README/CHECKLIST |
-| **Comandos** | `npm test` → **39/39** pass; `npm run build` → OK (mesma data) |
+| **Data** | 2026-03-24 |
+| **Âmbito** | MissionAgent — Slack (`SLACK_WEBHOOK_URL`, espelho do feed, `integrations-status.slack`), `npm run verify:env`, integrações `alerts/history`, `activity/event`, E2E básico; OpenAPI/README/CHECKLIST |
+| **Comandos** | `npm test` → **39/39** pass; `npm run build` → OK; `npm run verify:env` → OK (máscaras) |
 
 ### Resultado
 
 - **Estado geral:** o checklist está **alinhado** com a implementação actual.
 - **Contagem de testes:** **39** testes no total (`api.smoke` + `fish-api` + `e2e-basic-flow`) — confere com a secção «Melhorias técnicas → Alta».
-- **Rotas / contrato:** `GET /api/aiox/integrations-status` inclui `alerts/history` e gera snapshot com `validate=1`; `POST /api/aiox/activity/event` mantém sincronização entre abas; `POST /api/aiox/doubts/chat/stream` (SSE) permanece activo.
+- **Rotas / contrato:** `GET /api/aiox/integrations-status` inclui `slack`, `alerts/history` e snapshot com `validate=1`; espelho Slack em `server/lib/slack-mirror.mjs` após cada `pushLog`; `POST /api/aiox/activity/event` mantém sincronização entre abas; `POST /api/aiox/doubts/chat/stream` (SSE) permanece activo.
 - **Correcção aplicada:** linha «Motor LLM» em **Pendências conhecidas** mantém LLM opcional no painel Dúvidas vs. modelo no IDE.
 
 ### Lacunas conhecidas (não são erros do checklist)
@@ -25,6 +25,7 @@ Registo de auditorias cruzadas entre **`docs/CHECKLIST.md`** e o código / repos
 |--------|------|
 | Testes de UI | Sem testes automatizados do `DoubtsChatPanel` (comportamento manual / E2E futuro). |
 | MCP operacional | Item `[ ]` em **Integrações MCP** — depende de configuração no Cursor, fora deste repo. |
+| Slack inbound | Espelho **outbound** do feed (Incoming Webhook) implementado; eventos **desde** o Slack → hub não estão no âmbito actual. |
 | Roadmap | «Base de conhecimento» e quotas LLM continuam em aberto — **streaming** SSE já em `/api/aiox/doubts/chat/stream`. |
 
 ### Próxima revisão sugerida
@@ -36,6 +37,7 @@ Registo de auditorias cruzadas entre **`docs/CHECKLIST.md`** e o código / repos
 
 | Data | Âmbito | Comandos |
 |------|--------|----------|
+| 2026-03-23 | MissionAgent — integrações `alerts/history`, `activity/event`, E2E básico, 39 testes | `npm test` **39/39**; `npm run build` OK |
 | 2026-03-23 | MissionAgent — overview API, feed `kind`, revisão agente, activity JSON, Kanban priority/blocked | `npm test` **25/25**; `npm run build` OK |
 | 2026-03-22 | MissionAgent — API, UI Dúvidas, env, CI, roadmap | `npm test` **23/23**; `npm run build` OK |
 

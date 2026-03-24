@@ -1,6 +1,6 @@
 # Architecture Agents Hub — melhorias e pendências
 
-Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-23 — Integrações com alertas ativos + histórico de saúde (`integrations-status?validate=1`), sincronização entre abas via **`POST /api/aiox/activity/event`**, e fluxo E2E básico coberto; **`npm test` 39/39**, `npm run build` OK. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
+Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-24 — Integrações + **Slack** (espelho do feed via `SLACK_WEBHOOK_URL`), `npm run verify:env` para ambiente real, alertas/histórico em `integrations-status`, sincronização entre abas (`activity/event`); **`npm test` 39/39**, `npm run build` OK. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
 
 ---
 
@@ -49,6 +49,8 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 - [x] **UI vista Hub**: cartão *Estado da ponte* (grelha de métricas, badge ponte OK/atenção, botão sincronizar); sidebar de agentes com ícone/cor; feed vazio com instruções; mascote no header/sidebar/modal (ficheiro em `public/`)
 - [x] **Sincronização entre abas**: Task Canvas publica eventos de equipa em `POST /api/aiox/activity/event`; o Hub escuta `mission-team-activity` e força refresh silencioso para refletir atividade em Estado/Integrações/Feed
 - [x] **Integrações com alertas e histórico**: `GET /api/aiox/integrations-status` devolve `alerts` + `history`; com `validate=1` persiste snapshots de saúde para tendência operacional
+- [x] **Slack (espelho do feed)**: `SLACK_WEBHOOK_URL` (Incoming Webhook) — cada `pushLog` do feed pode ser espelhado no canal; estado `slack` (`mirrorReady`, etc.) no painel Integrações e em `docs/INTEGRATIONS.md`
+- [x] **Verificação de ambiente**: `npm run verify:env` (+ opcional `MISSION_VERIFY_UPSTREAM=1`) em `scripts/verify-real-env.mjs`
 
 ---
 
@@ -56,7 +58,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 ### Alta
 
-- [x] **Testes automatizados**: Vitest + Supertest — **39** testes em 3 ficheiros (`test/api.smoke.test.mjs`, `test/fish-api.test.mjs`, `test/e2e-basic-flow.test.mjs`): cobertura de `health/info/overview`, `doubts` (JSON + SSE), `integrations-status` (incl. `alerts/history` e snapshot com `validate=1`), `task-board`, `activity/event`, CRUD de agentes, `exec`, fish API, e fluxo E2E básico (atividade + integrações) (`npm test`)
+- [x] **Testes automatizados**: Vitest + Supertest — **39** testes em 3 ficheiros (`test/api.smoke.test.mjs`, `test/fish-api.test.mjs`, `test/e2e-basic-flow.test.mjs`): cobertura de `health/info/overview`, `doubts` (JSON + SSE), `integrations-status` (incl. `slack`, `alerts/history` e snapshot com `validate=1`), `task-board`, `activity/event`, CRUD de agentes, `exec`, fish API, e fluxo E2E básico (atividade + integrações) (`npm test`)
 - [x] **Validação de entrada**: limite no servidor + `maxLength` no input e mensagens de erro alinhadas
 - [x] **Tratamento de erro HTTP** no cliente: rede (`TypeError`) vs 4xx/5xx com prefixos legíveis
 - [x] **Persistência do feed**: JSON em `MissionAgent/.mission-agent/activity.json` ou `MISSION_ACTIVITY_PATH`
@@ -109,10 +111,10 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 - [x] **Variável `AIOX_CORE_PATH`** documentada em `.env.example` na raiz do workspace e em `MissionAgent/.env.example`
 - [x] **Sincronização com documentação** — link opcional via `VITE_AIOX_DOCS_URL` na área de trabalho
 
-## Integrações MCP / LLM / Notion / Figma
+## Integrações MCP / LLM / Notion / Figma / Slack
 
-- [x] **Documentação**: [docs/INTEGRATIONS.md](./INTEGRATIONS.md) (MCP hub + Notion/Figma/LLM no Cursor, processo Notion/Figma, diagrama); exemplo [docs/cursor-mcp.stack.example.json](./docs/cursor-mcp.stack.example.json); `.env.example` com placeholders comentados para chaves futuras
-- [x] **Painel Integrações**: `GET /api/aiox/integrations-status` (com `validate=1`) valida env keys no servidor via HTTP leve e mostra “OK/falhou” (OpenAI/Notion/Figma)
+- [x] **Documentação**: [docs/INTEGRATIONS.md](./INTEGRATIONS.md) (MCP hub + Notion/Figma/LLM no Cursor + **Slack webhook**, processo Notion/Figma, diagrama); exemplo [docs/cursor-mcp.stack.example.json](./docs/cursor-mcp.stack.example.json); `.env.example` com placeholders comentados para chaves futuras
+- [x] **Painel Integrações**: `GET /api/aiox/integrations-status` (com `validate=1`) valida env keys no servidor via HTTP leve e mostra “OK/falhou” (OpenAI/Notion/Figma) + cartão **Slack** (webhook configurado / URL válida)
 - [ ] **Operacional**: configurar no Cursor os servidores MCP Notion e Figma com tokens (fora do Git) e validar “connect”/leitura
 
 ---
@@ -135,6 +137,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 | Nome npm | Pacote continua `mission-agent` (pasta `MissionAgent/`); mudança só relevante se publicar no npm |
 | Só UI sem API | Com API **embebida** no Vite, `/api` deve responder no **mesmo host/porta** do Vite. Se usares **`MISSION_EMBED_API=0`**, é preciso Express em **8787** (`preview:all`, `dev:split`, ou `build`+`start`) |
 | Canvas de tarefas | Com **`VITE_TASK_BOARD_SYNC`**, o quadro sincroniza com ficheiro no servidor (mesma origem que a API). *Sem* utilizadores distintos nem quotas — não substitui backlog multi-equipa com auth |
+| Slack | **Espelho outbound** do feed (Incoming Webhook) implementado; comandos / eventos **desde** o Slack → hub **não** implementados (fase futura: Bolt / Event Subscriptions) |
 
 ---
 

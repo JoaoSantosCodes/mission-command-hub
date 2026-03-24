@@ -17,6 +17,7 @@ Lista curta para **arranque**, **PR**, **release** e **processo de equipa**. O i
 - [ ] Colocar segredos só em **`.env.local`** (sobrescreve `.env`; ambos no `.gitignore` para chaves — não colar chaves em chats nem em PRs)
 - [ ] `npm run verify:env` — lista o que está definido **sem revelar** valores completos
 - [ ] (Opcional) `MISSION_VERIFY_UPSTREAM=1 npm run verify:env` — pings HTTP leves a OpenAI-compat (`/v1/models`), Notion e Figma quando os tokens existem
+- [ ] (Opcional) Com `SLACK_WEBHOOK_URL` válido — enviar um comando de teste no hub e confirmar mensagem no canal Slack
 - [ ] `npm run dev` → painel **Dúvidas** (chat/stream) e tab **Integrações** (`validate=1`) para validar o mesmo fluxo que produção local
 
 ---
@@ -57,6 +58,7 @@ Marca quando implementares; detalhes em **[CHECKLIST.md](./CHECKLIST.md)** (tabe
 - [x] Painel **Integrações** (cards por serviço) valida env chaves no servidor via `GET /api/aiox/integrations-status?validate=1` (OpenAI/Notion/Figma) — funciona em qualquer IDE
 - [x] Painel **Integrações** expõe alertas ativos + tendência por histórico (`alerts` / `history`) para acompanhamento operacional
 - [x] Abas partilham feed de atividade da equipa (Task Canvas publica eventos para `/api/aiox/activity/event` e o Hub faz refresh silencioso)
+- [x] **Slack**: espelho opcional do feed com `SLACK_WEBHOOK_URL` (Incoming Webhook); cartão no painel Integrações (`mirrorReady`)
 - [ ] MCP **Notion** e **Figma** configurados no Cursor com tokens (fora do Git) e “connect”/leitura validada
 
 ---
