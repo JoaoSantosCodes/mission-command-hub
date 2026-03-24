@@ -1,6 +1,6 @@
 # Documentação de referência (importada)
 
-Ficheiros copiados da pasta **`Base de projetos para ideias/mission-command-hub/docs/`** antes da limpeza do workspace, para manter no **MissionAgent** o conhecimento AIOX / LLM / layout sem depender desse directório.
+Ficheiros preservados localmente em `MissionAgent/docs/reference/` para manter no próprio projeto o conhecimento AIOX / LLM / layout, sem depender de outras pastas do workspace.
 
 | Ficheiro | Conteúdo |
 |----------|-----------|

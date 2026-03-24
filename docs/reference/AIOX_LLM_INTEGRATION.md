@@ -50,4 +50,4 @@ Alterar o papel no painel (secção *Papel TI (AIOX)*) atualiza o store e o flux
 
 ---
 
-*Ver também: `ARCHITECTURE.md`, `LOGICA_E_PROCESSOS.md`, `CHECKLIST_FLUXO_ITIL_COBIT.md`.*
+*Ver também os documentos locais em `docs/` e `docs/reference/` para arquitetura, processo e checklist.*

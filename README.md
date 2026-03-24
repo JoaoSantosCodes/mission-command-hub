@@ -222,6 +222,6 @@ Ver **[docs/openapi.yaml](./docs/openapi.yaml)** (OpenAPI 3.0).
 
 Ver **[CHECKLIST.md](./docs/CHECKLIST.md)** — melhorias técnicas, UX, integração com `aiox-core` e segurança. **Plano de implementações (fases 0–4):** **[docs/IMPLEMENTATION-PLAN.md](./docs/IMPLEMENTATION-PLAN.md)**. **Checklist operacional (arranque / PR / release):** **[CHECKLIST-OPERACIONAL.md](./docs/CHECKLIST-OPERACIONAL.md)**. Registo de validações: **[CHECKLIST-VALIDATION.md](./docs/CHECKLIST-VALIDATION.md)**.
 
-**Ficheiros deste tour:** usa a pasta **`@img/`** como fonte principal de capturas do README. Se a tua pipeline não usar alias, espelha os mesmos ficheiros em `docs/readme/` para manter links relativos no GitHub.
+**Ficheiros deste tour:** usa a pasta **`@img/`** como fonte única de capturas do README.
 
 Arranque rápido: **[`.env.ready`](./.env.ready)** → **`npm run env:init`** (ou automático no `postinstall`). Referência completa: **[.env.example](./.env.example)**.
