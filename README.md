@@ -23,6 +23,19 @@
   <strong>Hub funcional que combina UI inspirada no ai-orchestration-hub-main com ponte ao repositório aiox-core</strong>
 </p>
 
+## 📚 Documentação
+
+O projeto possui documentação completa e estruturada. **Inicio rápido:**
+
+- 🚀 **[Começar aqui](./CONTRIBUTING.md)** - Setup, desenvolvimento, contribuição
+- 📖 **[Índice de Documentação](./docs/DOCUMENTATION-INDEX.md)** - Navegação por tópico
+- 🔌 **[Integrações](./docs/INTEGRATIONS.md)** - MCP, LLM, Notion, Figma, Slack
+- 📋 **[Checklist Técnico](./docs/CHECKLIST.md)** - Estado e features do projeto
+- 🎯 **[Plano de Implementação](./docs/IMPLEMENTATION-PLAN.md)** - Roadmap e próximas fases
+- 🔗 **[API OpenAPI](./docs/openapi.yaml)** - Especificação REST completa
+
+---
+
 ## 🏗️ Arquitetura e Tecnologias
 
 ### **Frontend**

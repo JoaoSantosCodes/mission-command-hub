@@ -9,15 +9,24 @@ Registo de auditorias cruzadas entre **`docs/CHECKLIST.md`** e o código / repos
 | Campo | Valor |
 |--------|--------|
 | **Data** | 2026-03-24 |
-| **Âmbito** | Validação melhorias/ideias/pendências; **IMPLEMENTATION-PLAN.md**; correcção **INTEGRATIONS.md** (LLM servidor); Express+Vite em `dev`; teste **GET /** |
-| **Comandos** | `npm test` → **43/43** pass; `npm run build` → OK |
+| **Versão** | v1.0.0-complete (CI/CD, docs, qualidade) |
+| **Âmbito** | Validação documentação + integrações + ferramentas desenvolvimento |
+| **Comandos** | `npm test` → **51/51** pass; `npm run build` → OK; `npm run lint` → OK |
 
 ### Resultado
 
-- **Estado geral:** checklist **alinhado** com o código; pendências e roadmap reflectem lacunas (auth, multi-user, MCP operacional, Slack inbound, RAG).
-- **Contagem de testes:** **43** (`api.smoke` + `fish-api` + `e2e-basic-flow`) — confere com «Melhorias técnicas → Alta».
-- **Documentação:** [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md) (fases 0–4); [INTEGRATIONS.md](./INTEGRATIONS.md) actualizado para LLM no servidor (Dúvidas).
-- **Ideias aiox:** [AIOX_CORE_IDEAS.md](./AIOX_CORE_IDEAS.md) / [reference/](./reference/README.md) — sem código novo nesta revisão.
+- **Estado geral:** EXCELENTE — Documentação completa + CI/CD ativo + Testes 51/51 ✅ + Linting OK
+- **Contagem de testes:** **51** (`api.smoke` + `fish-api` + `e2e-basic-flow`) — cobertura abrangente
+- **Documentação:** [DOCUMENTATION-INDEX.md](./DOCUMENTATION-INDEX.md) como entrada central; [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md) fases bem definidas; [INTEGRATIONS.md](./INTEGRATIONS.md) completa
+- **Qualidade de Código:** ESLint v9 ✅ + Prettier ✅ + Husky+lint-staged ✅ + GitHub Actions ✅
+- **Ideias aiox:** [AIOX_CORE_IDEAS.md](./AIOX_CORE_IDEAS.md) / [reference/](./reference/README.md) bem organizadas
+- **Melhorias recentes (2026-03-24):**
+  - ✅ Criado [DOCUMENTATION-INDEX.md](./DOCUMENTATION-INDEX.md) como índice central
+  - ✅ README aprimorado com referência rápida à documentação
+  - ✅ [CONTRIBUTING.md](../CONTRIBUTING.md) com guia completo
+  - ✅ GitHub Actions CI/CD funcionando
+  - ✅ VSCode config (.vscode/settings.json, extensions.json)
+  - ✅ EditorConfig (.editorconfig) para cross-editor consistency
 
 ### Lacunas conhecidas (não são erros do checklist)
 
