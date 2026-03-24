@@ -12,6 +12,13 @@ Lista curta para **arranque**, **PR**, **release** e **processo de equipa**. O i
 - [ ] `npm run dev` — UI na porta indicada pelo Vite (por defeito **5179**); header **API ligada**
 - [ ] (Opcional) `OPENAI_API_KEY` ou `MISSION_LLM_API_KEY` em `.env` para LLM no painel **Dúvidas** (`MISSION_DOUBTS_LLM=1` já vem em `.env.ready`)
 
+### 1.1 Ambiente real (chaves da equipa — não commitar)
+
+- [ ] Colocar segredos só em **`.env.local`** (sobrescreve `.env`; ambos no `.gitignore` para chaves — não colar chaves em chats nem em PRs)
+- [ ] `npm run verify:env` — lista o que está definido **sem revelar** valores completos
+- [ ] (Opcional) `MISSION_VERIFY_UPSTREAM=1 npm run verify:env` — pings HTTP leves a OpenAI-compat (`/v1/models`), Notion e Figma quando os tokens existem
+- [ ] `npm run dev` → painel **Dúvidas** (chat/stream) e tab **Integrações** (`validate=1`) para validar o mesmo fluxo que produção local
+
 ---
 
 ## 2. Antes de commit / PR

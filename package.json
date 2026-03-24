@@ -17,6 +17,7 @@
     "start": "cross-env NODE_ENV=production node server/index.mjs",
     "mcp": "node server/mcp-server.mjs",
     "test": "vitest run",
+    "verify:env": "node scripts/verify-real-env.mjs",
     "postinstall": "node scripts/init-env.mjs"
   },
   "dependencies": {
