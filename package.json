@@ -22,6 +22,7 @@
     "lint:fix": "eslint src server scripts test --ext .ts,.tsx,.js,.jsx,.mjs --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,mjs,json,css,md}\" \"server/**/*.{mjs,json}\" \"scripts/**/*.{mjs,json}\" \"test/**/*.{mjs,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,mjs,json,css,md}\" \"server/**/*.{mjs,json}\" \"scripts/**/*.{mjs,json}\" \"test/**/*.{mjs,json}\"",
+    "prepare": "husky",
     "verify:env": "node scripts/verify-real-env.mjs",
     "verify:real": "node scripts/preflight-real-env.mjs",
     "qa:real": "node scripts/qa-real-flow.mjs",
@@ -60,6 +61,8 @@
     "eslint-plugin-prettier": "^5.5.5",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "postcss": "^8.4.49",
     "prettier": "^3.8.1",
     "supertest": "^7.0.0",
@@ -70,5 +73,14 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
   }
 }

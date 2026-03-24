@@ -40,7 +40,6 @@ export default [
       '@typescript-eslint': tseslint,
       react,
       'react-hooks': reactHooks,
-      import: importPlugin,
       prettier,
     },
     rules: {
@@ -53,22 +52,12 @@ export default [
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
-      'import/order': [
-        'error',
-        {
-          groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
-          'newlines-between': 'always',
-        },
-      ],
     },
     settings: {
       react: {
         version: 'detect',
       },
       'import/resolver': {
-        typescript: {
-          alwaysTryTypes: true,
-        },
         node: {
           extensions: ['.js', '.jsx', '.ts', '.tsx', '.mjs'],
         },
