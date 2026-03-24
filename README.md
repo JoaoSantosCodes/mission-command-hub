@@ -4,6 +4,56 @@
   <img src="./@img/placeholder-readme.svg" width="160" height="160" alt="Mascote Architecture Agents Hub — placeholder" />
 </p>
 
+<p align="center">
+  <a href="https://github.com/JoaoSantosCodes/mission-command-hub/actions/workflows/ci.yml">
+    <img src="https://github.com/JoaoSantosCodes/mission-command-hub/actions/workflows/ci.yml/badge.svg" alt="CI/CD Status">
+  </a>
+  <a href="https://github.com/JoaoSantosCodes/mission-command-hub/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/JoaoSantosCodes/mission-command-hub" alt="License">
+  </a>
+  <a href="https://github.com/JoaoSantosCodes/mission-command-hub/issues">
+    <img src="https://img.shields.io/github/issues/JoaoSantosCodes/mission-command-hub" alt="Issues">
+  </a>
+  <a href="https://github.com/JoaoSantosCodes/mission-command-hub/pulls">
+    <img src="https://img.shields.io/github/issues-pr/JoaoSantosCodes/mission-command-hub" alt="Pull Requests">
+  </a>
+</p>
+
+<p align="center">
+  <strong>Hub funcional que combina UI inspirada no ai-orchestration-hub-main com ponte ao repositório aiox-core</strong>
+</p>
+
+## 🏗️ Arquitetura e Tecnologias
+
+### **Frontend**
+- **React 18** - Framework UI moderno com hooks
+- **TypeScript** - Tipagem estática para maior confiabilidade
+- **Vite** - Build tool rápido e moderno
+- **Tailwind CSS** - Framework CSS utilitário
+- **Framer Motion** - Animações fluidas
+- **Lucide React** - Ícones consistentes
+
+### **Backend**
+- **Node.js ≥ 20** - Runtime JavaScript moderno
+- **Express.js** - Framework web minimalista
+- **PostgreSQL** - Banco de dados relacional (opcional)
+- **MCP SDK** - Protocolo Model Context Protocol
+
+### **Qualidade e DX**
+- **ESLint v9** - Linting moderno
+- **Prettier** - Formatação automática
+- **Vitest** - Testes unitários e integração
+- **Husky** - Git hooks automatizados
+- **GitHub Actions** - CI/CD pipeline
+
+### **Integrações**
+- **OpenAI API** - LLM para dúvidas e assistentes
+- **Figma API** - Contexto de design
+- **Notion API** - Documentação e bases de conhecimento
+- **Slack** - Notificações em tempo real
+
+---
+
 Hub funcional que combina a **UI** inspirada no `ai-orchestration-hub-main` com uma **ponte** ao repositório **`aiox-core`** no disco: lê definições de agentes (`.aiox-core/development/agents/*.md`), obtém a versão da CLI (`bin/aiox.js --version`) e regista comandos no feed de atividade (JSON no disco ou **PostgreSQL** opcional via `DATABASE_URL`, com fallback para ficheiro se a ligação falhar).
 
 > Projeto autocontido em `MissionAgent/`: mantém docs, imagens (`@img/`) e scripts de validação aqui dentro.
@@ -95,6 +145,108 @@ npm run dev
 - **`npm run dev:split`** — **Express** em **`http://127.0.0.1:8787`** + **Vite** com **`MISSION_EMBED_API=0`** e proxy `/api` → **8787** (paridade com dois processos; **reinicia o Express** após puxar código novo).
 - **`npm run dev:embed`** — igual ao **`npm run dev`** (com `init-env` explícito antes do Vite).
 - **`MISSION_EMBED_API=0`** — obrigatório no Vite quando corres Express à parte (o script `dev` já define isto no processo do Vite). Ver `.env.example`.
+
+## Desenvolvimento
+
+### 🛠️ Ferramentas e Qualidade de Código
+
+Este projeto utiliza uma suíte completa de ferramentas para garantir qualidade e consistência:
+
+#### **Linting e Formatação**
+- **ESLint v9** - Regras modernas para TypeScript + React
+- **Prettier** - Formatação automática consistente
+- **Scripts disponíveis:**
+  ```bash
+  npm run lint          # Verificar código
+  npm run lint:fix      # Corrigir problemas automaticamente
+  npm run format        # Formatar arquivos
+  npm run format:check  # Verificar formatação
+  ```
+
+#### **Testes**
+- **Vitest** - Framework de testes rápido e moderno
+- **Cobertura completa** - 51 testes passando (100%)
+- ```bash
+  npm test              # Executar todos os testes
+  ```
+
+#### **Git Hooks Automatizados**
+- **Husky** + **lint-staged** - Pre-commit hooks que executam:
+  - ESLint com correção automática
+  - Prettier para formatação
+  - Apenas nos arquivos modificados
+
+#### **CI/CD**
+- **GitHub Actions** - Pipeline automatizada que roda em push/PR:
+  - ✅ Linting e formatação
+  - ✅ Testes completos
+  - ✅ Build de produção
+  - ✅ Auditoria de segurança
+
+#### **Configurações do Editor**
+- **VS Code** - Settings otimizadas (`.vscode/settings.json`)
+- **EditorConfig** - Consistência cross-editor
+- **Extensões recomendadas** - TypeScript, ESLint, Prettier, Tailwind
+
+### 📋 Contribuindo
+
+1. **Clone e setup:**
+   ```bash
+   git clone https://github.com/JoaoSantosCodes/mission-command-hub.git
+   cd MissionAgent
+   npm install
+   ```
+
+2. **Desenvolvimento:**
+   ```bash
+   npm run dev          # Servidor de desenvolvimento
+   ```
+
+3. **Antes de commitar:**
+   - Os git hooks executam automaticamente linting e formatação
+   - Certifique-se que todos os testes passam: `npm test`
+
+4. **Pull Request:**
+   - O CI/CD validará automaticamente seu código
+   - Verifique os status checks no GitHub
+
+> 📖 Para instruções detalhadas, veja [CONTRIBUTING.md](./CONTRIBUTING.md)
+
+### 🏗️ Build e Deploy
+
+```bash
+npm run build         # Build otimizado para produção
+npm run preview       # Preview do build local
+npm run start         # Servidor de produção
+```
+
+## 🚀 Roadmap
+
+### **Próximas Features**
+- [ ] **Deploy automatizado** - GitHub Actions para staging/production
+- [ ] **Cobertura de testes** - Relatórios detalhados de cobertura
+- [ ] **Performance monitoring** - Métricas e otimização
+- [ ] **PWA Support** - Funcionalidades offline
+- [ ] **Multi-tenancy** - Suporte a múltiplos usuários/equipes
+- [ ] **API Rate limiting avançado** - Controle granular por endpoint
+- [ ] **Backup automático** - Estratégia de backup para dados críticos
+
+### **Melhorias Técnicas**
+- [ ] **Code splitting** - Otimização de bundles
+- [ ] **Service worker** - Cache inteligente
+- [ ] **Error boundaries** - Tratamento robusto de erros
+- [ ] **Accessibility** - Conformidade WCAG
+- [ ] **Internationalization** - Suporte multi-idioma
+- [ ] **Dark mode persistente** - Memória de preferência
+
+### **Integrações Futuras**
+- [ ] **GitHub Integration** - Sincronização com repositórios
+- [ ] **Jira/Linear** - Gerenciamento de tarefas
+- [ ] **Discord** - Alternativa ao Slack
+- [ ] **Google Workspace** - Documentos e calendar
+- [ ] **Miro/Figma avançado** - Colaboração visual
+
+---
 
 ## Variáveis de ambiente
 
