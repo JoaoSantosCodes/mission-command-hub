@@ -1,12 +1,12 @@
 # Architecture Agents Hub
 
 <p align="center">
-  <img src="./@img/mascote.png" width="160" height="160" alt="Mascote Architecture Agents Hub — robô arquitecto em pixel art" />
+  <img src="./@img/placeholder-readme.svg" width="160" height="160" alt="Mascote Architecture Agents Hub — placeholder" />
 </p>
 
 Hub funcional que combina a **UI** inspirada no `ai-orchestration-hub-main` com uma **ponte** ao repositório **`aiox-core`** no disco: lê definições de agentes (`.aiox-core/development/agents/*.md`), obtém a versão da CLI (`bin/aiox.js --version`) e regista comandos no feed de atividade (JSON no disco ou **PostgreSQL** opcional via `DATABASE_URL`, com fallback para ficheiro se a ligação falhar).
 
-> Se este projecto estiver dentro do monorepo **`AgentesMissao`**, o índice de pastas, validação e links para checklists está em **[`../docs/PROJETO-E-CHECKLIST.md`](../docs/PROJETO-E-CHECKLIST.md)**.
+> Projeto autocontido em `MissionAgent/`: mantém docs, imagens (`@img/`) e scripts de validação aqui dentro.
 
 ---
 
@@ -46,33 +46,33 @@ Barra superior com **mascote**, estado **API ligada** (`/api`), comando global *
 
 | Tema escuro | Tema claro |
 |-------------|------------|
-| ![Vista Hub — tema escuro: sidebar, estado da ponte, feed](./@img/hub-vista-escura.png) | ![Vista Hub — tema claro](./@img/hub-vista-clara.png) |
+| ![Vista Hub — tema escuro: sidebar, estado da ponte, feed](./@img/placeholder-readme.svg) | ![Vista Hub — tema claro](./@img/placeholder-readme.svg) |
 
 ### Central de agentes — escritório isométrico
 
 Vista **monitor** no header: sala com agentes em mesas, registo de actividade, métricas e tempo via API (`/api/aiox/metrics`), clique num agente para abrir o Markdown.
 
-![Central de agentes — escritório pixel art, estado do hub e registo](./@img/central-escritorio.png)
+![Central de agentes — escritório pixel art, estado do hub e registo](./@img/placeholder-readme.svg)
 
 ### Definição do agente (modal)
 
 Ao escolher um agente na lista, abre-se o modal com o conteúdo **`.md`**, caminho do ficheiro e acções **Editar** / **Eliminar** (quando `MISSION_AGENT_EDIT` permite).
 
-![Modal Definição do agente — preview e edição do .md](./@img/modal-definicao-agente.png)
+![Modal Definição do agente — preview e edição do .md](./@img/placeholder-readme.svg)
 
 ### Canvas de tarefas (Kanban modular)
 
 Vista **Kanban** no header: colunas **Backlog → Em curso → Revisão → Feito**, presets (ex.: Fluxo geral), **filtrar** por texto (título ou nota), **ordenar** cada coluna (ordem do quadro, data ou prioridade — a preferência de ordenação fica em `localStorage`). Com ordenação **manual** e sem filtro, aparecem **zonas entre cartões** para **reordenar dentro da coluna** (arrastar e largar). **Importar / exportar JSON**, persistência em `localStorage` com escrita **debounced** e gravação ao fechar o separador. Opcionalmente, com **`VITE_TASK_BOARD_SYNC=1`** no build, o quadro sincroniza com **`GET`/`PUT /api/aiox/task-board`** (ficheiro no servidor, cabeçalho `If-Match` / conflito **409**).
 
-![Canvas modular — quatro colunas, módulo Fluxo geral](./@img/canvas-tarefas-kanban.png)
+![Canvas modular — quatro colunas, módulo Fluxo geral](./@img/placeholder-readme.svg)
 
 ### Dúvidas & ajuda — Chat e FAQ
 
 Painel lateral (**ícone mensagem** ou **Ctrl+/**): notas de sessão, export **JSON** / **Markdown**, separadores **Chat** e **FAQ**. Com **`MISSION_DOUBTS_LLM=1`** e chave no servidor, o chat usa **`POST /api/aiox/doubts/chat/stream`** (resposta em streaming); existe ainda **`POST /api/aiox/doubts/chat`** (JSON único) para integrações.
 
-![Canvas de tarefas com painel Dúvidas — separador Chat](./@img/canvas-duvidas-chat.png)
+![Canvas de tarefas com painel Dúvidas — separador Chat](./@img/placeholder-readme.svg)
 
-![Painel Dúvidas — separador FAQ (API, agentes, Notion/Figma, LLM)](./@img/painel-duvidas-faq.png)
+![Painel Dúvidas — separador FAQ (API, agentes, Notion/Figma, LLM)](./@img/placeholder-readme.svg)
 
 ---
 
@@ -131,7 +131,7 @@ npm run dev
 | `MISSION_DOUBTS_LLM` | `1` para activar a rota de chat (ainda exige chave ≥8 caracteres). Pré-definido em `.env.ready` |
 | `MISSION_LLM_BASE_URL` / `MISSION_LLM_MODEL` | Endpoint e modelo OpenAI-compatible (**opcionais**; vazio = `https://api.openai.com` e `gpt-4o-mini` no servidor) |
 
-**Vistas no header:** **Hub** (três colunas), **Central** (ícone monitor — layout tipo [OpenClaw Command Center](../openclaw-command-center-main/README.md): canvas + terminal + agentes), **Canvas de tarefas** (ícone Kanban — presets, filtro, ordenação, chaves `localStorage`, import/export JSON; sync servidor opcional com **`VITE_TASK_BOARD_SYNC`**). **Dúvidas** (ícone mensagem) abre painel com FAQ + chat de notas de sessão; **GET `/api/aiox/doubts`** e opcionalmente **POST `/api/aiox/doubts/chat`** com `MISSION_DOUBTS_LLM=1` + chave (ver `.env.example`); atalho **Ctrl+/** (**Cmd+/** no Mac); import/export JSON, Markdown, copiar e limpar (ver `CHECKLIST.md` → Melhorias).
+**Vistas no header:** **Hub** (três colunas), **Central** (ícone monitor: canvas + terminal + agentes), **Canvas de tarefas** (ícone Kanban — presets, filtro, ordenação, chaves `localStorage`, import/export JSON; sync servidor opcional com **`VITE_TASK_BOARD_SYNC`**). **Dúvidas** (ícone mensagem) abre painel com FAQ + chat de notas de sessão; **GET `/api/aiox/doubts`** e opcionalmente **POST `/api/aiox/doubts/chat`** com `MISSION_DOUBTS_LLM=1` + chave (ver `.env.example`); atalho **Ctrl+/** (**Cmd+/** no Mac); import/export JSON, Markdown, copiar e limpar (ver `CHECKLIST.md` → Melhorias).
 
 **Tema:** o botão sol/lua no header alterna claro/escuro; a preferência fica em `localStorage` (`mission-agent-theme`). Em ecrãs estreitos, usa os ícones no header ou os botões no rodapé do resumo para abrir **agentes** e **atividade** em gavetas.
 

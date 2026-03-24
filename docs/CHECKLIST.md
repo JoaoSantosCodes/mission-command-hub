@@ -1,6 +1,6 @@
 # Architecture Agents Hub — melhorias e pendências
 
-Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-24 — **Fase 1** do [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md): política de dados + quotas configuráveis (`DOUBTS_CHAT_WINDOW_MS`) + log métricas LLM sem PII + UI Dúvidas + OpenAPI; chave LLM genérica (`MISSION_LLM_API_KEY`); testes **43/43**. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
+Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-24 — **Fase 1** do [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md): política de dados + quotas configuráveis (`DOUBTS_CHAT_WINDOW_MS`) + log métricas LLM sem PII + UI Dúvidas + OpenAPI; chave LLM genérica (`MISSION_LLM_API_KEY`); testes **51/51**. Projeto autocontido em `MissionAgent/`; referências operacionais: **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)** e **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
 
 ---
 
@@ -126,7 +126,7 @@ Roadmap executável com critérios de pronto, dependências e ordem sugerida: **
 - [x] **Comando real opcional**: `POST /api/aiox/exec` (`doctor` \| `info`), `ENABLE_AIOX_CLI_EXEC` + `AIOX_EXEC_SECRET`, rate limit, timeout; UI `AioxCliPanel` quando disponível
 - [x] **Variável `AIOX_CORE_PATH`** documentada em `.env.example` na raiz do workspace e em `MissionAgent/.env.example` (caminho por defeito: `../aiox-core`)
 - [x] **Sincronização com documentação** — link opcional via `VITE_AIOX_DOCS_URL` na área de trabalho
-- [x] **Docs AIOX / LLM espelhados** — [docs/reference/README.md](./reference/README.md) (importados do antigo *mission-command-hub*; ver [REFERENCE_PROJECTS_ARCHIVE.md](./reference/REFERENCE_PROJECTS_ARCHIVE.md) antes de apagar *Base de projetos para ideias*)
+- [x] **Docs AIOX / LLM espelhados** — [docs/reference/README.md](./reference/README.md) (agora mantidos no próprio `MissionAgent`, sem dependência de pastas externas)
 
 ## Integrações MCP / LLM / Notion / Figma / Slack
 

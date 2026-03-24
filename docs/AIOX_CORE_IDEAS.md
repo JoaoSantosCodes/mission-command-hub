@@ -28,5 +28,5 @@ O clone do framework fica em **`aiox-core/`** na raiz do monorepo (ao lado de `M
 
 ## Referências cruzadas no workspace
 
-- [../ARCHITECTURE.md](../../ARCHITECTURE.md) — papel do aiox-core no monorepo.
+- Documento local: centraliza o papel do `aiox-core` nesta integração através dos ficheiros em `docs/reference/`.
 - [reference/AIOX_CORE_SYNC.md](./reference/AIOX_CORE_SYNC.md) — gap analysis (texto importado; checklists com `src/` referem o hub original, não este repo).

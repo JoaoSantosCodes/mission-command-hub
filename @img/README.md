@@ -1,17 +1,11 @@
 # Imagens do README
 
-Coloca aqui as capturas usadas no `README.md` com estes nomes:
+Estado atual:
 
-- `mascote.png`
-- `hub-vista-escura.png`
-- `hub-vista-clara.png`
-- `central-escritorio.png`
-- `modal-definicao-agente.png`
-- `canvas-tarefas-kanban.png`
-- `canvas-duvidas-chat.png`
-- `painel-duvidas-faq.png`
+- `placeholder-readme.svg` é usado temporariamente no `README.md` para evitar links quebrados.
+
+Para publicar capturas reais, substitui as referências no `README.md` por ficheiros em `@img/` com os nomes desejados (ex.: `hub-vista-escura.png`, `canvas-tarefas-kanban.png`, etc.).
 
 Notas:
 
-- Paths no README usam `./@img/...` para funcionar no GitHub.
-- Se exportares imagens de outra pasta, mantém estes nomes para evitar quebrar links.
+- Paths no README usam `./@img/...` para funcionar no GitHub e manter o projeto autocontido.
