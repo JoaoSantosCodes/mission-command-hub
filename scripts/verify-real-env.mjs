@@ -34,6 +34,7 @@ async function fetchStatus(url, init) {
 const key = String(process.env.OPENAI_API_KEY || process.env.MISSION_LLM_API_KEY || "").trim();
 const notion = String(process.env.NOTION_TOKEN || "").trim();
 const figma = String(process.env.FIGMA_ACCESS_TOKEN || "").trim();
+const slackHook = String(process.env.SLACK_WEBHOOK_URL || "").trim();
 const db = String(process.env.DATABASE_URL || "").trim();
 const base = getDoubtsLlmBaseUrl();
 const model = getDoubtsLlmModel();
@@ -47,6 +48,7 @@ line("LLM: MISSION_LLM_BASE_URL", true, base);
 line("LLM: MISSION_LLM_MODEL", true, model);
 line("Notion: NOTION_TOKEN", notion.length > 0, maskSecret(notion));
 line("Figma: FIGMA_ACCESS_TOKEN", figma.length > 0, maskSecret(figma));
+line("Slack: SLACK_WEBHOOK_URL", slackHook.length > 0, maskSecret(slackHook));
 line("PostgreSQL: DATABASE_URL", db.length > 0, db ? "definido" : "");
 
 const upstream = String(process.env.MISSION_VERIFY_UPSTREAM || "").trim() === "1";

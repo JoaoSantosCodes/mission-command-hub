@@ -312,7 +312,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [ok, generatedAt, database, exec, doubts, notion, figma, fish]
+                required: [ok, generatedAt, database, exec, doubts, notion, figma, fish, slack]
                 properties:
                   ok: { type: boolean, example: true }
                   generatedAt: { type: string, format: date-time }
@@ -386,6 +386,15 @@ paths:
                     properties:
                       persistence: { type: string, example: file }
                       enabled: { type: boolean }
+                  slack:
+                    type: object
+                    description: Espelho opcional do feed para Slack (Incoming Webhook).
+                    properties:
+                      persistence: { type: string, example: webhook }
+                      enabled: { type: boolean }
+                      webhookConfigured: { type: boolean }
+                      webhookFormatOk: { type: boolean }
+                      mirrorReady: { type: boolean }
   /api/aiox/overview:
     get:
       summary: Vista agregada (ponte + lista de agentes + feed + contagens)

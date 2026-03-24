@@ -463,6 +463,13 @@ export type IntegrationsStatus = {
   notion: { tokenConfigured: boolean; tokenValidated?: boolean; tokenError?: string | null };
   figma: { tokenConfigured: boolean; tokenValidated?: boolean; tokenError?: string | null };
   fish: { persistence: "file" | string; enabled: boolean };
+  slack: {
+    persistence: "webhook" | string;
+    enabled: boolean;
+    webhookConfigured: boolean;
+    webhookFormatOk: boolean;
+    mirrorReady: boolean;
+  };
 };
 
 export async function getIntegrationsStatus(opts?: { validate?: boolean }): Promise<IntegrationsStatus> {

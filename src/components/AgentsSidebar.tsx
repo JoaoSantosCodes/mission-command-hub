@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { HubMascot } from "@/components/HubMascot";
 import { TeamStatusOverview } from "@/components/TeamStatusOverview";
-import { AlertTriangle, Bot, BookOpen, Database, FileText, FolderKanban, LayoutList, Layers, Plus, Sparkles, Terminal } from "lucide-react";
+import { AlertTriangle, Bot, BookOpen, Database, FileText, FolderKanban, LayoutList, Layers, MessageSquare, Plus, Sparkles, Terminal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ActivityEntry, AgentRow, AioxInfo } from "@/types/hub";
 import { MobileDrawer } from "@/components/MobileDrawer";
@@ -359,6 +359,24 @@ export function AgentsSidebar({
                   statusTone={integrations?.fish.enabled ? "ok" : "pending"}
                   value={integrations?.fish.persistence ?? "file"}
                   hint="Persistência local (sem chamadas externas)."
+                />
+                <IntegrationServiceCard
+                  icon={MessageSquare}
+                  name="SLACK (feed)"
+                  status={integrations?.slack.mirrorReady ? "OK" : "PENDENTE"}
+                  statusTone={integrations?.slack.mirrorReady ? "ok" : "pending"}
+                  value={
+                    integrations?.slack.mirrorReady
+                      ? "Webhook OK · espelha atividade"
+                      : integrations?.slack.webhookConfigured
+                        ? "URL inválida"
+                        : "Sem SLACK_WEBHOOK_URL"
+                  }
+                  hint={
+                    integrations?.slack.webhookConfigured && !integrations?.slack.mirrorReady
+                      ? "Usa Incoming Webhook: https://hooks.slack.com/services/…"
+                      : "Cria em Slack → Apps → Incoming Webhooks e cola o URL em .env.local"
+                  }
                 />
               </div>
             </div>

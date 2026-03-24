@@ -17,6 +17,7 @@ Hub funcional que combina a **UI** inspirada no `ai-orchestration-hub-main` com 
 - **Saúde das integrações:** score global (%) + `ok/total` + hora da última validação.
 - **Alertas e histórico operacional:** o endpoint devolve `alerts` e `history` para destacar pendências ativas e tendência de saúde das integrações.
 - **Sincronização entre abas:** ações no Task Canvas publicam eventos em `POST /api/aiox/activity/event` e atualizam feed/estado sem esperar só pelo polling.
+- **Slack (opcional):** com `SLACK_WEBHOOK_URL` (Incoming Webhook), o feed da equipa é espelhado num canal Slack para acompanhamento em tempo quase real.
 - **Aquário visual:** permanece na vista **Central de agentes** (Command Center), com persistência em ficheiro.
 
 ---

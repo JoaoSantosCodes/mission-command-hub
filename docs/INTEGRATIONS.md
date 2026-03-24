@@ -12,6 +12,7 @@ Este documento alinha **o que o repositório `MissionAgent` faz** com **o que se
 | **Painel Dúvidas (UI)** | — | Notas em `sessionStorage`; **GET `/api/aiox/doubts`** devolve capacidades; com `MISSION_DOUBTS_LLM=1` + chave OpenAI-compatible, **POST `/api/aiox/doubts/chat`**; `MISSION_DOUBTS_HELP_URL` → `docsUrl`. Ambiente local: **`.env.ready`** → `npm run env:init` / `postinstall` → `.env` + `server/load-env.mjs`. Ver `docs/openapi.yaml`, `server/lib/doubts-llm.mjs`. |
 | **Notion (processo)** | Equipa + API Notion (fora deste repo) | Regra de equipa: actualizar base Notion **antes** de mudanças de escopo (ver secção abaixo). |
 | **Figma (design)** | Cursor MCP Figma + ficheiro no Figma | Front-end deve seguir leitura MCP do ficheiro antes de implementar UI (política de fidelidade). |
+| **Slack (feed)** | Variável `SLACK_WEBHOOK_URL` no servidor (`.env.local`) | Cada entrada do **feed** do hub é espelhada para o canal via [Incoming Webhook](https://api.slack.com/messaging/webhooks). Ver `.env.example`. |
 
 ```mermaid
 flowchart TB
@@ -62,6 +63,14 @@ Estes servidores **não fazem parte** do `package.json` do Mission Agent: instal
 1. Gera um **Personal access token** em Figma (Settings → Security).
 2. Configura o servidor MCP Figma no Cursor (há variantes community/official — segue a documentação actual do Cursor para “Figma MCP”).
 3. Para **UI do hub**: usar o MCP para inspeccionar o ficheiro antes de alterar componentes React (fidelidade ao design).
+
+### Slack (ver a equipa no canal)
+
+1. No workspace [Slack](https://slack.com/), cria ou escolhe um canal (ex. `#agents-hub`).
+2. Adiciona a app **Incoming Webhooks** (ou equivalente no teu workspace) e obtém um URL `https://hooks.slack.com/services/...`.
+3. Define **`SLACK_WEBHOOK_URL`** em **`MissionAgent/.env.local`** (nunca no Git). Reinicia `npm run dev`.
+4. Cada evento gravado no feed (comandos, Task Canvas, aquário, etc.) envia uma mensagem formatada para o canal — útil para veres a “conversa” da equipa fora do browser.
+5. O painel **Integrações** mostra se o URL está bem formado (`mirrorReady`).
 
 ### Exemplo mínimo (Mission Agent)
 

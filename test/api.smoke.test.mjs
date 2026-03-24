@@ -111,6 +111,12 @@ describe("API smoke", () => {
     expect(typeof res.body.notion.tokenConfigured).toBe("boolean");
     expect(res.body).toHaveProperty("figma");
     expect(typeof res.body.figma.tokenConfigured).toBe("boolean");
+    expect(res.body).toHaveProperty("slack");
+    expect(res.body.slack).toMatchObject({
+      webhookConfigured: expect.any(Boolean),
+      webhookFormatOk: expect.any(Boolean),
+      mirrorReady: expect.any(Boolean),
+    });
     expect(Array.isArray(res.body.alerts)).toBe(true);
     expect(Array.isArray(res.body.history)).toBe(true);
   });

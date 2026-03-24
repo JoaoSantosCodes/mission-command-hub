@@ -45,6 +45,7 @@ import {
   appendIntegrationsSnapshot,
   loadIntegrationsHistory,
 } from "./lib/integrations-history-store.mjs";
+import { getSlackMirrorState, mirrorActivityToSlack } from "./lib/slack-mirror.mjs";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -100,7 +101,14 @@ export async function createBridgeApp(missionRoot, options = {}) {
       ? path.resolve(process.env.MISSION_INTEGRATIONS_HISTORY_PATH)
       : path.join(ROOT, ".mission-agent", "integrations-history.json"));
 
-  const activity = await createActivityStoreAuto(activityLogPath);
+  const activityCore = await createActivityStoreAuto(activityLogPath);
+  const activity = {
+    ...activityCore,
+    pushLog: async (agent, action, type, kind) => {
+      await activityCore.pushLog(agent, action, type, kind);
+      void mirrorActivityToSlack({ agent, action, type, kind });
+    },
+  };
 
   const app = express();
   if (process.env.TRUST_PROXY === "1") {
@@ -460,6 +468,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       payload?.notion?.tokenValidated === true,
       payload?.figma?.tokenValidated === true,
       payload?.fish?.enabled === true,
+      !payload?.slack?.webhookConfigured || payload?.slack?.mirrorReady === true,
     ];
     const total = checks.length;
     const okCount = checks.filter(Boolean).length;
@@ -486,6 +495,9 @@ export async function createBridgeApp(missionRoot, options = {}) {
     }
     if (payload?.fish?.enabled !== true) {
       alerts.push("Fish desativado");
+    }
+    if (payload?.slack?.webhookConfigured && payload?.slack?.mirrorReady !== true) {
+      alerts.push("Slack: SLACK_WEBHOOK_URL inválida (usa Incoming Webhook https://hooks.slack.com/services/...)");
     }
     return alerts.slice(0, 12);
   }
@@ -538,6 +550,11 @@ export async function createBridgeApp(missionRoot, options = {}) {
       fish: {
         persistence: "file",
         enabled: true,
+      },
+      slack: {
+        persistence: "webhook",
+        enabled: true,
+        ...getSlackMirrorState(),
       },
     };
     payload.history = loadIntegrationsHistory(integrationsHistoryPath).slice(-24);
