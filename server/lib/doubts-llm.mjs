@@ -19,6 +19,16 @@ export function getDoubtsLlmModel() {
   return (process.env.MISSION_LLM_MODEL || "gpt-4o-mini").trim();
 }
 
+/** Cabeçalhos opcionais (ex.: OpenRouter pede HTTP-Referer / X-Title para rankings). */
+function optionalUpstreamHeaders() {
+  const h = {};
+  const referer = String(process.env.MISSION_LLM_HTTP_REFERER || "").trim();
+  const title = String(process.env.MISSION_LLM_APP_TITLE || "").trim();
+  if (referer) h["HTTP-Referer"] = referer;
+  if (title) h["X-Title"] = title;
+  return h;
+}
+
 /** Opt-in explícito + chave mínima (lido em tempo de pedido — não cachear no load do módulo). */
 export function isDoubtsLlmConfigured() {
   return process.env.MISSION_DOUBTS_LLM === "1" && apiKey().length >= 8;
@@ -55,6 +65,7 @@ export async function callDoubtsChatCompletion(userMessages) {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${key}`,
+        ...optionalUpstreamHeaders(),
       },
       body: JSON.stringify({
         model,
@@ -167,6 +178,7 @@ export async function* streamDoubtsChatCompletion(userMessages) {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${key}`,
+        ...optionalUpstreamHeaders(),
       },
       body: JSON.stringify({
         model,
