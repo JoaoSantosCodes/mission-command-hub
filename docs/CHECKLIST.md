@@ -1,6 +1,6 @@
 # Architecture Agents Hub — melhorias e pendências
 
-Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-24 — Integrações + **Slack** (espelho do feed via `SLACK_WEBHOOK_URL`), `npm run verify:env` para ambiente real, alertas/histórico em `integrations-status`, sincronização entre abas (`activity/event`); **`npm test` 39/39**, `npm run build` OK. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
+Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-24 — **Fase 1** do [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md): política de dados + quotas configuráveis (`DOUBTS_CHAT_WINDOW_MS`) + log métricas LLM sem PII + UI Dúvidas + OpenAPI; chave LLM genérica (`MISSION_LLM_API_KEY`); testes **43/43**. Índice monorepo: **[../../docs/PROJETO-E-CHECKLIST.md](../../docs/PROJETO-E-CHECKLIST.md)**; **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**, **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
 
 ---
 
@@ -10,7 +10,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 - [x] Leitura de agentes `.md` em `aiox-core/.aiox-core/development/agents/`
 - [x] Versão CLI via `bin/aiox.js --version`
 - [x] UI 3 colunas + feed + barra de comando; vistas **Central** (canvas + terminal) e **Canvas de tarefas** (Kanban local)
-- [x] **Dev/preview:** ponte Express **embebida** no Vite em `/api` (`mission-api-plugin.mjs`); com `MISSION_EMBED_API=0`, proxy `/api` → **8787**
+- [x] **Dev:** `npm run dev` — API embebida no Vite :5179 (`mission-api-plugin.mjs`); **`dev:split`** — Express :8787 + Vite com proxy; **`preview`** — API embebida
 - [x] **Produção:** `npm run build` + `npm start` — `dist` + `/api/*` no mesmo processo Express
 
 ### Refinamentos recentes
@@ -36,13 +36,14 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 - [x] **Marca Architecture Agents Hub**: copy na UI (header, sidebar, área de trabalho, Central), `index.html`, canvas/terminal (`office.js`, `mission-boot.js`), README, OpenAPI (`info.title`), MCP/CHECKLIST; **mantidos** por compatibilidade: rotas `/api/aiox/*`, env `AIOX_*`, nome do pacote npm `mission-agent`, campo `service` em `/api/health`
 - [x] **Modal de agente** (`AgentDetailModal`): contexto "Architecture Agents Hub" + título **Definição do agente** + id do `.md` em mono; erros sem prefixo `Error:` (`formatUserFacingError`); barra de erro global idem
 - [x] **Cliente / API**: se a resposta não for JSON (ex.: HTML `Cannot GET`), mensagem orientativa; **sem** prefixo "Pedido inválido" nesse caso; `vite.config.ts` com `preview.proxy` / `server.proxy` como fallback quando `MISSION_EMBED_API=0`
-- [x] **`npm run dev` / `preview`**: plugin Vite (`mission-api-plugin.mjs`) **embebe** `createBridgeApp` em `/api` (sem precisar de :8787); `MISSION_EMBED_API=0` volta ao proxy → 8787; **`dev:split`** mantém `concurrently`; **header** com indicador API ligada/offline; **modal de agente** com aviso, retry e UI melhorada
+- [x] **`npm run dev`**: plugin Vite **embebe** `createBridgeApp` em `/api`; **`dev:split`**: `concurrently` Express :8787 + Vite com proxy; **`preview`**: API embebida; **header** API ligada/offline; **modal de agente** com aviso, retry e UI melhorada
 - [x] **Canvas de tarefas modular** (`task-canvas/`): terceira vista no header (ícone Kanban); colunas fixas `todo`→`doing`→`review`→`done`; **presets** (Fluxo geral / Agentes / Entrega); drag-and-drop entre colunas + setas; **reordenar na coluna** por zonas entre cartões (só com ordenação **manual** e sem filtro; caso contrário `moveTask` sem índice / drop na coluna = fim da lista); persistência `localStorage` (`mission-agent-task-board-v1`) com **debounce** (~450 ms) e gravação em **`beforeunload`**; **filtro** por texto (título/nota); **ordenar** por coluna (manual / mais recentes / prioridade), preferência `mission-agent-task-canvas-sort`; **import/export JSON** + **limpar tudo** na barra
 - [x] **Refinamentos API**: `rate-limit-json` (429 em JSON + `retryAfterSec`); **404** JSON para `/api` desconhecido; **erros de parse JSON** / payload; `GET /agents` 500 só `{ ok, error }`; `readAgentFiles` com try/catch; cliente (`api.ts`) mensagens para **429**; smoke + OpenAPI (`info.description`: Canvas local + opcional **`task-board`** REST)
 - [x] **Ambiente local**: [`.env.ready`](../.env.ready) versionado; `npm run env:init` + `postinstall`; **`dotenv`** + [`server/load-env.mjs`](../server/load-env.mjs) (Express e Vite embebido); `.env` e `.env.local` no `.gitignore`
 - [x] **`GET /api/aiox/overview`**: ponte + lista de agentes + logs + `activity.kindCounts` + `doubts.llmEnabled` num só pedido — o **polling** da app usa esta rota em vez de `info` + `agents` + `activity` em paralelo (`bridge.taskBoard` espelha `info`)
 - [x] **Canvas no servidor (opt-in)**: **`GET`/`PUT /api/aiox/task-board`** — ficheiro JSON (`MISSION_TASK_BOARD_PATH`, por defeito `.mission-agent/task-board.json`); **`If-Match`** com `revision` (mtime:size) e **409** em conflito; resumo em **`GET /api/aiox/info`** (`taskBoard.revision` / `taskCount`); cliente com **`VITE_TASK_BOARD_SYNC=1`** sincroniza após carga inicial (servidor prevalece se tiver tarefas; senão envia quadro local)
 - [x] **Painel Dúvidas — streaming LLM**: **`POST /api/aiox/doubts/chat/stream`** (`text/event-stream`, deltas SSE); **`GET /api/aiox/doubts`** inclui **`streamAvailable`**; UI (`DoubtsChatPanel`) consome stream e actualiza a bolha do assistente em tempo real; **`POST /api/aiox/doubts/chat`** (JSON completo) mantém-se para clientes que não usem stream
+- [x] **Dúvidas — privacidade e quotas (Fase 1 plano):** `GET /api/aiox/doubts` com `dataPolicyNotice`, `dataPolicyUrl`, `rateLimitMax` / `rateLimitWindowMs`; env `MISSION_DOUBTS_DATA_NOTICE`, `MISSION_DOUBTS_DATA_POLICY_URL`, `DOUBTS_CHAT_WINDOW_MS`; log `doubts LLM request` (`msgCount`, `approxChars`); faixa no `DoubtsChatPanel`
 - [x] **Feed**: campo opcional **`kind`** (`command` | `bridge` | `agent` | `cli`); coluna PostgreSQL `kind`; persistência JSON com escrita **atómica** (ficheiro temp + rename); ícones no painel de atividade
 - [x] **Agentes**: resposta GET com **`revision`** (`mtime:size`); PUT com **`If-Match`** / `revision` → **409** `conflict` se o `.md` mudou no disco
 - [x] **Canvas de tarefas**: campos opcionais **`priority`** e **`blocked`** (import/export e UI com etiqueta e toggle *Bloqueio*)
@@ -59,7 +60,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 ### Alta
 
-- [x] **Testes automatizados**: Vitest + Supertest — **39** testes em 3 ficheiros (`test/api.smoke.test.mjs`, `test/fish-api.test.mjs`, `test/e2e-basic-flow.test.mjs`): cobertura de `health/info/overview`, `doubts` (JSON + SSE), `integrations-status` (incl. `slack`, `alerts/history` e snapshot com `validate=1`), `task-board`, `activity/event`, CRUD de agentes, `exec`, fish API, e fluxo E2E básico (atividade + integrações) (`npm test`)
+- [x] **Testes automatizados**: Vitest + Supertest — **43** testes em 3 ficheiros (`test/api.smoke.test.mjs`, `test/fish-api.test.mjs`, `test/e2e-basic-flow.test.mjs`): cobertura de `GET /` (não-produção), `health/info/overview`, `doubts` (JSON + SSE), `integrations-status` (incl. resumo LLM sem `validate=1`, `slack`, `alerts/history` e `validate=1`), `task-board` (incl. `assigneeAgentId`), `activity/event`, CRUD de agentes, `exec`, fish API, e fluxo E2E básico (`npm test`)
 - [x] **Validação de entrada**: limite no servidor + `maxLength` no input e mensagens de erro alinhadas
 - [x] **Tratamento de erro HTTP** no cliente: rede (`TypeError`) vs 4xx/5xx com prefixos legíveis
 - [x] **Persistência do feed**: JSON em `MissionAgent/.mission-agent/activity.json` ou `MISSION_ACTIVITY_PATH`
@@ -94,7 +95,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 | Prioridade | Melhoria | Notas |
 |------------|----------|--------|
-| Média | **Chat com LLM no servidor** | **Parcial:** `POST /api/aiox/doubts/chat` (JSON) e **`POST /api/aiox/doubts/chat/stream`** (SSE / streaming na UI); `streamAvailable` em `GET /api/aiox/doubts`. Evoluir: **quotas/custos**, política de dados explícita; chaves só no servidor |
+| Média | **Chat com LLM no servidor** | **Parcial:** chat + stream SSE; `GET /api/aiox/doubts` com **política de dados**, **rate limit** exposto e `DOUBTS_CHAT_WINDOW_MS`. Evoluir: **custos/quotas por utilizador**, retenção de logs upstream |
 | Média | **Ligação opcional a base de conhecimento** | Indexar `docs/` ou Notion para respostas contextualizadas (MCP já cobre parte no IDE) |
 | ~~Baixa~~ | ~~**Exportar histórico do painel Dúvidas**~~ | **Feito:** botões JSON + Markdown em `DoubtsChatPanel` |
 | ~~Baixa~~ | ~~**Atalho de teclado** para Dúvidas~~ | **Feito:** `Ctrl+/` / `Cmd+/` toggle global (ignorado dentro de `input`/`textarea`/contenteditable) |
@@ -106,11 +107,26 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 ---
 
+## Plano de implementações (fases)
+
+Roadmap executável com critérios de pronto, dependências e ordem sugerida: **[IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md)**.
+
+| Fase | Foco |
+|------|------|
+| **0** | MCP Notion/Figma no Cursor, `verify:env`, painel Integrações — sem código |
+| **1** | Quotas/política LLM Dúvidas, métricas, OpenAPI |
+| **2** | Auth, multi-tenant / Postgres, documentação deploy |
+| **3** | Slack inbound, RAG/base de conhecimento, metadados squads aiox (leitura) |
+| **4** | E2E UI, DX / CI |
+
+---
+
 ## Integração `aiox-core`
 
 - [x] **Comando real opcional**: `POST /api/aiox/exec` (`doctor` \| `info`), `ENABLE_AIOX_CLI_EXEC` + `AIOX_EXEC_SECRET`, rate limit, timeout; UI `AioxCliPanel` quando disponível
-- [x] **Variável `AIOX_CORE_PATH`** documentada em `.env.example` na raiz do workspace e em `MissionAgent/.env.example`
+- [x] **Variável `AIOX_CORE_PATH`** documentada em `.env.example` na raiz do workspace e em `MissionAgent/.env.example` (caminho por defeito: `../aiox-core`)
 - [x] **Sincronização com documentação** — link opcional via `VITE_AIOX_DOCS_URL` na área de trabalho
+- [x] **Docs AIOX / LLM espelhados** — [docs/reference/README.md](./reference/README.md) (importados do antigo *mission-command-hub*; ver [REFERENCE_PROJECTS_ARCHIVE.md](./reference/REFERENCE_PROJECTS_ARCHIVE.md) antes de apagar *Base de projetos para ideias*)
 
 ## Integrações MCP / LLM / Notion / Figma / Slack
 
@@ -132,11 +148,11 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 | Item | Nota |
 |------|------|
-| LLM | **Opcional** no painel Dúvidas (`POST /api/aiox/doubts/chat`, env); não substitui o modelo do **IDE** para edição — ver roadmap «Chat com LLM no servidor» (streaming, quotas em aberto) |
+| LLM | **Opcional** no painel Dúvidas (chat + stream); aviso de privacidade e limite por IP na UI/API; não substitui o modelo do **IDE** — evolução: quotas por utilizador, custos |
 | Autenticação | Não implementada; não expor a internet sem reverse proxy + auth |
 | Multi-utilizador | Feed persistido em ficheiro local; ainda sem isolamento por sessão/utilizador |
 | Nome npm | Pacote continua `mission-agent` (pasta `MissionAgent/`); mudança só relevante se publicar no npm |
-| Só UI sem API | Com API **embebida** no Vite, `/api` deve responder no **mesmo host/porta** do Vite. Se usares **`MISSION_EMBED_API=0`**, é preciso Express em **8787** (`preview:all`, `dev:split`, ou `build`+`start`) |
+| Só UI sem API | Com **`npm run dev`**, `/api` está embebido no Vite. Com **`dev:split`**, o Vite faz proxy para Express **8787** — ambos têm de estar a correr. **`preview:all`** / **`build`+`start`**: Express com ou sem estático |
 | Canvas de tarefas | Com **`VITE_TASK_BOARD_SYNC`**, o quadro sincroniza com ficheiro no servidor (mesma origem que a API). *Sem* utilizadores distintos nem quotas — não substitui backlog multi-equipa com auth |
 | Slack | **Espelho outbound** do feed (Incoming Webhook) implementado; comandos / eventos **desde** o Slack → hub **não** implementados (fase futura: Bolt / Event Subscriptions) |
 
@@ -145,6 +161,7 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 ## Validação periódica
 
 - Registo de auditorias (datas, contagem de testes, lacunas): **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
+- Plano de entregas: **[IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md)**.
 - Em cada revisão formal, actualizar a linha **Última revisão** no topo deste ficheiro e o registo em `CHECKLIST-VALIDATION.md`.
 - Checklist **accionável** (arranque, PR, release, roadmap aberto): **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)**.
 
@@ -157,3 +174,4 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 3. Revisão periódica (ex.: sprint): arquivar itens obsoletos noutro ficheiro `CHECKLIST-ARCHIVE.md` se necessário.
 4. **Processo de equipa:** novo projecto ou mudança de escopo → actualizar a base de conhecimento acordada (ex.: Notion / OpenAPI) **antes** de expandir código, para manter contrato e desenho alinhados.
 5. **Validação vs. código:** seguir o passo-a-passo em [CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md) e actualizar o registo após mudanças relevantes na API ou no painel Dúvidas.
+6. **Entregas:** alinhar tarefas ao [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md); marcar fases concluídas e mover itens do roadmap quando fechados.

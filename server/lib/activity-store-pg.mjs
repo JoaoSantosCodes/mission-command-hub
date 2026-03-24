@@ -2,7 +2,7 @@
  * Feed de atividade em PostgreSQL (mesma forma que o JSON em memória).
  */
 import { logger } from "./logger.mjs";
-import { ACTIVITY_MAX_ENTRIES } from "./activity-store.mjs";
+import { ACTIVITY_MAX_ENTRIES, isDuplicateActivityHead } from "./activity-store.mjs";
 
 const TABLE = "mission_activity_log";
 
@@ -67,6 +67,9 @@ export async function createPgActivityStore(pool) {
   }
 
   async function pushLog(agent, action, type = "output", kind) {
+    if (isDuplicateActivityHead(logs, agent, action, type, kind)) {
+      return logs[0];
+    }
     const now = new Date();
     const timestamp = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
     const entry = {

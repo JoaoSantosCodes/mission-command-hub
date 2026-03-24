@@ -39,7 +39,7 @@ console.log("MissionAgent — preflight ambiente real\n");
 if (!skipAiox) {
   if (!fs.existsSync(AIOX_ROOT)) {
     fail(
-      `Raiz AIOX não encontrada (${AIOX_ROOT}). Define AIOX_CORE_PATH ou coloca aiox-core ao lado de MissionAgent — sem isto a lista de agentes fica vazia.`
+      `Raiz AIOX não encontrada (${AIOX_ROOT}). Define AIOX_CORE_PATH ou coloca o clone em ../aiox-core (relativo a MissionAgent/) — sem isto a lista de agentes fica vazia.`
     );
   } else {
     pass(`aiox-core: ${AIOX_ROOT}`);
@@ -90,7 +90,7 @@ if (process.env.SLACK_WEBHOOK_URL?.trim() && !process.env.SLACK_WEBHOOK_URL.incl
   warn("SLACK_WEBHOOK_URL não parece um Incoming Webhook hooks.slack.com — confirma o URL.");
 }
 
-const key = String(process.env.OPENAI_API_KEY || process.env.MISSION_LLM_API_KEY || "").trim();
+const key = String(process.env.MISSION_LLM_API_KEY || process.env.OPENAI_API_KEY || "").trim();
 if (process.env.MISSION_DOUBTS_LLM === "1" && key.length < 8) {
   warn("MISSION_DOUBTS_LLM=1 mas chave LLM em falta ou curta — painel Dúvidas fica sem modelo no servidor.");
 }

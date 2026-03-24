@@ -20,7 +20,7 @@ if (!fs.existsSync(src)) {
 }
 fs.copyFileSync(src, target);
 console.log(
-  "[mission-agent] Criado .env a partir de .env.ready — edita e cola OPENAI_API_KEY ou MISSION_LLM_API_KEY; opcionalmente MISSION_LLM_BASE_URL / MISSION_LLM_MODEL."
+  "[mission-agent] Criado .env a partir de .env.ready — edita MISSION_LLM_API_KEY (qualquer API compatível) ou OPENAI_API_KEY legado; opcional MISSION_LLM_BASE_URL / MISSION_LLM_MODEL / MISSION_LLM_VALIDATE=0."
 );
 console.log(
   "[mission-agent] Para produção: segredos em .env.local; antes de arrancar corre npm run verify:real (com NODE_ENV=production após build)."

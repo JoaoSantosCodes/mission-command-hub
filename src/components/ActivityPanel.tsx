@@ -29,6 +29,18 @@ type ActivityPanelProps = {
   onMobileClose: () => void;
 };
 
+/** Mantém a ordem; ignora repetições do mesmo `id` (ex.: race no refresh). */
+function dedupeActivityLogsById(logs: ActivityEntry[]): ActivityEntry[] {
+  const seen = new Set<string>();
+  const out: ActivityEntry[] = [];
+  for (const log of logs) {
+    if (seen.has(log.id)) continue;
+    seen.add(log.id);
+    out.push(log);
+  }
+  return out;
+}
+
 function ActivityEmptyState() {
   return (
     <div className="rounded-xl border border-dashed border-border/90 bg-muted/20 px-3 py-6 text-center dark:bg-muted/10">
@@ -51,12 +63,13 @@ function ActivityEmptyState() {
 }
 
 function ActivityFeedList({ logs }: { logs: ActivityEntry[] }) {
-  if (logs.length === 0) {
+  const unique = dedupeActivityLogsById(logs);
+  if (unique.length === 0) {
     return <ActivityEmptyState />;
   }
   return (
     <ul className="space-y-1">
-      {logs.map((log) => (
+      {unique.map((log) => (
         <li key={log.id} className="rounded-lg border border-border/90 bg-background/60 p-2.5 shadow-sm">
           <div className="mb-1 flex items-center gap-2">
             <FeedKindIcon kind={log.kind} type={log.type} />

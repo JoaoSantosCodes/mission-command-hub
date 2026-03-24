@@ -1,17 +1,28 @@
 import { Fragment, useState } from "react";
 import { Plus } from "lucide-react";
+import type { AgentRow } from "@/types/hub";
+import type { FigmaContextResponse, TaskRunEntry } from "@/lib/api";
 import type { ColumnDef, ColumnId, TaskItem } from "./types";
 import { TaskCard } from "./TaskCard";
 
 type TaskColumnProps = {
   def: ColumnDef;
   tasks: TaskItem[];
+  agents: AgentRow[];
+  runsByTaskId?: Record<string, TaskRunEntry | undefined>;
+  agentStepLoadingId?: string | null;
+  figmaLoadingTaskId?: string | null;
+  figmaContextByTaskId?: Record<string, FigmaContextResponse | undefined>;
+  onAgentStep?: (task: TaskItem) => void;
+  onReadFigmaContext?: (task: TaskItem) => void;
   /** Só com ordenação *manual* e sem filtro de texto: zonas entre cartões para `toIndex`. */
   reorderEnabled: boolean;
   onAdd: (columnId: ColumnId, title: string) => void;
   onUpdate: (
     id: string,
-    patch: Partial<Pick<TaskItem, "title" | "note" | "priority" | "blocked">>
+    patch: Partial<Pick<TaskItem, "title" | "note" | "priority" | "blocked">> & {
+      assigneeAgentId?: string | null;
+    }
   ) => void;
   onRemove: (id: string) => void;
   onMove: (id: string, to: ColumnId, toIndex?: number) => void;
@@ -50,6 +61,13 @@ function InsertDropZone({
 export function TaskColumn({
   def,
   tasks,
+  agents,
+  runsByTaskId = {},
+  agentStepLoadingId = null,
+  figmaLoadingTaskId = null,
+  figmaContextByTaskId = {},
+  onAgentStep,
+  onReadFigmaContext,
   reorderEnabled,
   onAdd,
   onUpdate,
@@ -88,14 +106,45 @@ export function TaskColumn({
             <InsertDropZone insertIndex={0} columnId={def.id} onMove={onMove} />
             {tasks.map((t, i) => (
               <Fragment key={t.id}>
-                <TaskCard task={t} onUpdate={onUpdate} onRemove={onRemove} onMove={onMove} />
+                <TaskCard
+                  task={t}
+                  agents={agents}
+                  runStatus={runsByTaskId[t.id]?.status}
+                  runMessage={runsByTaskId[t.id]?.message}
+                  agentStepLoading={agentStepLoadingId === t.id}
+                  figmaContextLoading={figmaLoadingTaskId === t.id}
+                  figmaContextLoaded={Boolean(figmaContextByTaskId[t.id])}
+                  figmaContextSummary={figmaContextByTaskId[t.id]?.designSummary}
+                  figmaMeta={figmaContextByTaskId[t.id]?.meta}
+                  onAgentStep={onAgentStep}
+                  onReadFigmaContext={onReadFigmaContext}
+                  onUpdate={onUpdate}
+                  onRemove={onRemove}
+                  onMove={onMove}
+                />
                 <InsertDropZone insertIndex={i + 1} columnId={def.id} onMove={onMove} />
               </Fragment>
             ))}
           </>
         ) : (
           tasks.map((t) => (
-            <TaskCard key={t.id} task={t} onUpdate={onUpdate} onRemove={onRemove} onMove={onMove} />
+            <TaskCard
+              key={t.id}
+              task={t}
+              agents={agents}
+              runStatus={runsByTaskId[t.id]?.status}
+              runMessage={runsByTaskId[t.id]?.message}
+              agentStepLoading={agentStepLoadingId === t.id}
+              figmaContextLoading={figmaLoadingTaskId === t.id}
+              figmaContextLoaded={Boolean(figmaContextByTaskId[t.id])}
+              figmaContextSummary={figmaContextByTaskId[t.id]?.designSummary}
+              figmaMeta={figmaContextByTaskId[t.id]?.meta}
+              onAgentStep={onAgentStep}
+              onReadFigmaContext={onReadFigmaContext}
+              onUpdate={onUpdate}
+              onRemove={onRemove}
+              onMove={onMove}
+            />
           ))
         )}
         <form

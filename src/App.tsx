@@ -9,8 +9,10 @@ import {
   feedFish,
   getIntegrationsStatus,
   getFishState,
+  getIntegrationsConfig,
   getCustomization,
   postCommand,
+  putIntegrationsConfig,
   putCustomization,
 } from "@/lib/api";
 import {
@@ -38,6 +40,7 @@ import { CreateAgentModal } from "@/components/CreateAgentModal";
 import { TaskCanvasView } from "@/components/task-canvas";
 import { DoubtsChatPanel } from "@/components/DoubtsChatPanel";
 import { CustomizationPanel } from "@/components/CustomizationPanel";
+import { IntegrationsConfigPanel } from "@/components/IntegrationsConfigPanel";
 
 export default function App() {
   const docVisible = useDocumentVisible();
@@ -60,6 +63,11 @@ export default function App() {
   const [createAgentOpen, setCreateAgentOpen] = useState(false);
   const [doubtsOpen, setDoubtsOpen] = useState(false);
   const [customizationOpen, setCustomizationOpen] = useState(false);
+  const [integrationsConfigOpen, setIntegrationsConfigOpen] = useState(false);
+  const [integrationsConfigSaving, setIntegrationsConfigSaving] = useState(false);
+  const [integrationsConfigRev, setIntegrationsConfigRev] = useState("0:0");
+  const [integrationsConfigDraft, setIntegrationsConfigDraft] = useState<import("@/lib/api").IntegrationsConfigPayload>({});
+  const [integrationsConfigRedacted, setIntegrationsConfigRedacted] = useState<Record<string, string>>({});
   const [agentsDrawerOpen, setAgentsDrawerOpen] = useState(false);
   const [activityDrawerOpen, setActivityDrawerOpen] = useState(false);
   const [viewMode, setViewMode] = useState<HubViewMode>("hub");
@@ -80,6 +88,13 @@ export default function App() {
     } catch {
       // Sem integração disponível; mantemos o estado anterior.
     }
+  }, []);
+
+  const refreshIntegrationsConfig = useCallback(async () => {
+    const c = await getIntegrationsConfig();
+    setIntegrationsConfigDraft(c.data);
+    setIntegrationsConfigRedacted(c.redacted);
+    setIntegrationsConfigRev(c.revision);
   }, []);
 
   const refresh = useCallback(async (opts?: { silent?: boolean }) => {
@@ -105,6 +120,10 @@ export default function App() {
   useEffect(() => {
     void refreshIntegrations();
   }, [refreshIntegrations]);
+
+  useEffect(() => {
+    void refreshIntegrationsConfig();
+  }, [refreshIntegrationsConfig]);
 
   useEffect(() => {
     if (!docVisible) return;
@@ -212,12 +231,21 @@ export default function App() {
   }, [docVisible, refresh]);
 
   useEffect(() => {
+    /** Evita rajadas de GET /overview quando há várias acções seguidas no canvas (cada uma gerava um refresh). */
+    const debounceMs = 380;
+    let debounceTimer: number | null = null;
     const onTeamActivity = () => {
-      // Força sincronização imediata entre abas após eventos de tarefas/atividade.
-      void refresh({ silent: true });
+      if (debounceTimer != null) window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(() => {
+        debounceTimer = null;
+        void refresh({ silent: true });
+      }, debounceMs);
     };
     window.addEventListener("mission-team-activity", onTeamActivity as EventListener);
-    return () => window.removeEventListener("mission-team-activity", onTeamActivity as EventListener);
+    return () => {
+      if (debounceTimer != null) window.clearTimeout(debounceTimer);
+      window.removeEventListener("mission-team-activity", onTeamActivity as EventListener);
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -246,7 +274,8 @@ export default function App() {
       activityDrawerOpen ||
       createAgentOpen ||
       doubtsOpen ||
-      customizationOpen
+      customizationOpen ||
+      integrationsConfigOpen
   );
 
   useEffect(() => {
@@ -280,7 +309,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [err, detailAgentId, agentsDrawerOpen, activityDrawerOpen, createAgentOpen, doubtsOpen, customizationOpen]);
+  }, [err, detailAgentId, agentsDrawerOpen, activityDrawerOpen, createAgentOpen, doubtsOpen, customizationOpen, integrationsConfigOpen]);
 
   /** Toggle painel Dúvidas: Ctrl+/ ou Cmd+/ (não dispara dentro de inputs). */
   useEffect(() => {
@@ -370,6 +399,7 @@ export default function App() {
         onOpenActivityDrawer={() => setActivityDrawerOpen(true)}
         onOpenDoubts={() => setDoubtsOpen(true)}
         onOpenCustomization={() => setCustomizationOpen(true)}
+        onOpenIntegrationsConfig={() => setIntegrationsConfigOpen(true)}
         customizationSyncLabel={customSyncLabelPt}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
@@ -455,7 +485,7 @@ export default function App() {
             }}
           />
         ) : (
-          <TaskCanvasView />
+          <TaskCanvasView agents={agents} />
         )}
       </div>
 
@@ -495,6 +525,41 @@ export default function App() {
         agents={agents}
         syncStateLabel={customSyncLabelPt}
         onSyncNow={() => void syncCustomizationNow()}
+      />
+
+      <IntegrationsConfigPanel
+        open={integrationsConfigOpen}
+        onClose={() => setIntegrationsConfigOpen(false)}
+        draft={integrationsConfigDraft}
+        redacted={integrationsConfigRedacted}
+        status={integrations}
+        saving={integrationsConfigSaving}
+        onChange={(patch) => setIntegrationsConfigDraft((d) => ({ ...d, ...patch }))}
+        onReload={() => void refreshIntegrationsConfig()}
+        onValidateNow={() => void refreshIntegrations()}
+        onSave={() => {
+          void (async () => {
+            setIntegrationsConfigSaving(true);
+            setErr(null);
+            try {
+              const r = await putIntegrationsConfig(integrationsConfigDraft, integrationsConfigRev || "0:0");
+              setIntegrationsConfigRev(r.revision);
+              setIntegrationsConfigRedacted(r.redacted);
+              setToast("Configurações guardadas. A validar integrações…");
+              await refreshIntegrations();
+            } catch (e) {
+              const msg = String(e);
+              if (msg.includes("CONFLICT_INTEGRATIONS_CONFIG")) {
+                setErr("Conflito na configuração de integrações. Recarreguei os valores do servidor.");
+                await refreshIntegrationsConfig();
+              } else {
+                setErr(msg);
+              }
+            } finally {
+              setIntegrationsConfigSaving(false);
+            }
+          })();
+        }}
       />
     </div>
   );

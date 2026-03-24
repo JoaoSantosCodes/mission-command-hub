@@ -13,8 +13,16 @@ const MISSION_ROOT = path.resolve(__dirname, "..");
 describe("API smoke", () => {
   const tmpActivity = path.join(os.tmpdir(), `ma-smoke-${process.pid}-${Date.now()}.json`);
   const tmpTaskBoard = path.join(os.tmpdir(), `ma-tb-${process.pid}-${Date.now()}.json`);
+  const tmpTaskRuns = path.join(os.tmpdir(), `ma-runs-${process.pid}-${Date.now()}.json`);
   const tmpIntegrationsHistory = path.join(os.tmpdir(), `ma-int-history-${process.pid}-${Date.now()}.json`);
-  const bridgeOpts = { activityLogPath: tmpActivity, taskBoardPath: tmpTaskBoard, integrationsHistoryPath: tmpIntegrationsHistory };
+  const tmpIntegrationsConfig = path.join(os.tmpdir(), `ma-int-config-${process.pid}-${Date.now()}.json`);
+  const bridgeOpts = {
+    activityLogPath: tmpActivity,
+    taskBoardPath: tmpTaskBoard,
+    taskRunsPath: tmpTaskRuns,
+    integrationsHistoryPath: tmpIntegrationsHistory,
+    integrationsConfigPath: tmpIntegrationsConfig,
+  };
   let app;
 
   beforeAll(async () => {
@@ -37,11 +45,31 @@ describe("API smoke", () => {
     } catch {
       /* ignore */
     }
+    try {
+      fs.unlinkSync(tmpTaskRuns);
+    } catch {
+      /* ignore */
+    }
+    try {
+      fs.unlinkSync(tmpIntegrationsConfig);
+    } catch {
+      /* ignore */
+    }
   });
 
   it("GET /api/health", async () => {
     const res = await request(app).get("/api/health").expect(200);
-    expect(res.body).toMatchObject({ ok: true, service: "mission-agent-bridge" });
+    expect(res.body).toMatchObject({
+      ok: true,
+      service: "mission-agent-bridge",
+      capabilities: { taskBoardAgentStep: true },
+    });
+  });
+
+  it("GET / JSON raiz (modo não-produção)", async () => {
+    const res = await request(app).get("/").expect(200);
+    expect(res.body).toMatchObject({ ok: true, service: "mission-agent-api", express: true });
+    expect(res.body.paths).toMatchObject({ health: "/api/health" });
   });
 
   it("GET /api/rota-inexistente → 404 JSON", async () => {
@@ -96,6 +124,26 @@ describe("API smoke", () => {
       revision: expect.any(String),
       taskCount: expect.any(Number),
     });
+  });
+
+  it("GET /api/aiox/integrations-status sem validate: LLM configurado não alerta falha de sondagem", async () => {
+    const prev = {
+      MISSION_DOUBTS_LLM: process.env.MISSION_DOUBTS_LLM,
+      MISSION_LLM_API_KEY: process.env.MISSION_LLM_API_KEY,
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    };
+    process.env.MISSION_DOUBTS_LLM = "1";
+    process.env.MISSION_LLM_API_KEY = "smoke-llm-key-at-least-8-chars";
+    delete process.env.OPENAI_API_KEY;
+    const appLlm = await createBridgeApp(MISSION_ROOT, bridgeOpts);
+    const res = await request(appLlm).get("/api/aiox/integrations-status").expect(200);
+    expect(res.body.doubts.llmEnabled).toBe(true);
+    expect(res.body.doubts.llmKeyConfigured).toBe(true);
+    expect(res.body.alerts.some((a) => String(a).includes("LLM Dúvidas"))).toBe(false);
+    for (const [k, v] of Object.entries(prev)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
   });
 
   it("GET /api/aiox/integrations-status", async () => {
@@ -164,6 +212,106 @@ describe("API smoke", () => {
     expect(typeof res.body.revision).toBe("string");
   });
 
+  it("GET/PUT /api/aiox/integrations-config", async () => {
+    const g0 = await request(app).get("/api/aiox/integrations-config").expect(200);
+    expect(g0.body.ok).toBe(true);
+    expect(typeof g0.body.revision).toBe("string");
+    const put = await request(app)
+      .put("/api/aiox/integrations-config")
+      .set("If-Match", g0.body.revision)
+      .send({ data: { MISSION_DOUBTS_LLM: "1", MISSION_LLM_MODEL: "gpt-4o-mini" } })
+      .expect(200);
+    expect(put.body.ok).toBe(true);
+    const g1 = await request(app).get("/api/aiox/integrations-config").expect(200);
+    expect(g1.body.data.MISSION_DOUBTS_LLM).toBe("1");
+    expect(g1.body.data.MISSION_LLM_MODEL).toBe("gpt-4o-mini");
+  });
+
+  it("PUT /api/aiox/integrations-config com patch parcial preserva chaves existentes", async () => {
+    const g0 = await request(app).get("/api/aiox/integrations-config").expect(200);
+    const put1 = await request(app)
+      .put("/api/aiox/integrations-config")
+      .set("If-Match", g0.body.revision)
+      .send({ data: { NOTION_TOKEN: "ntn_test_value_123", MISSION_DOUBTS_LLM: "1" } })
+      .expect(200);
+    const put2 = await request(app)
+      .put("/api/aiox/integrations-config")
+      .set("If-Match", put1.body.revision)
+      .send({ data: { FIGMA_ACCESS_TOKEN: "figd_test_value_456" } })
+      .expect(200);
+    const g1 = await request(app).get("/api/aiox/integrations-config").expect(200);
+    expect(g1.body.data.NOTION_TOKEN).toBe("ntn_test_value_123");
+    expect(g1.body.data.MISSION_DOUBTS_LLM).toBe("1");
+    expect(g1.body.data.FIGMA_ACCESS_TOKEN).toBe("figd_test_value_456");
+    expect(put2.body.ok).toBe(true);
+  });
+
+  it("GET /api/aiox/task-runs retorna lista", async () => {
+    const res = await request(app).get("/api/aiox/task-runs").expect(200);
+    expect(res.body.ok).toBe(true);
+    expect(Array.isArray(res.body.runs)).toBe(true);
+    expect(typeof res.body.autoRunEnabled).toBe("boolean");
+    expect(typeof res.body.backend).toBe("string");
+    expect(res.body.policy).toMatchObject({
+      defaults: expect.any(Array),
+      rules: expect.any(Array),
+    });
+  });
+
+  it("POST /api/aiox/task-board/agent-step → 400 sem task", async () => {
+    const res = await request(app).post("/api/aiox/task-board/agent-step").send({}).expect(400);
+    expect(res.body.ok).toBe(false);
+    expect(typeof res.body.error).toBe("string");
+  });
+
+  it("POST /api/aiox/figma/context → 503 sem FIGMA_ACCESS_TOKEN", async () => {
+    const isolatedCfg = path.join(os.tmpdir(), `ma-int-config-empty-${process.pid}-${Date.now()}.json`);
+    const prevFigma = process.env.FIGMA_ACCESS_TOKEN;
+    delete process.env.FIGMA_ACCESS_TOKEN;
+    const noTokenApp = await createBridgeApp(MISSION_ROOT, { ...bridgeOpts, integrationsConfigPath: isolatedCfg });
+    try {
+      const res = await request(noTokenApp).post("/api/aiox/figma/context").send({ fileKey: "abc123" }).expect(503);
+      expect(res.body.ok).toBe(false);
+      expect(res.body.code).toBe("FIGMA_TOKEN_MISSING");
+    } finally {
+      try {
+        fs.unlinkSync(isolatedCfg);
+      } catch {
+        /* ignore */
+      }
+      if (prevFigma == null) delete process.env.FIGMA_ACCESS_TOKEN;
+      else process.env.FIGMA_ACCESS_TOKEN = prevFigma;
+    }
+  });
+
+  it("POST /api/aiox/task-board/agent-step → 503 sem LLM (corpo válido)", async () => {
+    const res = await request(app)
+      .post("/api/aiox/task-board/agent-step")
+      .send({ task: { id: "t-agent-step", title: "Teste", columnId: "todo" } })
+      .expect(503);
+    expect(res.body.ok).toBe(false);
+    expect(String(res.body.error)).toContain("LLM");
+  });
+
+  it("POST /api/aiox/task-board/agent-step → 403 quando policy bloqueia agente", async () => {
+    const prev = process.env.MISSION_TASK_AGENT_ALLOWLIST;
+    process.env.MISSION_TASK_AGENT_ALLOWLIST = "*:agentStep;aiox-master:exec:info";
+    const policyApp = await createBridgeApp(MISSION_ROOT, bridgeOpts);
+    try {
+      const res = await request(policyApp)
+        .post("/api/aiox/task-board/agent-step")
+        .send({
+          task: { id: "t-policy", title: "Teste policy", columnId: "todo", assigneeAgentId: "aiox-master" },
+        })
+        .expect(403);
+      expect(res.body.ok).toBe(false);
+      expect(String(res.body.error)).toContain("Policy");
+    } finally {
+      if (prev == null) delete process.env.MISSION_TASK_AGENT_ALLOWLIST;
+      else process.env.MISSION_TASK_AGENT_ALLOWLIST = prev;
+    }
+  });
+
   it("PUT /api/aiox/task-board grava e GET relê", async () => {
     const tasks = [
       {
@@ -187,6 +335,39 @@ describe("API smoke", () => {
     expect(r1.body.tasks[0].id).toBe("smoke-tb-1");
   });
 
+  it("PUT /api/aiox/task-board persiste assigneeAgentId válido e ignora inválido", async () => {
+    const r0 = await request(app).get("/api/aiox/task-board").expect(200);
+    const tasks = [
+      {
+        id: "a1",
+        title: "Com agente",
+        columnId: "doing",
+        order: 0,
+        createdAt: Date.now(),
+        assigneeAgentId: "dev-agent",
+      },
+      {
+        id: "a2",
+        title: "Id inválido",
+        columnId: "todo",
+        order: 0,
+        createdAt: Date.now(),
+        assigneeAgentId: "../etc/passwd",
+      },
+    ];
+    await request(app)
+      .put("/api/aiox/task-board")
+      .set("If-Match", r0.body.revision)
+      .send({ tasks })
+      .expect(200);
+    const r1 = await request(app).get("/api/aiox/task-board").expect(200);
+    expect(r1.body.tasks).toHaveLength(2);
+    const withAgent = r1.body.tasks.find((t) => t.id === "a1");
+    const bad = r1.body.tasks.find((t) => t.id === "a2");
+    expect(withAgent.assigneeAgentId).toBe("dev-agent");
+    expect(bad.assigneeAgentId).toBeUndefined();
+  });
+
   it("PUT /api/aiox/task-board → 409 com If-Match inválido", async () => {
     const res = await request(app)
       .put("/api/aiox/task-board")
@@ -205,7 +386,11 @@ describe("API smoke", () => {
       knowledgeBaseEnabled: false,
     });
     expect(typeof res.body.message).toBe("string");
+    expect(typeof res.body.dataPolicyNotice).toBe("string");
+    expect(res.body.dataPolicyNotice.length).toBeGreaterThan(10);
     expect(res.body).toHaveProperty("docsUrl");
+    expect(res.body.rateLimitMax).toBeGreaterThanOrEqual(1);
+    expect(res.body.rateLimitWindowMs).toBeGreaterThanOrEqual(10_000);
   });
 
   it("POST /api/aiox/doubts/chat → 503 sem MISSION_DOUBTS_LLM", async () => {
@@ -230,9 +415,11 @@ describe("API smoke", () => {
 
   it("POST /api/aiox/doubts/chat → 400 sem messages", async () => {
     const prev = process.env.MISSION_DOUBTS_LLM;
-    const prevK = process.env.OPENAI_API_KEY;
+    const prevK = process.env.MISSION_LLM_API_KEY;
+    const prevO = process.env.OPENAI_API_KEY;
     process.env.MISSION_DOUBTS_LLM = "1";
-    process.env.OPENAI_API_KEY = "sk-test-key-for-smoke-minimum-8";
+    delete process.env.OPENAI_API_KEY;
+    process.env.MISSION_LLM_API_KEY = "sk-test-key-for-smoke-minimum-8";
     const appLlm = await createBridgeApp(MISSION_ROOT, bridgeOpts);
     const res = await request(appLlm)
       .post("/api/aiox/doubts/chat")
@@ -240,7 +427,32 @@ describe("API smoke", () => {
       .send({});
     expect(res.status).toBe(400);
     process.env.MISSION_DOUBTS_LLM = prev;
-    process.env.OPENAI_API_KEY = prevK;
+    if (prevK !== undefined) process.env.MISSION_LLM_API_KEY = prevK;
+    else delete process.env.MISSION_LLM_API_KEY;
+    if (prevO !== undefined) process.env.OPENAI_API_KEY = prevO;
+    else delete process.env.OPENAI_API_KEY;
+  });
+
+  it("GET integrations validate=1: LLM sem HTTP quando MISSION_LLM_VALIDATE=0", async () => {
+    const prev = {
+      MISSION_LLM_VALIDATE: process.env.MISSION_LLM_VALIDATE,
+      MISSION_LLM_API_KEY: process.env.MISSION_LLM_API_KEY,
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+      MISSION_DOUBTS_LLM: process.env.MISSION_DOUBTS_LLM,
+    };
+    process.env.MISSION_LLM_VALIDATE = "0";
+    process.env.MISSION_LLM_API_KEY = "generic-api-key-min-8-chars";
+    delete process.env.OPENAI_API_KEY;
+    process.env.MISSION_DOUBTS_LLM = "1";
+    const app2 = await createBridgeApp(MISSION_ROOT, bridgeOpts);
+    const res = await request(app2).get("/api/aiox/integrations-status?validate=1").expect(200);
+    expect(res.body.doubts.llmValidated).toBe(true);
+    expect(res.body.doubts.openaiValidated).toBe(true);
+    expect(res.body.doubts.llmValidationSkipped).toBe(true);
+    for (const [k, v] of Object.entries(prev)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
   });
 
   it("GET /api/aiox/agents", async () => {
@@ -309,6 +521,16 @@ describe("API smoke", () => {
     const get = await request(app).get("/api/aiox/activity").expect(200);
     expect(Array.isArray(get.body.logs)).toBe(true);
     expect(get.body.logs.some((l) => l.action === action)).toBe(true);
+  });
+
+  it("POST /api/aiox/activity/event não duplica linha idêntica no topo", async () => {
+    const action = `smoke-dedupe-${Date.now()}`;
+    const payload = { agent: "@task-canvas", action, type: "output", kind: "bridge" };
+    await request(app).post("/api/aiox/activity/event").send(payload).expect(200);
+    await request(app).post("/api/aiox/activity/event").send(payload).expect(200);
+    const get = await request(app).get("/api/aiox/activity").expect(200);
+    const matches = get.body.logs.filter((l) => l.action === action);
+    expect(matches.length).toBe(1);
   });
 
   it("GET /api/aiox/agents/:id — 404 para agente inexistente", async () => {

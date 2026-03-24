@@ -31,7 +31,7 @@ async function fetchStatus(url, init) {
   }
 }
 
-const key = String(process.env.OPENAI_API_KEY || process.env.MISSION_LLM_API_KEY || "").trim();
+const key = String(process.env.MISSION_LLM_API_KEY || process.env.OPENAI_API_KEY || "").trim();
 const notion = String(process.env.NOTION_TOKEN || "").trim();
 const figma = String(process.env.FIGMA_ACCESS_TOKEN || "").trim();
 const slackHook = String(process.env.SLACK_WEBHOOK_URL || "").trim();
@@ -42,7 +42,7 @@ const model = getDoubtsLlmModel();
 console.log("MissionAgent — verificação de ambiente (.env + .env.local)\n");
 
 line("LLM: MISSION_DOUBTS_LLM=1", process.env.MISSION_DOUBTS_LLM === "1");
-line("LLM: chave (OPENAI_API_KEY ou MISSION_LLM_API_KEY)", key.length >= 8, maskSecret(key));
+line("LLM: chave (MISSION_LLM_API_KEY ou OPENAI_API_KEY legado)", key.length >= 8, maskSecret(key));
 line("LLM: painel Dúvidas activo (opt-in + chave)", isDoubtsLlmConfigured());
 line("LLM: MISSION_LLM_BASE_URL", true, base);
 line("LLM: MISSION_LLM_MODEL", true, model);

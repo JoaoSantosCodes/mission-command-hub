@@ -10,7 +10,11 @@ import {
   pickDisplayName,
   readAgentProfile,
 } from "@/lib/agent-profile-store";
-import type { IntegrationsStatus } from "@/lib/api";
+import {
+  doubtsLlmIntegrationErrorHint,
+  doubtsLlmIntegrationSeemsOk,
+  type IntegrationsStatus,
+} from "@/lib/api";
 
 type AgentsSidebarProps = {
   info: AioxInfo | null;
@@ -310,23 +314,34 @@ export function AgentsSidebar({
                 />
                 <IntegrationServiceCard
                   icon={Sparkles}
-                  name="OPENAI (DÚVIDAS)"
-                  status={integrations?.doubts.llmEnabled === true && integrations?.doubts.openaiValidated === true ? "OK" : "PENDENTE"}
-                  statusTone={integrations?.doubts.llmEnabled === true && integrations?.doubts.openaiValidated === true ? "ok" : "pending"}
+                  name="LLM (Dúvidas)"
+                  status={
+                    integrations?.doubts && doubtsLlmIntegrationSeemsOk(integrations.doubts) ? "OK" : "PENDENTE"
+                  }
+                  statusTone={
+                    integrations?.doubts && doubtsLlmIntegrationSeemsOk(integrations.doubts) ? "ok" : "pending"
+                  }
                   value={
                     integrations?.doubts.llmEnabled
-                      ? integrations?.doubts.openaiValidated
-                        ? "Validação OK"
+                      ? doubtsLlmIntegrationSeemsOk(integrations.doubts)
+                        ? integrations.doubts.llmValidationSkipped
+                          ? "Chave OK (validação HTTP desligada)"
+                          : integrations.doubts.llmValidated === undefined &&
+                              integrations.doubts.openaiValidated === undefined
+                            ? "Activo (sondagem não efectuada)"
+                            : "Validação OK"
                         : "Falhou validação"
                       : "Desligado (opt-in)"
                   }
-                  hint={
-                    integrations?.doubts.llmEnabled && integrations?.doubts.openaiValidated === false
-                      ? String(integrations.doubts.openaiError ?? "Erro ao validar OpenAI").slice(0, 90)
-                      : integrations?.doubts.doubtsOptIn
-                        ? "MISSION_DOUBTS_LLM=1"
-                        : "Definir MISSION_DOUBTS_LLM=1 + key"
-                  }
+                  hint={(() => {
+                    const d = integrations?.doubts;
+                    if (!d) return "MISSION_DOUBTS_LLM=1 + MISSION_LLM_API_KEY";
+                    const err = doubtsLlmIntegrationErrorHint(d);
+                    if (err) return err.slice(0, 90);
+                    return d.doubtsOptIn
+                      ? "API compatível: MISSION_LLM_API_KEY + MISSION_LLM_BASE_URL"
+                      : "MISSION_DOUBTS_LLM=1 + MISSION_LLM_API_KEY";
+                  })()}
                 />
                 <IntegrationServiceCard
                   icon={BookOpen}

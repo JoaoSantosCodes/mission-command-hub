@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getTaskBoard, postActivityEvent, putTaskBoard, TASK_BOARD_CONFLICT_ERROR } from "@/lib/api";
+import { pickDisplayName } from "@/lib/agent-profile-store";
+import type { AgentRow } from "@/types/hub";
 import type { ColumnId, TaskItem, TaskPriority } from "./types";
 
 const STORAGE_KEY = "mission-agent-task-board-v1";
@@ -26,7 +28,7 @@ function load(): TaskItem[] {
         typeof t.id === "string" &&
         typeof t.title === "string" &&
         ["todo", "doing", "review", "done"].includes(t.columnId)
-    );
+    ) as TaskItem[];
   } catch {
     return [];
   }
@@ -43,6 +45,35 @@ function save(tasks: TaskItem[]) {
 const COL_IDS = new Set<ColumnId>(["todo", "doing", "review", "done"]);
 
 const PRIORITIES = new Set<TaskPriority>(["low", "medium", "high", "urgent"]);
+
+const AGENT_ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
+
+function sanitizeAssigneeId(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const s = raw.trim();
+  if (!s || !AGENT_ID_RE.test(s)) return undefined;
+  return s;
+}
+
+function columnLabelPt(c: ColumnId): string {
+  if (c === "todo") return "planeada";
+  if (c === "doing") return "em curso";
+  if (c === "review") return "revisão";
+  return "concluída";
+}
+
+function agentLabel(agents: AgentRow[] | undefined, id: string | undefined): string {
+  if (!id) return "";
+  const row = agents?.find((a) => a.id === id);
+  return pickDisplayName(id, row?.title);
+}
+
+function normalizeLoadedTask(t: TaskItem): TaskItem {
+  const a = sanitizeAssigneeId(t.assigneeAgentId);
+  if (a) return { ...t, assigneeAgentId: a };
+  const { assigneeAgentId: _drop, ...rest } = t;
+  return rest as TaskItem;
+}
 
 export function parseTaskBoardJson(raw: unknown): TaskItem[] | null {
   let arr: unknown[];
@@ -67,7 +98,10 @@ export function parseTaskBoardJson(raw: unknown): TaskItem[] | null {
         ? (o.priority as TaskPriority)
         : undefined;
     const blocked = o.blocked === true;
-    out.push({ id, title, columnId: columnId as ColumnId, order, createdAt, note, priority, blocked });
+    const assigneeAgentId = sanitizeAssigneeId(o.assigneeAgentId);
+    const row: TaskItem = { id, title, columnId: columnId as ColumnId, order, createdAt, note, priority, blocked };
+    if (assigneeAgentId) row.assigneeAgentId = assigneeAgentId;
+    out.push(row);
   }
   return out;
 }
@@ -85,12 +119,55 @@ function newId() {
   return `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-export function useTaskBoard() {
-  const [tasks, setTasks] = useState<TaskItem[]>(load);
+/**
+ * Grava primeiro em `POST /api/aiox/activity/event` (todas as linhas, em sequência)
+ * e só no fim dispara `mission-team-activity` para o hub fazer refresh com dados já persistidos.
+ * Evita corrida refresh→overview sem a nova linha e reduz sensação de “loop” de pedidos.
+ */
+async function persistTaskCanvasActivities(entries: { agent: string; action: string }[]) {
+  const clean = entries
+    .map((e) => ({
+      agent: e.agent.trim().slice(0, 64) || "@task-canvas",
+      action: e.action.trim().slice(0, 240),
+    }))
+    .filter((e) => e.action.length > 0);
+  if (!clean.length) return;
+  for (const e of clean) {
+    try {
+      await postActivityEvent({
+        agent: e.agent,
+        action: e.action,
+        type: "output",
+        kind: "bridge",
+      });
+    } catch {
+      /* API ou rede indisponível — continua para tentar registar o resto */
+    }
+  }
+  window.dispatchEvent(
+    new CustomEvent("mission-team-activity", {
+      detail: { source: "task-canvas", action: clean[clean.length - 1]?.action ?? "" },
+    })
+  );
+}
+
+export function useTaskBoard(agentsForLabels: AgentRow[] = []) {
+  const [tasks, setTasks] = useState<TaskItem[]>(() => load().map(normalizeLoadedTask));
   const [syncHydrated, setSyncHydrated] = useState(!TASK_BOARD_SYNC);
   const tasksRef = useRef(tasks);
   const serverRevRef = useRef<string | null>(null);
+  const agentsRef = useRef(agentsForLabels);
+  agentsRef.current = agentsForLabels;
   tasksRef.current = tasks;
+
+  useEffect(() => {
+    try {
+      (window as unknown as { __missionCanvasTasks?: TaskItem[] }).__missionCanvasTasks = tasks;
+      window.dispatchEvent(new CustomEvent("mission-canvas-tasks", { detail: { tasks } }));
+    } catch {
+      /* ignore */
+    }
+  }, [tasks]);
 
   /** Sincronização inicial com o servidor (opt-in). Servidor vence quando tem tarefas; senão envia-se o quadro local. */
   useEffect(() => {
@@ -105,10 +182,11 @@ export function useTaskBoard() {
         if (r.tasks.length === 0 && local.length > 0) {
           const put = await putTaskBoard(local, r.revision);
           serverRevRef.current = put.revision;
-          setTasks(local);
+          setTasks(local.map(normalizeLoadedTask));
         } else if (r.tasks.length > 0) {
-          setTasks(r.tasks);
-          save(r.tasks);
+          const merged = r.tasks.map(normalizeLoadedTask);
+          setTasks(merged);
+          save(merged);
           serverRevRef.current = r.revision;
         }
       } catch {
@@ -144,8 +222,9 @@ export function useTaskBoard() {
               const next = await getTaskBoard();
               if (cancelled) return;
               serverRevRef.current = next.revision;
-              setTasks(next.tasks);
-              save(next.tasks);
+              const merged = next.tasks.map(normalizeLoadedTask);
+              setTasks(merged);
+              save(merged);
             } catch {
               /* ignore */
             }
@@ -183,21 +262,54 @@ export function useTaskBoard() {
   }, []);
 
   const updateTask = useCallback(
-    (id: string, patch: Partial<Pick<TaskItem, "title" | "note" | "priority" | "blocked">>) => {
+    (
+      id: string,
+      patch: Partial<Pick<TaskItem, "title" | "note" | "priority" | "blocked">> & {
+        assigneeAgentId?: string | null;
+      }
+    ) => {
+      let prior: TaskItem | undefined;
       setTasks((prev) =>
         prev.map((t) => {
           if (t.id !== id) return t;
+          prior = t;
           const title = patch.title !== undefined ? patch.title.trim() : t.title;
           if (!title) return t;
-          return {
+          const next: TaskItem = {
             ...t,
             title,
             note: patch.note !== undefined ? patch.note : t.note,
             priority: patch.priority !== undefined ? patch.priority : t.priority,
             blocked: patch.blocked !== undefined ? patch.blocked : t.blocked,
           };
+          if (patch.assigneeAgentId !== undefined) {
+            const raw = patch.assigneeAgentId;
+            const sanitized =
+              raw === null || raw === ""
+                ? undefined
+                : typeof raw === "string"
+                  ? sanitizeAssigneeId(raw)
+                  : undefined;
+            if (sanitized) next.assigneeAgentId = sanitized;
+            else delete next.assigneeAgentId;
+          }
+          return next;
         })
       );
+      if (patch.assigneeAgentId !== undefined && prior) {
+        const sanitized =
+          patch.assigneeAgentId === null || patch.assigneeAgentId === ""
+            ? undefined
+            : sanitizeAssigneeId(patch.assigneeAgentId);
+        if (sanitized !== prior.assigneeAgentId) {
+          const titleSlice = prior.title.slice(0, 72);
+          const who = sanitized ? agentLabel(agentsRef.current, sanitized) : "sem agente";
+          const summary = `Quadro: atribuição «${titleSlice}» → ${who}`;
+          queueMicrotask(() => {
+            void persistTaskCanvasActivities([{ agent: "@task-canvas", action: summary }]);
+          });
+        }
+      }
     },
     []
   );
@@ -260,66 +372,95 @@ export function useTaskBoard() {
   }, []);
 
   const replaceTasks = useCallback((next: TaskItem[]) => {
-    setTasks(next);
+    setTasks(next.map(normalizeLoadedTask));
   }, []);
 
   const clearAll = useCallback(() => {
     setTasks([]);
   }, []);
 
-  const publishTeamActivity = useCallback((action: string) => {
-    window.dispatchEvent(
-      new CustomEvent("mission-team-activity", {
-        detail: { action, source: "task-canvas" },
-      })
-    );
-    void postActivityEvent({
-      agent: "@task-canvas",
-      action,
-      type: "output",
-      kind: "bridge",
-    }).catch(() => void 0);
-  }, []);
-
   const addTaskWithActivity = useCallback(
     (columnId: ColumnId, title: string) => {
       addTask(columnId, title);
       const t = title.trim();
-      if (t) publishTeamActivity(`Criou tarefa em ${columnId}: ${t.slice(0, 80)}`);
+      if (t) {
+        void persistTaskCanvasActivities([
+          { agent: "@task-canvas", action: `Quadro: nova tarefa (${columnLabelPt(columnId)}) — ${t.slice(0, 80)}` },
+        ]);
+      }
     },
-    [addTask, publishTeamActivity]
+    [addTask]
   );
 
   const moveTaskWithActivity = useCallback(
     (id: string, toColumn: ColumnId, toIndex?: number) => {
-      const from = tasksRef.current.find((t) => t.id === id)?.columnId;
+      const cur = tasksRef.current.find((t) => t.id === id);
+      const from = cur?.columnId;
       moveTask(id, toColumn, toIndex);
-      if (from && from !== toColumn) {
-        publishTeamActivity(`Moveu tarefa ${id} de ${from} para ${toColumn}`);
+      if (from && from !== toColumn && cur) {
+        const who = cur.assigneeAgentId
+          ? ` · ${agentLabel(agentsRef.current, cur.assigneeAgentId)}`
+          : "";
+        const summary = `Quadro: «${cur.title.slice(0, 60)}»${who} · ${columnLabelPt(from)} → ${columnLabelPt(toColumn)}`;
+        void persistTaskCanvasActivities([{ agent: "@task-canvas", action: summary }]);
       }
     },
-    [moveTask, publishTeamActivity]
+    [moveTask]
   );
 
   const removeTaskWithActivity = useCallback(
     (id: string) => {
+      const cur = tasksRef.current.find((t) => t.id === id);
       removeTask(id);
-      publishTeamActivity(`Removeu tarefa ${id}`);
+      void persistTaskCanvasActivities([
+        {
+          agent: "@task-canvas",
+          action: cur ? `Quadro: removeu «${cur.title.slice(0, 72)}»` : `Quadro: removeu tarefa ${id}`,
+        },
+      ]);
     },
-    [removeTask, publishTeamActivity]
+    [removeTask]
   );
+
+  const distributeTodoAssignees = useCallback(() => {
+    const ids = agentsRef.current.map((a) => a.id).filter(Boolean);
+    if (!ids.length) return;
+    let i = 0;
+    let assigned = 0;
+    const next = tasksRef.current.map((t) => {
+      if (t.columnId !== "todo" || t.assigneeAgentId) return t;
+      assigned++;
+      return { ...t, assigneeAgentId: ids[i++ % ids.length] };
+    });
+    if (assigned === 0) return;
+    setTasks(next);
+    void persistTaskCanvasActivities([
+      {
+        agent: "@task-canvas",
+        action: `Quadro: distribuiu ${assigned} tarefa(s) na fila por ${ids.length} agente(s).`,
+      },
+    ]);
+  }, []);
 
   const clearDoneWithActivity = useCallback(() => {
     const doneCount = tasksRef.current.filter((t) => t.columnId === "done").length;
     clearDone();
-    if (doneCount > 0) publishTeamActivity(`Limpeza de concluídas: ${doneCount} tarefa(s)`);
-  }, [clearDone, publishTeamActivity]);
+    if (doneCount > 0) {
+      void persistTaskCanvasActivities([
+        { agent: "@task-canvas", action: `Limpeza de concluídas: ${doneCount} tarefa(s)` },
+      ]);
+    }
+  }, [clearDone]);
 
   const clearAllWithActivity = useCallback(() => {
     const count = tasksRef.current.length;
     clearAll();
-    if (count > 0) publishTeamActivity(`Limpeza total do quadro: ${count} tarefa(s) removida(s)`);
-  }, [clearAll, publishTeamActivity]);
+    if (count > 0) {
+      void persistTaskCanvasActivities([
+        { agent: "@task-canvas", action: `Limpeza total do quadro: ${count} tarefa(s) removida(s)` },
+      ]);
+    }
+  }, [clearAll]);
 
   return {
     tasks,
@@ -331,6 +472,8 @@ export function useTaskBoard() {
     clearDone: clearDoneWithActivity,
     replaceTasks,
     clearAll: clearAllWithActivity,
+    /** Reparte tarefas em `todo` sem `assigneeAgentId` pelos agentes (round-robin). */
+    distributeTodoAssignees,
     /** `true` quando `VITE_TASK_BOARD_SYNC` está activo e a carga inicial do servidor terminou. */
     taskBoardSync: TASK_BOARD_SYNC,
     taskBoardSyncHydrated: syncHydrated,

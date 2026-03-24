@@ -20,9 +20,9 @@ function friendlyNonJsonErrorBody(text: string): string {
   if (/<!DOCTYPE/i.test(t) || /<html/i.test(t) || /Cannot GET \//.test(t)) {
     return (
       "A API não devolveu JSON (HTML ou página de erro em vez de JSON em `/api`). " +
-      "Em desenvolvimento, corre `npm run dev` ou `npm run preview` (a ponte Express fica embebida no Vite). " +
+      "Em desenvolvimento, corre `npm run dev` (Express em :8787 + Vite em :5179) ou `npm run dev:embed` / `npm run preview` (API embebida no Vite). " +
       "Em produção local: `npm run build` + `npm start` (tudo na mesma origem, por defeito :8787). " +
-      "Se usares `MISSION_EMBED_API=0`, precisas de Express em :8787 (`preview:all` ou `dev:split`)."
+      "Com `MISSION_EMBED_API=0` no Vite, o Express tem de estar a ouvir em :8787 (`preview:all` ou `npm run dev`)."
     );
   }
   return text;
@@ -33,7 +33,7 @@ function parseJsonOkBody<T>(text: string): T {
   const trimmed = text.trim();
   if (!trimmed) {
     throw new Error(
-      "Resposta vazia em `/api` (esperado JSON). Corre `npm run dev` ou `npm run preview`, ou `npm run build` + `npm start`."
+      "Resposta vazia em `/api` (esperado JSON). Corre `npm run dev`, `npm run dev:embed`, `npm run preview`, ou `npm run build` + `npm start`."
     );
   }
   try {
@@ -306,6 +306,50 @@ export async function getTaskBoard(): Promise<{ tasks: TaskItem[]; revision: str
   };
 }
 
+export type TaskRunStatus = "running" | "succeeded" | "failed";
+export type TaskRunEntry = {
+  runId: string;
+  taskId: string;
+  assigneeAgentId: string;
+  status: TaskRunStatus;
+  startedAt: string;
+  finishedAt: string | null;
+  updatedAt: string;
+  message: string;
+  suggestedColumn: "todo" | "doing" | "review" | "done" | "manter";
+  blocked: boolean;
+};
+
+export async function getTaskRuns(): Promise<{
+  runs: TaskRunEntry[];
+  autoRunEnabled: boolean;
+  pollMs: number;
+  backend: "file" | "postgres" | string;
+  policy: { raw: string; defaults: string[]; rules: string[] };
+}> {
+  const d = await fetchJson<{
+    ok?: boolean;
+    runs?: TaskRunEntry[];
+    autoRunEnabled?: boolean;
+    pollMs?: number;
+    backend?: string;
+    policy?: { raw?: string; defaults?: string[]; rules?: string[] };
+  }>(
+    "/api/aiox/task-runs"
+  );
+  return {
+    runs: Array.isArray(d.runs) ? d.runs : [],
+    autoRunEnabled: d.autoRunEnabled !== false,
+    pollMs: typeof d.pollMs === "number" && Number.isFinite(d.pollMs) ? d.pollMs : 5000,
+    backend: d.backend || "file",
+    policy: {
+      raw: d.policy?.raw || "",
+      defaults: Array.isArray(d.policy?.defaults) ? d.policy.defaults : [],
+      rules: Array.isArray(d.policy?.rules) ? d.policy.rules : [],
+    },
+  };
+}
+
 export async function putTaskBoard(tasks: TaskItem[], ifMatchRevision: string): Promise<{ revision: string }> {
   let r: Response;
   try {
@@ -362,6 +406,78 @@ export async function getCustomization(): Promise<{ data: HubCustomizationPayloa
   return {
     data: d.data ?? { agents: {}, office: {} },
     revision: typeof d.revision === "string" ? d.revision : "0:0",
+  };
+}
+
+export type IntegrationsConfigPayload = Partial<
+  Record<
+    | "MISSION_LLM_API_KEY"
+    | "MISSION_LLM_BASE_URL"
+    | "MISSION_LLM_MODEL"
+    | "MISSION_DOUBTS_LLM"
+    | "OPENAI_API_KEY"
+    | "SLACK_WEBHOOK_URL"
+    | "NOTION_TOKEN"
+    | "FIGMA_ACCESS_TOKEN"
+    | "DATABASE_URL"
+    | "ENABLE_AIOX_CLI_EXEC"
+    | "AIOX_EXEC_SECRET",
+    string
+  >
+>;
+
+export async function getIntegrationsConfig(): Promise<{
+  data: IntegrationsConfigPayload;
+  redacted: Record<string, string>;
+  revision: string;
+}> {
+  const d = await fetchJson<{
+    ok?: boolean;
+    data?: IntegrationsConfigPayload;
+    redacted?: Record<string, string>;
+    revision?: string;
+  }>("/api/aiox/integrations-config");
+  return {
+    data: d.data ?? {},
+    redacted: d.redacted ?? {},
+    revision: typeof d.revision === "string" ? d.revision : "0:0",
+  };
+}
+
+export async function putIntegrationsConfig(
+  data: IntegrationsConfigPayload,
+  ifMatchRevision: string
+): Promise<{ revision: string; redacted: Record<string, string> }> {
+  let r: Response;
+  try {
+    r = await fetch("/api/aiox/integrations-config", {
+      ...API_FETCH_INIT,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "If-Match": ifMatchRevision },
+      body: JSON.stringify({ data }),
+    });
+  } catch (e) {
+    throw new Error(
+      e instanceof TypeError
+        ? "Sem ligação à API. Confirma que o servidor está a correr (ex.: npm run dev)."
+        : String(e)
+    );
+  }
+  const text = await r.text();
+  if (r.status === 409) throw new Error("CONFLICT_INTEGRATIONS_CONFIG");
+  let body: { revision?: string; redacted?: Record<string, string>; error?: string } = {};
+  try {
+    if (text) body = JSON.parse(text) as typeof body;
+  } catch {
+    /* ignore */
+  }
+  if (!r.ok) {
+    if (body.error) throw new Error(`${scopeForHttpStatus(r.status)}: ${body.error}`);
+    throw new Error(text ? `${scopeForHttpStatus(r.status)}: ${text}` : `${scopeForHttpStatus(r.status)} (${r.status})`);
+  }
+  return {
+    revision: typeof body.revision === "string" ? body.revision : "0:0",
+    redacted: body.redacted ?? {},
   };
 }
 
@@ -453,10 +569,15 @@ export type IntegrationsStatus = {
   database: { configured: boolean; activityBackend: "file" | "postgres" | string };
   exec: { configured: boolean };
   doubts: {
-    openaiKeyConfigured: boolean;
+    llmKeyConfigured?: boolean;
     doubtsOptIn: boolean;
     llmEnabled: boolean;
     streamAvailable?: boolean;
+    llmValidated?: boolean;
+    llmError?: string | null;
+    llmValidationSkipped?: boolean;
+    /** @deprecated Usar llm*; mantido igual à API para compatibilidade */
+    openaiKeyConfigured: boolean;
     openaiValidated?: boolean;
     openaiError?: string | null;
   };
@@ -471,6 +592,26 @@ export type IntegrationsStatus = {
     mirrorReady: boolean;
   };
 };
+
+/**
+ * Alinhado com o servidor: OK se a sondagem LLM passou, ou se ainda não houve sondagem nesta resposta
+ * mas `llmEnabled` + `llmKeyConfigured` (ex.: `GET …/integrations-status` sem `validate=1`).
+ */
+export function doubtsLlmIntegrationSeemsOk(doubts: IntegrationsStatus["doubts"]): boolean {
+  if (!doubts || doubts.llmEnabled !== true) return false;
+  if (doubts.llmValidated === true || doubts.openaiValidated === true) return true;
+  const noHttpProbeYet = doubts.llmValidated === undefined && doubts.openaiValidated === undefined;
+  if (noHttpProbeYet && doubts.llmKeyConfigured === true) return true;
+  return false;
+}
+
+/** Mensagem curta para o cartão Integrações quando a validação LLM falhou (com opt-in activo). */
+export function doubtsLlmIntegrationErrorHint(doubts: IntegrationsStatus["doubts"]): string | null {
+  if (!doubts?.llmEnabled || doubtsLlmIntegrationSeemsOk(doubts)) return null;
+  const e = doubts.llmError ?? doubts.openaiError;
+  if (e != null && String(e).trim() !== "") return String(e);
+  return "Erro ao validar API LLM";
+}
 
 export async function getIntegrationsStatus(opts?: { validate?: boolean }): Promise<IntegrationsStatus> {
   const validate = opts?.validate ? "?validate=1" : "";
@@ -510,6 +651,150 @@ export async function postActivityEvent(payload: {
     throw new Error(err);
   }
   return parseJsonOkBody<{ ok: boolean }>(text);
+}
+
+export type TaskAgentStepResponse = {
+  ok: true;
+  retorno: string;
+  sugestao_coluna: "todo" | "doing" | "review" | "done" | "manter";
+  bloqueada?: boolean;
+};
+
+export type FigmaContextResponse = {
+  ok: true;
+  source: { fileKey: string; nodeId: string | null; depth: number | null };
+  meta: {
+    fileName: string | null;
+    version: string | null;
+    lastModified: string | null;
+    thumbnailUrl: string | null;
+  };
+  designSummary: {
+    nodeCount: number;
+    rootType: string | null;
+    rootName: string | null;
+  };
+};
+
+/**
+ * Pedido de retorno estruturado do LLM sobre uma tarefa do canvas (requer MISSION_DOUBTS_LLM + chave LLM).
+ */
+export async function postTaskBoardAgentStep(payload: {
+  task: Pick<TaskItem, "id" | "title" | "columnId"> &
+    Partial<Pick<TaskItem, "note" | "blocked" | "assigneeAgentId">>;
+  assigneeLabel?: string;
+}): Promise<TaskAgentStepResponse> {
+  let r: Response;
+  try {
+    r = await fetch("/api/aiox/task-board/agent-step", {
+      ...API_FETCH_INIT,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    throw new Error(
+      e instanceof TypeError
+        ? "Sem ligação à API. Confirma que o servidor está a correr (ex.: npm run dev)."
+        : String(e)
+    );
+  }
+  const text = await r.text();
+  let data: {
+    ok?: boolean;
+    retorno?: string;
+    sugestao_coluna?: string;
+    bloqueada?: boolean;
+    error?: string;
+    retryAfterSec?: number;
+  } = {};
+  try {
+    if (text) data = JSON.parse(text) as typeof data;
+  } catch {
+    /* ignore */
+  }
+  if (!r.ok) {
+    let err = data.error || text || "falha no retorno do agente";
+    if (r.status === 404 && /recurso API não encontrado/i.test(String(err))) {
+      err =
+        "servidor API desactualizado ou rota em falta. Para o Node na porta 8787 (se usas npm run dev:split), volta a arrancar; com npm run dev a API fica embebida no Vite — reinicia o Vite. Confirma GET /api/health → capabilities.taskBoardAgentStep.";
+    }
+    if (r.status === 429 && typeof data.retryAfterSec === "number") {
+      err += ` (repetir daqui a ~${data.retryAfterSec}s)`;
+    }
+    throw new Error(`${scopeForHttpStatus(r.status)}: ${err}`);
+  }
+  if (data.ok !== true || typeof data.retorno !== "string" || !data.retorno.trim()) {
+    throw new Error("Resposta inválida do servidor (agent-step).");
+  }
+  const col = (data.sugestao_coluna || "manter").toLowerCase();
+  const sugestao_coluna =
+    col === "todo" || col === "doing" || col === "review" || col === "done" || col === "manter"
+      ? col
+      : "manter";
+  return {
+    ok: true,
+    retorno: data.retorno.trim(),
+    sugestao_coluna,
+    ...(typeof data.bloqueada === "boolean" ? { bloqueada: data.bloqueada } : {}),
+  };
+}
+
+export async function postFigmaContext(payload: {
+  figmaUrl?: string;
+  fileKey?: string;
+  nodeId?: string;
+  depth?: number;
+}): Promise<FigmaContextResponse> {
+  let r: Response;
+  try {
+    r = await fetch("/api/aiox/figma/context", {
+      ...API_FETCH_INIT,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    throw new Error(
+      e instanceof TypeError
+        ? "Sem ligação à API. Confirma que o servidor está a correr (ex.: npm run dev)."
+        : String(e)
+    );
+  }
+  const text = await r.text();
+  let data: {
+    ok?: boolean;
+    code?: string;
+    error?: string;
+    hint?: string;
+    source?: FigmaContextResponse["source"];
+    meta?: FigmaContextResponse["meta"];
+    designSummary?: FigmaContextResponse["designSummary"];
+  } = {};
+  try {
+    if (text) data = JSON.parse(text) as typeof data;
+  } catch {
+    /* ignore */
+  }
+  if (!r.ok) {
+    const msg = [data.error, data.hint].filter(Boolean).join(" ");
+    throw new Error(`${scopeForHttpStatus(r.status)}: ${msg || text || "falha ao obter contexto Figma"}`);
+  }
+  if (
+    data.ok !== true ||
+    !data.source ||
+    !data.meta ||
+    !data.designSummary ||
+    !Number.isFinite(data.designSummary.nodeCount)
+  ) {
+    throw new Error("Resposta inválida do servidor (figma/context).");
+  }
+  return {
+    ok: true,
+    source: data.source,
+    meta: data.meta,
+    designSummary: data.designSummary,
+  };
 }
 
 export async function putAgentMarkdown(

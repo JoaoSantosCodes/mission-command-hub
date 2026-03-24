@@ -220,6 +220,11 @@ let celebrationTimer = 0;
 let kanbanTasks = { doing: [], done: [] };
 let sessionStats = { exchanges: 0, tasksCompleted: 0, startTime: Date.now() };
 
+/** Espelho das tarefas do canvas modular (React) — quadro branco no escritório. */
+let canvasBoardTasks = [];
+/** @type {Array<{ id: string, title?: string }>} */
+let canvasSyncAgentRows = [];
+
 // Aquário (visual) - estado vem da UI (fish food / tokens).
 // Por defeito, alinha com fish-store.mjs (100/100).
 let fishFoodState = { food: 100, maxFood: 100, mood: "feliz" };
@@ -946,6 +951,16 @@ export function consumeSuppressOfficeClick() {
 
 // --- Public API ---
 
+/**
+ * Actualiza o espelho do quadro Kanban da UI no quadro branco (vista Central).
+ * @param {unknown} tasks
+ * @param {unknown} agentRows
+ */
+export function syncTaskBoardFromCanvas(tasks, agentRows) {
+  canvasBoardTasks = Array.isArray(tasks) ? tasks.slice() : [];
+  canvasSyncAgentRows = Array.isArray(agentRows) ? agentRows.slice() : [];
+}
+
 export function setAgentState(agentId, state, data = {}) {
   const agent = agents.find(a => a.id === agentId);
   if (!agent) return;
@@ -1530,6 +1545,18 @@ function drawWeatherCloud(cx, cy, color) {
   pixel(cx - PX * 1.5, cy, PX); pixel(cx - PX * 0.5, cy, PX); pixel(cx + PX * 0.5, cy, PX); pixel(cx + PX * 1.5, cy, PX);
 }
 
+/** Uma linha de tarefa do canvas para o quadro branco (truncate é hoisted). */
+function canvasTaskLineForWhiteboard(t) {
+  const title = truncate(String(t.title || '').replace(/\s+/g, ' '), 18);
+  const aid = t.assigneeAgentId ? String(t.assigneeAgentId) : '';
+  if (aid) {
+    const row = canvasSyncAgentRows.find((r) => r.id === aid);
+    const lab = row && row.title ? truncate(String(row.title), 7) : truncate(aid, 7);
+    return truncate(`@${lab} ${title}`, 24);
+  }
+  return title;
+}
+
 function drawWhiteboard() {
   const w = canvas.width;
   const wbW = PX * 28, wbH = PX * 13;
@@ -1545,7 +1572,8 @@ function drawWhiteboard() {
   // 3 kanban columns
   const colW = Math.floor((wbW - PX * 2) / 3);
   const colY = wbY + PX * 3;
-  const headers = OFFICE_BRAND.boardCols;
+  const mirrorCanvas = canvasBoardTasks.length > 0;
+  const headers = mirrorCanvas ? ['FILA', 'CURSO', 'FEITO'] : OFFICE_BRAND.boardCols;
   const hColors = ['#2A8A3A', '#CC8800', '#3A3ADA'];
   const stateColors = { idle: '#00FF66', thinking: '#FFCC00', working: '#AA66FF', talking: '#00DDFF' };
 
@@ -1556,48 +1584,70 @@ function drawWhiteboard() {
     ctx.fillText(headers[c], cx + colW / 2, colY + PX * 0.3);
   }
 
-  const idleAgents = agents.filter((a) => a.state === 'idle');
-  const busyAgents = agents.filter((a) => a.state !== 'idle');
   const maxKanbanRows = 6;
   const rowStep = agents.length > 8 ? PX * 1.25 : PX * 1.6;
 
-  // Column 1: IDLE agents
-  for (let i = 0; i < idleAgents.length && i < maxKanbanRows; i++) {
-    const a = idleAgents[i], cx = wbX + PX + colW / 2, cy = colY + PX * 1.5 + i * rowStep;
-    ctx.fillStyle = a.color;
-    ctx.beginPath(); ctx.arc(cx - PX * 3, cy, PX * 0.4, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#444'; ctx.font = `${PX * 1.2}px VT323`; ctx.textAlign = 'left';
-    ctx.fillText(a.label, cx - PX * 2, cy + PX * 0.3);
-  }
-
-  // Column 2: BUSY agents
-  for (let i = 0; i < busyAgents.length && i < maxKanbanRows; i++) {
-    const a = busyAgents[i], cx = wbX + PX + colW + colW / 2, cy = colY + PX * 1.5 + i * rowStep;
-    ctx.fillStyle = stateColors[a.state] || a.color;
-    ctx.beginPath(); ctx.arc(cx - PX * 3, cy, PX * 0.4, 0, Math.PI * 2); ctx.fill();
-    // Pulsing dot for active work
-    if (a.state === 'working' || a.state === 'thinking') {
-      const pulse = 0.3 + Math.sin(tick / 200) * 0.2;
-      ctx.save(); ctx.globalAlpha = pulse;
-      ctx.beginPath(); ctx.arc(cx - PX * 3, cy, PX * 0.8, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
+  if (mirrorCanvas) {
+    const byOrder = (a, b) => (a.order ?? 0) - (b.order ?? 0);
+    const todoT = canvasBoardTasks.filter((t) => t.columnId === 'todo').sort(byOrder);
+    const actT = canvasBoardTasks
+      .filter((t) => t.columnId === 'doing' || t.columnId === 'review')
+      .sort(byOrder);
+    const doneT = canvasBoardTasks.filter((t) => t.columnId === 'done').sort(byOrder).slice(-4);
+    const cols = [todoT, actT, doneT];
+    const tStep = PX * 1.42;
+    for (let c = 0; c < 3; c++) {
+      const cx = wbX + PX + c * colW;
+      const list = cols[c];
+      for (let i = 0; i < list.length && i < maxKanbanRows; i++) {
+        const cy = colY + PX * 1.5 + i * tStep;
+        ctx.fillStyle = c === 2 ? '#3A9A5A' : '#666666';
+        ctx.font = `${PX * 1.05}px VT323`;
+        ctx.textAlign = 'left';
+        ctx.fillText(`\u2022 ${canvasTaskLineForWhiteboard(list[i])}`, cx + PX * 0.35, cy + PX * 0.3);
+      }
     }
-    ctx.fillStyle = '#444'; ctx.font = `${PX * 1.2}px VT323`; ctx.textAlign = 'left';
-    ctx.fillText(a.label, cx - PX * 2, cy + PX * 0.3);
-  }
+  } else {
+    const idleAgents = agents.filter((a) => a.state === 'idle');
+    const busyAgents = agents.filter((a) => a.state !== 'idle');
 
-  // Column 3: DONE (recent completed tasks)
-  const recentDone = kanbanTasks.done.slice(-3);
-  for (let i = 0; i < recentDone.length; i++) {
-    const t = recentDone[i], a = agents.find(ag => ag.id === t.agentId);
-    if (!a) continue;
-    const cx = wbX + PX + colW * 2 + colW / 2, cy = colY + PX * 1.5 + i * PX * 1.6;
-    ctx.fillStyle = a.color;
-    ctx.beginPath(); ctx.arc(cx - PX * 3, cy, PX * 0.4, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#2A8A3A'; ctx.font = `bold ${PX * 1.2}px VT323`; ctx.textAlign = 'left';
-    ctx.fillText('>', cx - PX * 2, cy + PX * 0.3);
-    ctx.fillStyle = '#555'; ctx.font = `${PX * 1.1}px VT323`;
-    ctx.fillText(a.label, cx - PX * 0.8, cy + PX * 0.3);
+    // Column 1: IDLE agents
+    for (let i = 0; i < idleAgents.length && i < maxKanbanRows; i++) {
+      const a = idleAgents[i], cx = wbX + PX + colW / 2, cy = colY + PX * 1.5 + i * rowStep;
+      ctx.fillStyle = a.color;
+      ctx.beginPath(); ctx.arc(cx - PX * 3, cy, PX * 0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#444'; ctx.font = `${PX * 1.2}px VT323`; ctx.textAlign = 'left';
+      ctx.fillText(a.label, cx - PX * 2, cy + PX * 0.3);
+    }
+
+    // Column 2: BUSY agents
+    for (let i = 0; i < busyAgents.length && i < maxKanbanRows; i++) {
+      const a = busyAgents[i], cx = wbX + PX + colW + colW / 2, cy = colY + PX * 1.5 + i * rowStep;
+      ctx.fillStyle = stateColors[a.state] || a.color;
+      ctx.beginPath(); ctx.arc(cx - PX * 3, cy, PX * 0.4, 0, Math.PI * 2); ctx.fill();
+      if (a.state === 'working' || a.state === 'thinking') {
+        const pulse = 0.3 + Math.sin(tick / 200) * 0.2;
+        ctx.save(); ctx.globalAlpha = pulse;
+        ctx.beginPath(); ctx.arc(cx - PX * 3, cy, PX * 0.8, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+      ctx.fillStyle = '#444'; ctx.font = `${PX * 1.2}px VT323`; ctx.textAlign = 'left';
+      ctx.fillText(a.label, cx - PX * 2, cy + PX * 0.3);
+    }
+
+    // Column 3: DONE (recent completed tasks)
+    const recentDone = kanbanTasks.done.slice(-3);
+    for (let i = 0; i < recentDone.length; i++) {
+      const t = recentDone[i], a = agents.find(ag => ag.id === t.agentId);
+      if (!a) continue;
+      const cx = wbX + PX + colW * 2 + colW / 2, cy = colY + PX * 1.5 + i * PX * 1.6;
+      ctx.fillStyle = a.color;
+      ctx.beginPath(); ctx.arc(cx - PX * 3, cy, PX * 0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#2A8A3A'; ctx.font = `bold ${PX * 1.2}px VT323`; ctx.textAlign = 'left';
+      ctx.fillText('>', cx - PX * 2, cy + PX * 0.3);
+      ctx.fillStyle = '#555'; ctx.font = `${PX * 1.1}px VT323`;
+      ctx.fillText(a.label, cx - PX * 0.8, cy + PX * 0.3);
+    }
   }
 
   // Bottom stats bar

@@ -42,6 +42,7 @@ type HubHeaderProps = {
   /** Painel lateral Dúvidas / chat local */
   onOpenDoubts?: () => void;
   onOpenCustomization?: () => void;
+  onOpenIntegrationsConfig?: () => void;
   customizationSyncLabel?: string;
   viewMode?: HubViewMode;
   onViewModeChange?: (mode: HubViewMode) => void;
@@ -67,6 +68,7 @@ export function HubHeader({
   onOpenActivityDrawer,
   onOpenDoubts,
   onOpenCustomization,
+  onOpenIntegrationsConfig,
   customizationSyncLabel,
   viewMode = "hub",
   onViewModeChange,
@@ -235,6 +237,17 @@ export function HubHeader({
             aria-label="Abrir painel de personalização"
           >
             <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        ) : null}
+        {onOpenIntegrationsConfig ? (
+          <button
+            type="button"
+            onClick={onOpenIntegrationsConfig}
+            className="rounded-md border border-border p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            title="Configuração de APIs e integrações"
+            aria-label="Abrir configuração de integrações"
+          >
+            <Sparkles className="h-3.5 w-3.5" aria-hidden />
           </button>
         ) : null}
         <button

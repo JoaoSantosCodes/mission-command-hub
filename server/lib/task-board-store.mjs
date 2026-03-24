@@ -10,6 +10,15 @@ export const TASK_BOARD_MAX_ITEMS = 2000;
 
 const COL_IDS = new Set(["todo", "doing", "review", "done"]);
 const PRIORITIES = new Set(["low", "medium", "high", "urgent"]);
+const AGENT_ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
+
+/** @param {unknown} v */
+function sanitizeAssigneeAgentId(v) {
+  if (typeof v !== "string") return undefined;
+  const s = v.trim();
+  if (!s || !AGENT_ID_RE.test(s)) return undefined;
+  return s;
+}
 
 /** @param {string} filePath */
 export function computeTaskBoardRevision(filePath) {
@@ -51,7 +60,10 @@ export function normalizeTaskBoardPayload(raw) {
     const priority =
       typeof o.priority === "string" && PRIORITIES.has(o.priority) ? o.priority : undefined;
     const blocked = o.blocked === true;
-    out.push({ id, title, columnId, order, createdAt, note, priority, blocked });
+    const assigneeAgentId = sanitizeAssigneeAgentId(o.assigneeAgentId);
+    const row = { id, title, columnId, order, createdAt, note, priority, blocked };
+    if (assigneeAgentId) row.assigneeAgentId = assigneeAgentId;
+    out.push(row);
   }
   return { tasks: out };
 }

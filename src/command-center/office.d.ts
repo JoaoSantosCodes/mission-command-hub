@@ -23,6 +23,11 @@ export function syncAgentsFromLogs(
   logRows: Array<{ agent: string; action: string; kind?: string; type?: string }>,
   agentRows: Array<{ id: string; title?: string }>
 ): void;
+/** Espelha tarefas do canvas modular no quadro branco (colunas FILA / CURSO / FEITO). */
+export function syncTaskBoardFromCanvas(
+  tasks: Array<{ id: string; title?: string; columnId?: string; order?: number; assigneeAgentId?: string }>,
+  agentRows: Array<{ id: string; title?: string }>
+): void;
 export function setAgentAccentOverrides(overridesMap: Record<string, string>): void;
 
 export function setFishFoodState(state: {

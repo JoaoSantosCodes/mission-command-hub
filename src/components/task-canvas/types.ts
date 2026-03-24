@@ -14,6 +14,11 @@ export type TaskItem = {
   priority?: TaskPriority;
   /** Bloqueada (ex.: dependência externa) — só metadados no cliente. */
   blocked?: boolean;
+  /**
+   * Agente aiox-core (id do ficheiro `.md`, sem extensão).
+   * Usado no escritório (Central) e no feed de atividades.
+   */
+  assigneeAgentId?: string;
 };
 
 export type BoardPresetId = "standard" | "agents" | "delivery";

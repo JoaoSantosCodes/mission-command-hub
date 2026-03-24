@@ -298,13 +298,26 @@ paths:
         - name: validate
           in: query
           required: false
+          description: |
+            Definir a `1` para executar sondagens HTTP (LLM, Notion, Figma), preencher `*_Validated` / `*_Error` em `doubts`, `notion`, `figma` e gravar entrada em `history`.
+            Omitir para resposta só baseada em env (snapshot); campos de validação LLM podem não aparecer — ver descrição do endpoint.
           schema:
             type: string
             enum: ["1"]
       description: |
         Painel para a UI verificar o que o servidor consegue detetar (env/configs e capacidades).
-        Quando `validate=1`, o servidor faz chamadas HTTP leves para validar chaves/tokens:
-        OpenAI `/v1/models`, Notion `/v1/users/me`, Figma `/v1/me`.
+
+        **Snapshot (sem `validate=1` ou com query omitida):** só leitura de configuração local.
+        O objecto `doubts` inclui `llmKeyConfigured`, `llmEnabled`, `doubtsOptIn`, `streamAvailable`, etc.
+        Os campos `llmValidated`, `llmError`, `openaiValidated`, `openaiError`, `llmValidationSkipped` **não vêm preenchidos** pela sondagem HTTP — não interpretar a ausência como falha: o resumo (`summary`) e `alerts` consideram o LLM Dúvidas como satisfeito quando `llmEnabled` e `llmKeyConfigured` são verdadeiros (opt-in + chave ≥8 caracteres).
+
+        **Com `validate=1`:** o servidor corre validações externas (com TTL ~45s em cache) e **mergeia** o resultado na resposta.
+        Aí `doubts.llmValidated` / `doubts.openaiValidated` reflectem a sondagem (ou `true` com `llmValidationSkipped` se `MISSION_LLM_VALIDATE=0`).
+        Se a sondagem falhar, `llmError` / `openaiError` trazem a mensagem; o cartão no resumo deixa de contar OK para o LLM.
+        Notion: `GET /v1/users/me`; Figma: `GET /v1/me`.
+        LLM: `GET {MISSION_LLM_BASE_URL}/{MISSION_LLM_PROBE_PATH}` (por defeito `.../v1/models`) com Bearer `MISSION_LLM_API_KEY` ou `OPENAI_API_KEY`; com `MISSION_LLM_VALIDATE=0` não há pedido HTTP (só verifica comprimento da chave).
+
+        Novos snapshots no `history` são gravados quando se usa `validate=1`.
       responses:
         "200":
           description: OK
@@ -318,13 +331,18 @@ paths:
                   generatedAt: { type: string, format: date-time }
                   summary:
                     type: object
+                    description: |
+                      Contagens usadas pelo painel Integrações (`okCount`/`total`, `healthScore` 0–100).
+                      O critério “LLM Dúvidas OK” sem `validate=1` é configuração presente; com `validate=1` exige sondagem bem-sucedida (ou skip `MISSION_LLM_VALIDATE=0`).
                     properties:
                       okCount: { type: integer }
                       total: { type: integer }
                       healthScore: { type: integer, minimum: 0, maximum: 100 }
                   alerts:
                     type: array
-                    description: Alertas operacionais derivados do estado atual.
+                    description: |
+                      Alertas operacionais derivados do estado actual.
+                      Sem `validate=1`, o LLM Dúvidas só gera alerta se não estiver configurado (opt-in/chave); com `validate=1`, inclui falhas de sondagem HTTP.
                     items: { type: string }
                   history:
                     type: array
@@ -350,17 +368,42 @@ paths:
                       configured: { type: boolean }
                   doubts:
                     type: object
+                    description: |
+                      Estado do painel Dúvidas / LLM no servidor.
+                      **Sem `validate=1`:** presentes sobretudo `llmKeyConfigured`, `doubtsOptIn`, `llmEnabled`, `streamAvailable`; campos de validação HTTP podem estar ausentes.
+                      **Com `validate=1`:** mesmos campos + resultado da sondagem (`llmValidated`, `llmError`, opcional `llmValidationSkipped`).
                     properties:
-                      openaiKeyConfigured: { type: boolean }
-                      doubtsOptIn: { type: boolean }
-                      llmEnabled: { type: boolean }
+                      llmKeyConfigured:
+                        type: boolean
+                        description: "Chave LLM presente no env (≥8 caracteres), independentemente de `validate=1`."
+                      openaiKeyConfigured:
+                        type: boolean
+                        description: "Alias de llmKeyConfigured (compatibilidade)."
+                      doubtsOptIn: { type: boolean, description: "`MISSION_DOUBTS_LLM=1`." }
+                      llmEnabled:
+                        type: boolean
+                        description: "Opt-in + chave — rotas de chat disponíveis no servidor."
                       streamAvailable: { type: boolean }
+                      llmValidated:
+                        type: boolean
+                        description: |
+                          Resultado da sondagem HTTP ao upstream LLM. **Só é enviado na resposta quando `validate=1`** (merge com cache de validação).
+                          Se o campo estiver ausente, não assumir falha se `llmEnabled` e `llmKeyConfigured` forem `true`.
+                          Com `MISSION_LLM_VALIDATE=0`, a validação é considerada OK sem GET (`llmValidationSkipped`).
+                      llmError:
+                        type: string
+                        nullable: true
+                        description: "Mensagem quando `validate=1` e a sondagem LLM falhou (ou sem chave). Ausente ou null quando OK."
+                      llmValidationSkipped:
+                        type: boolean
+                        description: "Presente com `validate=1` quando `MISSION_LLM_VALIDATE=0` (sem GET ao upstream)."
                       openaiValidated:
                         type: boolean
-                        description: "Só existe quando validate=1."
+                        description: "Alias de llmValidated (compatibilidade); mesma regra de presença só com `validate=1`."
                       openaiError:
                         type: string
                         nullable: true
+                        description: "Alias de llmError (compatibilidade)."
                   notion:
                     type: object
                     properties:
@@ -395,6 +438,82 @@ paths:
                       webhookConfigured: { type: boolean }
                       webhookFormatOk: { type: boolean }
                       mirrorReady: { type: boolean }
+  /api/aiox/figma/context:
+    post:
+      summary: Lê e resume contexto de design do Figma
+      description: |
+        Endpoint de leitura para extrair contexto de design a partir de `figmaUrl` ou `fileKey`.
+        Requer `FIGMA_ACCESS_TOKEN` configurado no servidor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                figmaUrl:
+                  type: string
+                  description: URL Figma completa (file/design, opcionalmente com node-id)
+                fileKey:
+                  type: string
+                  description: Chave do ficheiro Figma (alfanumérica)
+                nodeId:
+                  type: string
+                  description: ID do nó (ex. 123:456). Aceita hífen e normaliza para dois-pontos.
+                depth:
+                  type: integer
+                  minimum: 1
+                  maximum: 8
+                  description: Profundidade opcional da leitura no documento
+      responses:
+        "200":
+          description: Contexto obtido com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  source:
+                    type: object
+                    properties:
+                      fileKey: { type: string }
+                      nodeId: { type: string, nullable: true }
+                      depth: { type: integer, nullable: true }
+                  meta:
+                    type: object
+                    properties:
+                      fileName: { type: string, nullable: true }
+                      version: { type: string, nullable: true }
+                      lastModified: { type: string, nullable: true }
+                      thumbnailUrl: { type: string, nullable: true }
+                  designSummary:
+                    type: object
+                    properties:
+                      nodeCount: { type: integer, minimum: 0 }
+                      rootType: { type: string, nullable: true }
+                      rootName: { type: string, nullable: true }
+        "400":
+          description: Pedido inválido ou falha de leitura no upstream Figma
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: false }
+                  code: { type: string, example: FIGMA_CONTEXT_ERROR }
+                  error: { type: string }
+        "503":
+          description: Token Figma ausente no servidor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: false }
+                  code: { type: string, example: FIGMA_TOKEN_MISSING }
+                  error: { type: string }
+                  hint: { type: string }
   /api/aiox/overview:
     get:
       summary: Vista agregada (ponte + lista de agentes + feed + contagens)
@@ -440,9 +559,11 @@ paths:
       summary: Capacidades do painel Dúvidas & ajuda (UI)
       description: |
         Estado actual: notas em `sessionStorage` no browser vs. **LLM opcional** no servidor.
-        `llmEnabled` é `true` quando `MISSION_DOUBTS_LLM=1` e existe chave OpenAI-compatible (`OPENAI_API_KEY` ou `MISSION_LLM_API_KEY`).
+        `llmEnabled` é `true` quando `MISSION_DOUBTS_LLM=1` e existe chave (`MISSION_LLM_API_KEY` recomendado, ou `OPENAI_API_KEY` legado) para API compatível com `/v1/chat/completions`.
         `knowledgeBaseEnabled` reservado para indexação futura. Chaves só no servidor (nunca no bundle Vite).
         `docsUrl` opcional via `MISSION_DOUBTS_HELP_URL`.
+        `dataPolicyNotice` / `dataPolicyUrl`: aviso de privacidade (personalizável com `MISSION_DOUBTS_DATA_NOTICE` / `MISSION_DOUBTS_DATA_POLICY_URL`).
+        `rateLimitMax` + `rateLimitWindowMs`: limite partilhado entre `POST .../doubts/chat` e `.../chat/stream` (`DOUBTS_CHAT_RATE_MAX`, `DOUBTS_CHAT_WINDOW_MS`).
       responses:
         "200":
           description: OK
@@ -450,7 +571,15 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [ok, llmEnabled, knowledgeBaseEnabled, message]
+                required:
+                  - ok
+                  - llmEnabled
+                  - knowledgeBaseEnabled
+                  - message
+                  - streamAvailable
+                  - dataPolicyNotice
+                  - rateLimitMax
+                  - rateLimitWindowMs
                 properties:
                   ok: { type: boolean, example: true }
                   llmEnabled:
@@ -467,12 +596,26 @@ paths:
                   streamAvailable:
                     type: boolean
                     description: "true quando o streaming (POST /api/aiox/doubts/chat/stream) está disponível — igual a llmEnabled"
+                  dataPolicyNotice:
+                    type: string
+                    description: Aviso de privacidade para a UI (MISSION_DOUBTS_DATA_NOTICE ou texto por defeito)
+                  dataPolicyUrl:
+                    type: string
+                    nullable: true
+                    description: URL opcional para política completa (MISSION_DOUBTS_DATA_POLICY_URL)
+                  rateLimitMax:
+                    type: integer
+                    description: Máximo de POST chat+stream por IP por janela (DOUBTS_CHAT_RATE_MAX)
+                  rateLimitWindowMs:
+                    type: integer
+                    description: Duração da janela em ms (DOUBTS_CHAT_WINDOW_MS, por defeito 60000)
   /api/aiox/doubts/chat:
     post:
       summary: Resposta do modelo (painel Dúvidas) — opt-in
       description: |
-        Requer `MISSION_DOUBTS_LLM=1` e chave OpenAI-compatible. Usa endpoint `/v1/chat/completions` (modelo `MISSION_LLM_MODEL`, por defeito gpt-4o-mini).
-        Rate limit: `DOUBTS_CHAT_RATE_MAX` por IP por minuto (por defeito 20). Última mensagem em `messages` deve ser `role: user`.
+        Requer `MISSION_DOUBTS_LLM=1` e chave (`MISSION_LLM_API_KEY` ou `OPENAI_API_KEY`). Usa `{MISSION_LLM_BASE_URL}/v1/chat/completions` (modelo `MISSION_LLM_MODEL`).
+        Rate limit partilhado com `/chat/stream`: `DOUBTS_CHAT_RATE_MAX` pedidos por janela `DOUBTS_CHAT_WINDOW_MS` (por defeito 20 / 60s). Última mensagem em `messages` deve ser `role: user`.
+        Pedidos registam métricas em log (`doubtsLlm`, `msgCount`, `approxChars`) sem conteúdo das mensagens.
       requestBody:
         required: true
         content:
@@ -515,7 +658,7 @@ paths:
       summary: Resposta do modelo em streaming (SSE) — painel Dúvidas
       description: |
         Mesmo corpo e validação que `POST /api/aiox/doubts/chat`. Resposta `text/event-stream`: linhas `data: {"delta":"..."}` (troços de texto) e final `data: [DONE]`.
-        Erro: linha `data: {"error":"..."}`. Rate limit partilhado (`DOUBTS_CHAT_RATE_MAX`). Timeout longo: `MISSION_LLM_STREAM_TIMEOUT_MS` ou `MISSION_LLM_TIMEOUT_MS`.
+        Erro: linha `data: {"error":"..."}`. Rate limit partilhado com `POST .../chat` (`DOUBTS_CHAT_RATE_MAX` / `DOUBTS_CHAT_WINDOW_MS`). Timeout longo: `MISSION_LLM_STREAM_TIMEOUT_MS` ou `MISSION_LLM_TIMEOUT_MS`.
       requestBody:
         required: true
         content:

@@ -1,18 +1,17 @@
 /**
- * Chat opcional no painel Dúvidas via API OpenAI-compatible (POST /v1/chat/completions).
- * Chaves só em variáveis de ambiente no servidor — nunca no bundle Vite.
+ * Chat opcional no painel Dúvidas via API compatível com OpenAI (`POST /v1/chat/completions`).
+ * Chave: `MISSION_LLM_API_KEY` (recomendado) ou `OPENAI_API_KEY` (legado). Base: `MISSION_LLM_BASE_URL`.
  */
 import { logger } from "./logger.mjs";
+import { getLlmApiKeyFromEnv, getLlmBaseUrlFromEnv } from "./llm-api-key.mjs";
 
 function apiKey() {
-  const k = process.env.OPENAI_API_KEY || process.env.MISSION_LLM_API_KEY || "";
-  return typeof k === "string" ? k.trim() : "";
+  return getLlmApiKeyFromEnv();
 }
 
-/** Base URL sem barra final (OpenAI ou proxy compatível). */
+/** Base URL sem barra final (qualquer host compatível). */
 export function getDoubtsLlmBaseUrl() {
-  const raw = process.env.MISSION_LLM_BASE_URL || process.env.OPENAI_BASE_URL || "https://api.openai.com";
-  return String(raw).replace(/\/$/, "");
+  return getLlmBaseUrlFromEnv();
 }
 
 export function getDoubtsLlmModel() {
@@ -41,6 +40,16 @@ export function getDoubtsSystemPrompt() {
   return typeof c === "string" && c.trim().length > 0 ? c.trim() : DEFAULT_SYSTEM;
 }
 
+/** Métricas sem PII — apenas contagens para observabilidade. */
+export function logDoubtsLlmRequest(userMessages, mode) {
+  const msgCount = userMessages.length;
+  const approxChars = userMessages.reduce(
+    (n, m) => n + (typeof m?.content === "string" ? m.content.length : 0),
+    0
+  );
+  logger.info({ doubtsLlm: true, mode, msgCount, approxChars }, "doubts LLM request");
+}
+
 /**
  * @param {Array<{ role: string; content: string }>} userMessages — só user/assistant (sem system)
  * @returns {Promise<{ text: string }>}
@@ -56,6 +65,7 @@ export async function callDoubtsChatCompletion(userMessages) {
   const maxTokens = Math.min(Math.max(Number(process.env.MISSION_LLM_MAX_TOKENS) || 1024, 64), 4096);
 
   const messages = [{ role: "system", content: getDoubtsSystemPrompt() }, ...userMessages];
+  logDoubtsLlmRequest(userMessages, "json");
 
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -169,6 +179,7 @@ export async function* streamDoubtsChatCompletion(userMessages) {
   );
   const maxTokens = Math.min(Math.max(Number(process.env.MISSION_LLM_MAX_TOKENS) || 1024, 64), 4096);
   const messages = [{ role: "system", content: getDoubtsSystemPrompt() }, ...userMessages];
+  logDoubtsLlmRequest(userMessages, "stream");
 
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -234,6 +245,145 @@ export async function* streamDoubtsChatCompletion(userMessages) {
   } catch (e) {
     if (e?.name === "AbortError") {
       throw new Error("Tempo esgotado ao contactar o modelo (stream).");
+    }
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+const TASK_AGENT_SYSTEM_DEFAULT = `És um agente de execução no quadro Kanban do Mission Agent. Produz um retorno operacional para a equipa avançar.
+Responde APENAS com JSON válido UTF-8 (sem markdown, sem texto antes ou depois) com exactamente estas chaves:
+"retorno": string (2 a 3500 caracteres) — trabalho realizado ou em curso, bloqueios, próximos passos verificáveis;
+"sugestao_coluna": uma de "todo","doing","review","done","manter" — onde o cartão deve ficar a seguir ("manter" se não mudar);
+"bloqueada": boolean — true se depende de algo externo e não deve avançar agora.
+O texto em "retorno" deve estar em português de Portugal.`;
+
+/** @returns {string} */
+export function getTaskAgentSystemPrompt() {
+  const c = process.env.MISSION_TASK_AGENT_SYSTEM_PROMPT;
+  return typeof c === "string" && c.trim().length > 0 ? c.trim() : TASK_AGENT_SYSTEM_DEFAULT;
+}
+
+const TASK_AGENT_COLS = new Set(["todo", "doing", "review", "done", "manter"]);
+
+/**
+ * @param {string} text
+ * @returns {{ retorno: string, sugestao_coluna: string, bloqueada?: boolean }}
+ */
+export function parseTaskAgentStepResponse(text) {
+  const t = String(text || "").trim();
+  let raw = t;
+  const fence = /^```(?:json)?\s*([\s\S]*?)```$/im.exec(t);
+  if (fence) raw = fence[1].trim();
+  const brace = raw.indexOf("{");
+  const last = raw.lastIndexOf("}");
+  if (brace === -1 || last <= brace) {
+    throw new Error('Resposta do modelo: JSON inválido (esperado objecto com "retorno").');
+  }
+  raw = raw.slice(brace, last + 1);
+  let o;
+  try {
+    o = JSON.parse(raw);
+  } catch {
+    throw new Error('Resposta do modelo: JSON inválido (esperado objecto com "retorno").');
+  }
+  const retorno = String(o.retorno ?? "").trim().slice(0, 4000);
+  if (!retorno) {
+    throw new Error('Resposta do modelo: campo "retorno" vazio.');
+  }
+  let sugestao_coluna = String(o.sugestao_coluna ?? "manter").trim().toLowerCase();
+  if (!TASK_AGENT_COLS.has(sugestao_coluna)) sugestao_coluna = "manter";
+  /** @type {boolean | undefined} */
+  let bloqueada;
+  if (typeof o.bloqueada === "boolean") bloqueada = o.bloqueada;
+  return { retorno, sugestao_coluna, bloqueada };
+}
+
+/**
+ * @param {{
+ *   id: string,
+ *   title: string,
+ *   note?: string,
+ *   columnId: string,
+ *   blocked?: boolean,
+ *   assigneeAgentId?: string,
+ *   assigneeLabel?: string,
+ * }} task
+ * @returns {Promise<{ text: string }>}
+ */
+export async function callTaskAgentStepCompletion(task) {
+  const key = apiKey();
+  const base = getDoubtsLlmBaseUrl();
+  const model = getDoubtsLlmModel();
+  const timeoutMs = Math.min(
+    Math.max(Number(process.env.MISSION_LLM_TIMEOUT_MS) || 60_000, 5000),
+    120_000
+  );
+  const maxTokens = Math.min(
+    Math.max(Number(process.env.MISSION_LLM_MAX_TOKENS_TASK) || 1800, 256),
+    4096
+  );
+  const note = typeof task.note === "string" && task.note.trim() ? task.note.trim().slice(0, 6000) : "(nenhuma)";
+  const userContent = [
+    `Identificador da tarefa: ${task.id}`,
+    `Coluna actual: ${task.columnId}`,
+    `Bloqueada (metadado do quadro): ${task.blocked === true ? "sim" : "não"}`,
+    `Título: ${task.title}`,
+    `Nota existente:\n${note}`,
+    `Agente atribuído (id): ${task.assigneeAgentId || "nenhum"}`,
+    task.assigneeLabel ? `Agente atribuído (rótulo): ${task.assigneeLabel}` : null,
+    "",
+    "Gera o JSON pedido no system prompt para esta tarefa.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const messages = [
+    { role: "system", content: getTaskAgentSystemPrompt() },
+    { role: "user", content: userContent },
+  ];
+  logger.info({ taskAgentStep: true, taskId: task.id, titleLen: task.title.length }, "task agent LLM request");
+
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${base}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+        ...optionalUpstreamHeaders(),
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        max_tokens: maxTokens,
+      }),
+      signal: controller.signal,
+    });
+    const raw = await res.text();
+    let data;
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      logger.warn({ status: res.status }, "task agent LLM resposta não-JSON");
+      throw new Error(`Resposta inválida do serviço de modelo (HTTP ${res.status}).`);
+    }
+    if (!res.ok) {
+      const errMsg =
+        data?.error?.message || data?.error || data?.message || raw?.slice(0, 200) || `HTTP ${res.status}`;
+      logger.warn({ status: res.status, err: String(errMsg).slice(0, 200) }, "task agent LLM upstream error");
+      throw new Error(typeof errMsg === "string" ? errMsg : "Erro do serviço de modelo.");
+    }
+    const text = data?.choices?.[0]?.message?.content;
+    if (typeof text !== "string" || !text.trim()) {
+      throw new Error("Resposta vazia do modelo.");
+    }
+    return { text: text.trim() };
+  } catch (e) {
+    if (e?.name === "AbortError") {
+      throw new Error("Tempo esgotado ao contactar o modelo.");
     }
     throw e;
   } finally {

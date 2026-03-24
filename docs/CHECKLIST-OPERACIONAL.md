@@ -9,8 +9,8 @@ Lista curta para **arranque**, **PR**, **release** e **processo de equipa**. O i
 - [ ] Node.js ≥ 20 instalado
 - [ ] `cd MissionAgent` e `npm install` (cria `.env` a partir de `.env.ready` se necessário)
 - [ ] `aiox-core` acessível em `../aiox-core` ou `AIOX_CORE_PATH` definido
-- [ ] `npm run dev` — UI na porta indicada pelo Vite (por defeito **5179**); header **API ligada**
-- [ ] (Opcional) `OPENAI_API_KEY` ou `MISSION_LLM_API_KEY` em `.env` para LLM no painel **Dúvidas** (`MISSION_DOUBTS_LLM=1` já vem em `.env.ready`)
+- [ ] `npm run dev` — Vite **:5179** com API embebida em `/api`; ou `npm run dev:split` — Express **:8787** + Vite com proxy; header **API ligada**; opcional `http://127.0.0.1:5179/api/health` ou **:8787** em modo split
+- [ ] (Opcional) **`MISSION_LLM_API_KEY`** (recomendado; qualquer API compatível) ou `OPENAI_API_KEY` (legado) em `.env` para LLM no painel **Dúvidas** (`MISSION_DOUBTS_LLM=1` já vem em `.env.ready`)
 
 ### 1.1 Ambiente real (chaves da equipa — não commitar)
 
@@ -24,7 +24,8 @@ Lista curta para **arranque**, **PR**, **release** e **processo de equipa**. O i
 
 ## 2. Antes de commit / PR
 
-- [ ] `npm test` — **39** testes a passar (smoke + fish API + E2E básico)
+- [ ] `npm test` — **43** testes a passar (smoke + fish API + E2E básico)
+- [ ] (Opcional) Com `npm run dev` noutro terminal: **`npm run qa:real`** — cenário API real (activity + task-board + overview); guia UI em **[QA-CENARIO-CANVAS-REAL.md](./QA-CENARIO-CANVAS-REAL.md)**
 - [ ] `npm run build` — sem erros TypeScript / Vite
 - [ ] Sem segredos no commit (`.env` está no `.gitignore`; não commitar chaves)
 - [ ] Se alteraste API: `docs/openapi.yaml` actualizado
@@ -47,9 +48,9 @@ Lista curta para **arranque**, **PR**, **release** e **processo de equipa**. O i
 
 ## 4. Roadmap — melhorias em aberto
 
-Marca quando implementares; detalhes em **[CHECKLIST.md](./CHECKLIST.md)** (tabela *Melhorias (roadmap)*).
+Marca quando implementares; detalhes em **[CHECKLIST.md](./CHECKLIST.md)** (tabela *Melhorias (roadmap)*). **Plano por fases:** **[IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md)**.
 
-- [ ] **LLM:** quotas/custos, política de dados explícita (streaming SSE em `/api/aiox/doubts/chat/stream` — ver **CHECKLIST.md**)
+- [ ] **LLM:** quotas/custos por utilizador (política base + rate limit por IP já em **GET /api/aiox/doubts** e UI — ver **IMPLEMENTATION-PLAN** Fase 1)
 - [ ] **Base de conhecimento:** indexação `docs/` ou Notion para respostas contextualizadas no hub
 - [ ] **Testes de UI** (opcional): E2E ou smoke do painel Dúvidas (`DoubtsChatPanel`) ou do canvas (`TaskCanvasView`)
 - [ ] **Canvas de tarefas:** quotas / auth / multi-utilizador (persistência ficheiro + `VITE_TASK_BOARD_SYNC` já em **[CHECKLIST.md](./CHECKLIST.md)**)

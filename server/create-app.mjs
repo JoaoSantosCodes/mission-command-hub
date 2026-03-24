@@ -25,17 +25,29 @@ import {
 } from "./lib/aiox-exec.mjs";
 import {
   callDoubtsChatCompletion,
-  getDoubtsLlmBaseUrl,
+  callTaskAgentStepCompletion,
   isDoubtsLlmConfigured,
+  parseTaskAgentStepResponse,
   streamDoubtsChatCompletion,
   validateDoubtsChatBody,
 } from "./lib/doubts-llm.mjs";
+import {
+  buildLlmProbeUrl,
+  getLlmApiKeyFromEnv,
+  isLlmUpstreamValidateDisabled,
+} from "./lib/llm-api-key.mjs";
 import {
   computeTaskBoardRevision,
   loadTaskBoardFromFile,
   normalizeTaskBoardPayload,
   saveTaskBoardAtomic,
 } from "./lib/task-board-store.mjs";
+import { createTaskRunStoreAuto } from "./lib/task-run-store-factory.mjs";
+import {
+  createTaskAgentPolicyFromEnv,
+  describeTaskAgentPolicy,
+  isTaskAgentCapabilityAllowed,
+} from "./lib/task-agent-policy.mjs";
 import {
   loadCustomizationFromFile,
   saveCustomizationAtomic,
@@ -46,6 +58,14 @@ import {
   loadIntegrationsHistory,
 } from "./lib/integrations-history-store.mjs";
 import { getSlackMirrorState, mirrorActivityToSlack } from "./lib/slack-mirror.mjs";
+import {
+  applyIntegrationsConfigToEnv,
+  loadIntegrationsConfig,
+  normalizeIntegrationsConfig,
+  redactIntegrationsConfig,
+  saveIntegrationsConfigAtomic,
+} from "./lib/integrations-config-store.mjs";
+import { fetchFigmaContext, parseFigmaReference } from "./lib/figma-context.mjs";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -68,7 +88,7 @@ function resolveAgentMarkdownPath(agentsDir, idParam) {
 
 /**
  * @param {string} missionRoot Raiz do pacote MissionAgent
- * @param {{ activityLogPath?: string; taskBoardPath?: string; customizationPath?: string; integrationsHistoryPath?: string; maskPathsInUi?: boolean }} [options]
+ * @param {{ activityLogPath?: string; taskBoardPath?: string; taskRunsPath?: string; customizationPath?: string; integrationsHistoryPath?: string; integrationsConfigPath?: string; maskPathsInUi?: boolean }} [options]
  */
 export async function createBridgeApp(missionRoot, options = {}) {
   const ROOT = path.resolve(missionRoot);
@@ -85,6 +105,11 @@ export async function createBridgeApp(missionRoot, options = {}) {
     (process.env.MISSION_TASK_BOARD_PATH
       ? path.resolve(process.env.MISSION_TASK_BOARD_PATH)
       : path.join(ROOT, ".mission-agent", "task-board.json"));
+  const taskRunsPath =
+    options.taskRunsPath ??
+    (process.env.MISSION_TASK_RUNS_PATH
+      ? path.resolve(process.env.MISSION_TASK_RUNS_PATH)
+      : path.join(ROOT, ".mission-agent", "task-runs.json"));
 
   const customizationPath =
     options.customizationPath ??
@@ -100,15 +125,68 @@ export async function createBridgeApp(missionRoot, options = {}) {
     (process.env.MISSION_INTEGRATIONS_HISTORY_PATH
       ? path.resolve(process.env.MISSION_INTEGRATIONS_HISTORY_PATH)
       : path.join(ROOT, ".mission-agent", "integrations-history.json"));
+  const integrationsConfigPath =
+    options.integrationsConfigPath ??
+    (process.env.MISSION_INTEGRATIONS_CONFIG_PATH
+      ? path.resolve(process.env.MISSION_INTEGRATIONS_CONFIG_PATH)
+      : path.join(ROOT, ".mission-agent", "integrations-config.json"));
+
+  // Configuração editável via UI (sem mexer em ficheiros .env do utilizador).
+  const bootCfg = loadIntegrationsConfig(integrationsConfigPath);
+  applyIntegrationsConfigToEnv(bootCfg.data);
 
   const activityCore = await createActivityStoreAuto(activityLogPath);
+  const taskRunStore = await createTaskRunStoreAuto(taskRunsPath);
+  const taskAgentPolicy = createTaskAgentPolicyFromEnv();
   const activity = {
     ...activityCore,
     pushLog: async (agent, action, type, kind) => {
+      const headBefore = activityCore.getLogs()[0];
       await activityCore.pushLog(agent, action, type, kind);
-      void mirrorActivityToSlack({ agent, action, type, kind });
+      const headAfter = activityCore.getLogs()[0];
+      const added = !headBefore || headAfter?.id !== headBefore.id;
+      if (added) void mirrorActivityToSlack({ agent, action, type, kind });
     },
   };
+
+  const AUTO_RUN_MARKER = "[auto-run concluido]";
+  const autoRunInFlight = new Set();
+  const autoRunPollMs = Math.min(
+    Math.max(Number(process.env.MISSION_TASK_AUTORUN_POLL_MS) || 5500, 1500),
+    60_000
+  );
+  const autoRunEnabled = String(process.env.MISSION_TASK_AUTORUN || "1") !== "0";
+
+  function taskSignature(task) {
+    return [
+      String(task.id || ""),
+      String(task.title || ""),
+      String(task.columnId || ""),
+      String(task.assigneeAgentId || ""),
+      task.blocked === true ? "1" : "0",
+      String(task.note || ""),
+    ].join("|");
+  }
+
+  function normalizeRunPublic(run) {
+    return {
+      runId: run.runId,
+      taskId: run.taskId,
+      assigneeAgentId: run.assigneeAgentId,
+      status: run.status,
+      startedAt: run.startedAt,
+      finishedAt: run.finishedAt ?? null,
+      updatedAt: run.updatedAt,
+      message: run.message ?? "",
+      suggestedColumn: run.suggestedColumn ?? "manter",
+      blocked: run.blocked === true,
+    };
+  }
+
+  async function listTaskRuns(limit = 120) {
+    const runs = await taskRunStore.listRuns(limit);
+    return runs.map(normalizeRunPublic);
+  }
 
   const app = express();
   if (process.env.TRUST_PROXY === "1") {
@@ -157,9 +235,14 @@ export async function createBridgeApp(missionRoot, options = {}) {
     limit: Number(process.env.AGENT_EDIT_RATE_MAX || 30),
   });
 
+  const doubtsChatWindowMs = Math.min(
+    Math.max(Number(process.env.DOUBTS_CHAT_WINDOW_MS) || 60_000, 10_000),
+    3_600_000
+  );
+  const doubtsChatRateMax = Math.max(1, Math.min(Number(process.env.DOUBTS_CHAT_RATE_MAX) || 20, 10_000));
   const doubtsChatLimiter = rateLimitJson({
-    windowMs: 60 * 1000,
-    limit: Number(process.env.DOUBTS_CHAT_RATE_MAX || 20),
+    windowMs: doubtsChatWindowMs,
+    limit: doubtsChatRateMax,
   });
 
   const taskBoardLimiter = rateLimitJson({
@@ -176,8 +259,27 @@ export async function createBridgeApp(missionRoot, options = {}) {
 
   const maskPaths = options.maskPathsInUi ?? shouldMaskPathsInUi();
 
+  if (!isProd) {
+    app.get("/", (_req, res) => {
+      res.json({
+        ok: true,
+        service: "mission-agent-api",
+        express: true,
+        portHint: Number(process.env.PORT || 8787),
+        paths: { health: "/api/health", overview: "/api/aiox/overview" },
+      });
+    });
+  }
+
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, service: "mission-agent-bridge" });
+    res.json({
+      ok: true,
+      service: "mission-agent-bridge",
+      /** Para confirmar que o processo tem rotas recentes (ex.: Retorno no canvas). */
+      capabilities: {
+        taskBoardAgentStep: true,
+      },
+    });
   });
 
   app.get("/api/aiox/metrics", (_req, res) => {
@@ -278,6 +380,24 @@ export async function createBridgeApp(missionRoot, options = {}) {
     res.json({ ok: true, tasks, revision });
   });
 
+  /** Estado de execução automática por tarefa (MVP, em memória). */
+  app.get("/api/aiox/task-runs", async (_req, res) => {
+    try {
+      const runs = await listTaskRuns(120);
+      res.json({
+        ok: true,
+        runs,
+        autoRunEnabled,
+        pollMs: autoRunPollMs,
+        backend: taskRunStore.backend || "file",
+        policy: describeTaskAgentPolicy(taskAgentPolicy),
+      });
+    } catch (e) {
+      logger.warn({ err: String(e?.message || e) }, "task-runs list failed");
+      res.status(500).json({ ok: false, error: "falha ao listar runs" });
+    }
+  });
+
   app.put("/api/aiox/task-board", taskBoardLimiter, (req, res) => {
     const currentRev = computeTaskBoardRevision(taskBoardPath);
     const rawIfMatch = String(req.headers["if-match"] ?? "").trim();
@@ -301,6 +421,222 @@ export async function createBridgeApp(missionRoot, options = {}) {
     } catch (e) {
       logger.warn({ err: String(e?.message || e) }, "task board save failed");
       res.status(500).json({ ok: false, error: "falha ao gravar o quadro" });
+    }
+  });
+
+  const COL_IDS_TASK = new Set(["todo", "doing", "review", "done"]);
+
+  async function runAutoTaskStep(task) {
+    if (autoRunInFlight.has(task.id)) return;
+    autoRunInFlight.add(task.id);
+    const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const startedAt = new Date().toISOString();
+    const currentRun = {
+      runId,
+      taskId: task.id,
+      assigneeAgentId: task.assigneeAgentId || "",
+      status: "running",
+      startedAt,
+      finishedAt: null,
+      updatedAt: startedAt,
+      message: "A iniciar execução automática da tarefa atribuída.",
+      suggestedColumn: "manter",
+      blocked: task.blocked === true,
+      signature: taskSignature(task),
+    };
+    await taskRunStore.upsertRun(currentRun);
+    const shortTitle = String(task.title || "").slice(0, 72);
+    try {
+      await activity.pushLog(
+        task.assigneeAgentId ? `@${task.assigneeAgentId}` : "@task-canvas",
+        `Auto-run iniciou «${shortTitle}»`,
+        "output",
+        "agent"
+      );
+    } catch {
+      /* ignore */
+    }
+    try {
+      const assigneeLabel = task.assigneeAgentId || "agente";
+      const { text } = await callTaskAgentStepCompletion({
+        id: task.id,
+        title: task.title,
+        note: task.note,
+        columnId: task.columnId,
+        blocked: task.blocked === true,
+        assigneeAgentId: task.assigneeAgentId,
+        assigneeLabel,
+      });
+      const parsed = parseTaskAgentStepResponse(text);
+
+      const loaded = loadTaskBoardFromFile(taskBoardPath);
+      const tasks = loaded.tasks.map((t) => {
+        if (t.id !== task.id) return t;
+        const stamp = new Date().toLocaleString("pt-PT");
+        const append = `\n\n---\n[${stamp} · auto-run]\n${parsed.retorno}\n${AUTO_RUN_MARKER}:${runId}`;
+        const currentNote = typeof t.note === "string" ? t.note.trimEnd() : "";
+        const note = (currentNote + append).trim();
+        const columnId =
+          parsed.sugestao_coluna !== "manter" && COL_IDS_TASK.has(parsed.sugestao_coluna)
+            ? parsed.sugestao_coluna
+            : t.columnId === "todo"
+              ? "doing"
+              : t.columnId;
+        return {
+          ...t,
+          note,
+          columnId,
+          blocked: typeof parsed.bloqueada === "boolean" ? parsed.bloqueada : t.blocked === true,
+        };
+      });
+      saveTaskBoardAtomic(taskBoardPath, tasks);
+
+      const finishedAt = new Date().toISOString();
+      await taskRunStore.upsertRun({
+        ...currentRun,
+        status: "succeeded",
+        finishedAt,
+        updatedAt: finishedAt,
+        message: parsed.retorno.slice(0, 280),
+        suggestedColumn: parsed.sugestao_coluna,
+        blocked: parsed.bloqueada === true,
+      });
+      try {
+        await activity.pushLog(
+          task.assigneeAgentId ? `@${task.assigneeAgentId}` : "@task-canvas",
+          `Auto-run concluiu «${shortTitle}» → ${parsed.sugestao_coluna}`,
+          "output",
+          "agent"
+        );
+      } catch {
+        /* ignore */
+      }
+    } catch (e) {
+      const msg = String(e?.message || e).slice(0, 280);
+      const finishedAt = new Date().toISOString();
+      await taskRunStore.upsertRun({
+        ...currentRun,
+        status: "failed",
+        finishedAt,
+        updatedAt: finishedAt,
+        message: msg,
+      });
+      try {
+        await activity.pushLog(
+          task.assigneeAgentId ? `@${task.assigneeAgentId}` : "@task-canvas",
+          `Auto-run falhou «${shortTitle}»: ${msg.slice(0, 120)}`,
+          "output",
+          "agent"
+        );
+      } catch {
+        /* ignore */
+      }
+      logger.warn({ err: msg, taskId: task.id }, "task auto-run failed");
+    } finally {
+      autoRunInFlight.delete(task.id);
+    }
+  }
+
+  async function scheduleTaskAutoRunSweep() {
+    if (!autoRunEnabled || !isDoubtsLlmConfigured()) return;
+    const loaded = loadTaskBoardFromFile(taskBoardPath);
+    for (const task of loaded.tasks) {
+      if (!task || typeof task !== "object") continue;
+      if (task.columnId !== "todo") continue;
+      if (task.blocked === true) continue;
+      if (typeof task.assigneeAgentId !== "string" || !task.assigneeAgentId.trim()) continue;
+      const sig = taskSignature(task);
+      const prev = await taskRunStore.getRun(task.id);
+      if (!isTaskAgentCapabilityAllowed(taskAgentPolicy, task.assigneeAgentId, "agentStep")) {
+        if (
+          prev?.signature === sig &&
+          prev?.status === "failed" &&
+          typeof prev?.message === "string" &&
+          prev.message.startsWith("Policy bloqueou")
+        ) {
+          continue;
+        }
+        const deniedAt = new Date().toISOString();
+        const deniedRun = {
+          runId: `run-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          taskId: task.id,
+          assigneeAgentId: task.assigneeAgentId || "",
+          status: "failed",
+          startedAt: deniedAt,
+          finishedAt: deniedAt,
+          updatedAt: deniedAt,
+          message: `Policy bloqueou auto-run para @${task.assigneeAgentId} (capability agentStep).`,
+          suggestedColumn: "manter",
+          blocked: true,
+          signature: sig,
+        };
+        await taskRunStore.upsertRun(deniedRun);
+        continue;
+      }
+      const note = typeof task.note === "string" ? task.note : "";
+      if (note.includes(AUTO_RUN_MARKER)) continue;
+      if (prev?.signature === sig && (prev.status === "running" || prev.status === "succeeded")) continue;
+      await runAutoTaskStep(task);
+    }
+  }
+
+  const autoRunTimer = setInterval(() => {
+    void scheduleTaskAutoRunSweep();
+  }, autoRunPollMs);
+  autoRunTimer.unref?.();
+
+  /**
+   * Retorno estruturado do “agente” sobre uma tarefa (LLM, mesmo opt-in que Dúvidas).
+   * O cliente aplica `retorno` na nota, `sugestao_coluna` e `bloqueada` no cartão.
+   */
+  app.post("/api/aiox/task-board/agent-step", doubtsChatLimiter, async (req, res) => {
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const task = body.task;
+    if (!task || typeof task !== "object") {
+      return res.status(400).json({ ok: false, error: "Corpo inválido: espera-se { task: { id, title, ... } }." });
+    }
+    const id = String(task.id ?? "").trim();
+    const title = String(task.title ?? "").trim().slice(0, 500);
+    if (!id || !title) {
+      return res.status(400).json({ ok: false, error: "task.id e task.title são obrigatórios." });
+    }
+    let columnId = String(task.columnId ?? "todo").trim();
+    if (!COL_IDS_TASK.has(columnId)) columnId = "todo";
+    const note = typeof task.note === "string" ? task.note.slice(0, 8000) : undefined;
+    const blocked = task.blocked === true;
+    const assigneeAgentId =
+      typeof task.assigneeAgentId === "string" ? task.assigneeAgentId.trim().slice(0, 128) : undefined;
+    const assigneeLabel =
+      typeof body.assigneeLabel === "string" ? body.assigneeLabel.trim().slice(0, 200) : undefined;
+    if (assigneeAgentId && !isTaskAgentCapabilityAllowed(taskAgentPolicy, assigneeAgentId, "agentStep")) {
+      return res.status(403).json({
+        ok: false,
+        error: `Policy bloqueou capability agentStep para @${assigneeAgentId}.`,
+      });
+    }
+    if (!isDoubtsLlmConfigured()) {
+      return res.status(503).json({
+        ok: false,
+        error:
+          "LLM não activo para esta funcionalidade. Define MISSION_DOUBTS_LLM=1 e MISSION_LLM_API_KEY (ver Integrações / Dúvidas).",
+      });
+    }
+    try {
+      const { text } = await callTaskAgentStepCompletion({
+        id,
+        title,
+        note,
+        columnId,
+        blocked,
+        assigneeAgentId,
+        assigneeLabel,
+      });
+      const parsed = parseTaskAgentStepResponse(text);
+      return res.json({ ok: true, ...parsed });
+    } catch (e) {
+      const msg = String(e?.message || e);
+      logger.warn({ err: msg.slice(0, 300) }, "task-board agent-step failed");
+      return res.status(502).json({ ok: false, error: msg });
     }
   });
 
@@ -333,6 +669,43 @@ export async function createBridgeApp(missionRoot, options = {}) {
     } catch (e) {
       logger.warn({ err: String(e?.message || e) }, "customization save failed");
       return res.status(500).json({ ok: false, error: "falha ao gravar personalização" });
+    }
+  });
+
+  /** Configuração de integrações editável pela UI (chaves/tokens/webhooks). */
+  app.get("/api/aiox/integrations-config", (_req, res) => {
+    const { data, revision } = loadIntegrationsConfig(integrationsConfigPath);
+    res.json({
+      ok: true,
+      data,
+      redacted: redactIntegrationsConfig(data),
+      revision,
+    });
+  });
+
+  app.put("/api/aiox/integrations-config", taskBoardLimiter, (req, res) => {
+    const current = loadIntegrationsConfig(integrationsConfigPath);
+    const rawIfMatch = String(req.headers["if-match"] ?? "").trim();
+    const ifMatch = rawIfMatch.replace(/^W\//, "").replace(/^"(.*)"$/, "$1").trim();
+    if (ifMatch && ifMatch !== current.revision) {
+      return res.status(409).json({
+        ok: false,
+        error: "conflito: a configuração de integrações mudou. Recarrega antes de gravar.",
+        conflict: true,
+        revision: current.revision,
+      });
+    }
+    try {
+      const incoming = req.body && typeof req.body === "object" ? req.body : {};
+      const patchData = normalizeIntegrationsConfig(incoming.data || incoming);
+      // Merge por defeito: update parcial não deve apagar chaves já guardadas.
+      const nextData = { ...current.data, ...patchData };
+      const revision = saveIntegrationsConfigAtomic(integrationsConfigPath, nextData);
+      applyIntegrationsConfigToEnv(nextData);
+      return res.json({ ok: true, revision, redacted: redactIntegrationsConfig(nextData) });
+    } catch (e) {
+      logger.warn({ err: String(e?.message || e) }, "integrations-config save failed");
+      return res.status(500).json({ ok: false, error: "falha ao gravar configuração de integrações" });
     }
   });
 
@@ -400,22 +773,40 @@ export async function createBridgeApp(missionRoot, options = {}) {
   }
 
   async function validateIntegrations() {
-    const openaiKey = String(process.env.OPENAI_API_KEY || process.env.MISSION_LLM_API_KEY || "");
-    const openaiKeyConfigured = openaiKey.trim().length >= 8;
     const doubtsOptIn = process.env.MISSION_DOUBTS_LLM === "1";
 
-    const openaiBase = getDoubtsLlmBaseUrl();
     const notionToken = String(process.env.NOTION_TOKEN || "").trim();
     const figmaToken = String(process.env.FIGMA_ACCESS_TOKEN || "").trim();
 
     const timeoutMs = Math.max(4_000, Math.min(10_000, Number(process.env.MISSION_INTEGRATIONS_TIMEOUT_MS) || 7_000));
 
-    async function validateOpenAI() {
-      if (!openaiKeyConfigured) return { openaiValidated: false, openaiError: "Sem OPENAI_API_KEY/MISSION_LLM_API_KEY" };
-      const r = await fetchWithTimeout(`${openaiBase}/v1/models`, { method: "GET", headers: { Authorization: `Bearer ${openaiKey}` } }, timeoutMs);
-      if (r.ok) return { openaiValidated: true };
+    async function validateLlmUpstream() {
+      const llmApiKey = getLlmApiKeyFromEnv();
+      const llmKeyConfigured = llmApiKey.length >= 8;
+      if (!llmKeyConfigured) {
+        return {
+          llmKeyConfigured: false,
+          llmValidated: false,
+          llmError: "Sem chave de API LLM (MISSION_LLM_API_KEY ou OPENAI_API_KEY)",
+        };
+      }
+      if (isLlmUpstreamValidateDisabled()) {
+        return {
+          llmKeyConfigured: true,
+          llmValidated: true,
+          llmError: null,
+          llmValidationSkipped: true,
+        };
+      }
+      const probeUrl = buildLlmProbeUrl();
+      const r = await fetchWithTimeout(
+        probeUrl,
+        { method: "GET", headers: { Authorization: `Bearer ${llmApiKey}` } },
+        timeoutMs
+      );
+      if (r.ok) return { llmKeyConfigured: true, llmValidated: true, llmError: null };
       const err = String(r.data?.error?.message || r.data?.message || r.text || `HTTP ${r.status}`).slice(0, 180);
-      return { openaiValidated: false, openaiError: err };
+      return { llmKeyConfigured: true, llmValidated: false, llmError: err };
     }
 
     async function validateNotion() {
@@ -448,28 +839,51 @@ export async function createBridgeApp(missionRoot, options = {}) {
       return { tokenValidated: false, tokenError: err };
     }
 
-    const [openaiRes, notionRes, figmaRes] = await Promise.allSettled([validateOpenAI(), validateNotion(), validateFigma()]);
-    const openaiOut = openaiRes.status === "fulfilled" ? openaiRes.value : { openaiValidated: false, openaiError: String(openaiRes.reason || "Erro").slice(0, 180) };
+    const [llmRes, notionRes, figmaRes] = await Promise.allSettled([validateLlmUpstream(), validateNotion(), validateFigma()]);
+    const llmOut =
+      llmRes.status === "fulfilled"
+        ? llmRes.value
+        : {
+            llmKeyConfigured: false,
+            llmValidated: false,
+            llmError: String(llmRes.reason || "Erro").slice(0, 180),
+          };
     const notionOut = notionRes.status === "fulfilled" ? notionRes.value : { tokenValidated: false, tokenError: String(notionRes.reason || "Erro").slice(0, 180) };
     const figmaOut = figmaRes.status === "fulfilled" ? figmaRes.value : { tokenValidated: false, tokenError: String(figmaRes.reason || "Erro").slice(0, 180) };
 
+    const llmValidated = Boolean(llmOut.llmValidated);
     return {
       doubts: {
         doubtsOptIn,
-        openaiKeyConfigured,
-        openaiValidated: Boolean(openaiOut.openaiValidated),
-        openaiError: openaiOut.openaiValidated ? null : openaiOut.openaiError || null,
+        llmKeyConfigured: llmOut.llmKeyConfigured,
+        llmValidated,
+        llmError: llmValidated ? null : llmOut.llmError || null,
+        ...(llmOut.llmValidationSkipped ? { llmValidationSkipped: true } : {}),
+        openaiKeyConfigured: llmOut.llmKeyConfigured,
+        openaiValidated: llmValidated,
+        openaiError: llmValidated ? null : llmOut.llmError || null,
       },
       notion: notionOut,
       figma: figmaOut,
     };
   }
 
-  function computeIntegrationsSummary(payload) {
+  /**
+   * LLM Dúvidas conta como OK no resumo se: sondagem HTTP passou (ou MISSION_LLM_VALIDATE=0),
+   * ou ainda não houve sondagem nesta resposta mas há opt-in + chave (`validate=1` não foi pedido).
+   */
+  function doubtsLlmIntegrationOk(doubts, llmProbeIncluded) {
+    if (!doubts || doubts.llmEnabled !== true) return false;
+    if (doubts.llmValidated === true || doubts.openaiValidated === true) return true;
+    if (!llmProbeIncluded && doubts.llmKeyConfigured === true) return true;
+    return false;
+  }
+
+  function computeIntegrationsSummary(payload, llmProbeIncluded = true) {
     const checks = [
       payload?.database?.activityBackend === "postgres",
       payload?.exec?.configured === true,
-      payload?.doubts?.llmEnabled === true && payload?.doubts?.openaiValidated === true,
+      doubtsLlmIntegrationOk(payload?.doubts, llmProbeIncluded),
       payload?.notion?.tokenValidated === true,
       payload?.figma?.tokenValidated === true,
       payload?.fish?.enabled === true,
@@ -481,7 +895,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
     return { okCount, total, healthScore };
   }
 
-  function buildIntegrationsAlerts(payload) {
+  function buildIntegrationsAlerts(payload, llmProbeIncluded = true) {
     const alerts = [];
     if ((payload?.database?.activityBackend ?? "file") !== "postgres") {
       alerts.push("DB em fallback para ficheiro (sem Postgres ativo)");
@@ -489,8 +903,10 @@ export async function createBridgeApp(missionRoot, options = {}) {
     if (payload?.exec?.configured !== true) {
       alerts.push("CLI AIOX desativado (ENABLE_AIOX_CLI_EXEC=1 em falta)");
     }
-    if (!(payload?.doubts?.llmEnabled === true && payload?.doubts?.openaiValidated === true)) {
-      alerts.push("OpenAI Dúvidas indisponível ou com validação falhada");
+    if (!doubtsLlmIntegrationOk(payload?.doubts, llmProbeIncluded)) {
+      alerts.push(
+        "LLM Dúvidas indisponível ou validação falhada — MISSION_LLM_API_KEY (ou OPENAI_API_KEY), MISSION_LLM_BASE_URL; opcional MISSION_LLM_VALIDATE=0 ou MISSION_LLM_PROBE_PATH"
+      );
     }
     if (payload?.notion?.tokenValidated !== true) {
       alerts.push("Notion pendente: token ausente ou inválido");
@@ -508,8 +924,8 @@ export async function createBridgeApp(missionRoot, options = {}) {
   }
 
   function attachHistoryAndAlerts(payload) {
-    const summary = computeIntegrationsSummary(payload);
-    const alerts = buildIntegrationsAlerts(payload);
+    const summary = computeIntegrationsSummary(payload, true);
+    const alerts = buildIntegrationsAlerts(payload, true);
     payload.summary = summary;
     payload.alerts = alerts;
     const generatedAt = String(payload.generatedAt || new Date().toISOString());
@@ -524,8 +940,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
   }
 
   app.get("/api/aiox/integrations-status", async (req, res) => {
-    const openaiKey = String(process.env.OPENAI_API_KEY || process.env.MISSION_LLM_API_KEY || "");
-    const openaiKeyConfigured = openaiKey.trim().length >= 8;
+    const llmKeyConfigured = getLlmApiKeyFromEnv().length >= 8;
     const doubtsOptIn = process.env.MISSION_DOUBTS_LLM === "1";
     const wantValidate = String(req.query.validate ?? "").trim() === "1";
 
@@ -541,7 +956,8 @@ export async function createBridgeApp(missionRoot, options = {}) {
         configured: isAioxExecConfigured(),
       },
       doubts: {
-        openaiKeyConfigured,
+        llmKeyConfigured,
+        openaiKeyConfigured: llmKeyConfigured,
         doubtsOptIn,
         llmEnabled: isDoubtsLlmConfigured(),
         streamAvailable: isDoubtsLlmConfigured(),
@@ -563,8 +979,8 @@ export async function createBridgeApp(missionRoot, options = {}) {
       },
     };
     payload.history = loadIntegrationsHistory(integrationsHistoryPath).slice(-24);
-    payload.summary = computeIntegrationsSummary(payload);
-    payload.alerts = buildIntegrationsAlerts(payload);
+    payload.summary = computeIntegrationsSummary(payload, false);
+    payload.alerts = buildIntegrationsAlerts(payload, false);
 
     if (!wantValidate) {
       return res.json(payload);
@@ -602,19 +1018,69 @@ export async function createBridgeApp(missionRoot, options = {}) {
     return res.json(merged);
   });
 
+  /**
+   * Contexto de design Figma (leitura), para apoiar execução de tarefas de front-end.
+   * Aceita fileKey/nodeId ou figmaUrl.
+   */
+  app.post("/api/aiox/figma/context", taskBoardLimiter, async (req, res) => {
+    const figmaToken = String(process.env.FIGMA_ACCESS_TOKEN || "").trim();
+    if (!figmaToken) {
+      return res.status(503).json({
+        ok: false,
+        code: "FIGMA_TOKEN_MISSING",
+        error: "FIGMA_ACCESS_TOKEN não configurado.",
+        hint: "Abre Integrações e preenche o token do Figma.",
+      });
+    }
+    try {
+      const ref = parseFigmaReference({
+        figmaUrl: req.body?.figmaUrl,
+        fileKey: req.body?.fileKey,
+        nodeId: req.body?.nodeId,
+        depth: req.body?.depth,
+      });
+      const context = await fetchFigmaContext({
+        token: figmaToken,
+        fileKey: ref.fileKey,
+        nodeId: ref.nodeId,
+        depth: ref.depth,
+      });
+      return res.json({ ok: true, ...context });
+    } catch (e) {
+      const msg = String(e?.message || e || "Falha ao obter contexto Figma.");
+      logger.warn({ err: msg.slice(0, 240) }, "figma context failed");
+      return res.status(400).json({
+        ok: false,
+        code: "FIGMA_CONTEXT_ERROR",
+        error: msg.slice(0, 240),
+      });
+    }
+  });
+
   /** Capacidades do painel Dúvidas (notas locais vs LLM opcional no servidor). */
   app.get("/api/aiox/doubts", (_req, res) => {
     const docsUrl = process.env.MISSION_DOUBTS_HELP_URL?.trim() || null;
+    const dataPolicyUrl = process.env.MISSION_DOUBTS_DATA_POLICY_URL?.trim() || null;
+    const customNotice = process.env.MISSION_DOUBTS_DATA_NOTICE?.trim();
     const llmEnabled = isDoubtsLlmConfigured();
+    const dataPolicyNotice =
+      customNotice ||
+      (llmEnabled
+        ? "Ao usar o LLM no servidor, o texto das mensagens é enviado ao fornecedor configurado em MISSION_LLM_BASE_URL (qualquer API compatível com /v1/chat/completions). Não incluas segredos, dados pessoais nem informação confidencial. O histórico em bruto permanece em sessionStorage neste browser."
+        : "As notas deste painel ficam em sessionStorage neste browser; com o LLM no servidor desactivado não são enviadas a nenhum modelo.");
     res.json({
       ok: true,
       llmEnabled,
       streamAvailable: llmEnabled,
       knowledgeBaseEnabled: false,
       message: llmEnabled
-        ? "O painel Dúvidas pode enviar mensagens a um modelo no servidor (opt-in). O histórico continua em sessionStorage no browser; não uses dados sensíveis."
-        : "O painel Dúvidas guarda notas só na sessão do browser. Para activar LLM no servidor: MISSION_DOUBTS_LLM=1 e chave OpenAI-compatible (ver .env.example). Senão usa o Chat do Cursor (Ctrl+L).",
+        ? "O painel Dúvidas pode enviar mensagens a um modelo no servidor (opt-in). O histórico continua em sessionStorage no browser; lê o aviso de privacidade abaixo."
+        : "O painel Dúvidas guarda notas só na sessão do browser. Para activar LLM no servidor: MISSION_DOUBTS_LLM=1 e chave de API (MISSION_LLM_API_KEY recomendado, ou OPENAI_API_KEY) + opcional MISSION_LLM_BASE_URL para qualquer host compatível com /v1/chat/completions. Senão usa o Chat do Cursor (Ctrl+L).",
       docsUrl,
+      dataPolicyNotice,
+      dataPolicyUrl,
+      rateLimitMax: doubtsChatRateMax,
+      rateLimitWindowMs: doubtsChatWindowMs,
     });
   });
 
@@ -622,7 +1088,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
     if (!isDoubtsLlmConfigured()) {
       return res.status(503).json({
         ok: false,
-        error: "Chat com LLM no servidor desactivado. Define MISSION_DOUBTS_LLM=1 e OPENAI_API_KEY (ou MISSION_LLM_API_KEY).",
+        error: "Chat com LLM no servidor desactivado. Define MISSION_DOUBTS_LLM=1 e MISSION_LLM_API_KEY (ou OPENAI_API_KEY legado).",
       });
     }
     const parsed = validateDoubtsChatBody(req);
@@ -646,7 +1112,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
     if (!isDoubtsLlmConfigured()) {
       return res.status(503).json({
         ok: false,
-        error: "Chat com LLM no servidor desactivado. Define MISSION_DOUBTS_LLM=1 e OPENAI_API_KEY (ou MISSION_LLM_API_KEY).",
+        error: "Chat com LLM no servidor desactivado. Define MISSION_DOUBTS_LLM=1 e MISSION_LLM_API_KEY (ou OPENAI_API_KEY legado).",
       });
     }
     const parsed = validateDoubtsChatBody(req);
@@ -702,7 +1168,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       return res.status(503).json({
         ok: false,
         error:
-          "Raiz do projeto AIOX não encontrada (pasta com .aiox-core). Define AIOX_CORE_PATH ou coloca o clone aiox-core ao lado de MissionAgent.",
+          "Raiz do projeto AIOX não encontrada (pasta com .aiox-core). Define AIOX_CORE_PATH ou coloca o clone aiox-core ao lado de MissionAgent (../aiox-core).",
       });
     }
     try {

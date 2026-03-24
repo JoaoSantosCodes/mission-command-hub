@@ -9,7 +9,7 @@ Este documento alinha **o que o repositório `MissionAgent` faz** com **o que se
 | **MCP (Mission Agent)** | Cursor → MCP + `npm run mcp` | Servidor **stdio** com tools `mission_*` (ler aiox-core, listar agentes). Ver [MCP.md](./MCP.md). |
 | **MCP (Notion, Figma, …)** | Cursor → MCP (servidores oficiais ou comunidade) | **Nada no Node** — o IDE agrega vários servidores MCP lado a lado. |
 | **LLM** | Cursor (modelo), ou CLI/IDE no `aiox-core` | O hub **não aloja modelo LLM**; o comando global só **regista** no feed. Execução real continua na documentação do aiox-core / IDE. |
-| **Painel Dúvidas (UI)** | — | Notas em `sessionStorage`; **GET `/api/aiox/doubts`** devolve capacidades; com `MISSION_DOUBTS_LLM=1` + chave OpenAI-compatible, **POST `/api/aiox/doubts/chat`**; `MISSION_DOUBTS_HELP_URL` → `docsUrl`. Ambiente local: **`.env.ready`** → `npm run env:init` / `postinstall` → `.env` + `server/load-env.mjs`. Ver `docs/openapi.yaml`, `server/lib/doubts-llm.mjs`. |
+| **Painel Dúvidas (UI)** | — | Notas em `sessionStorage`; **GET `/api/aiox/doubts`** devolve capacidades; com `MISSION_DOUBTS_LLM=1` + **`MISSION_LLM_API_KEY`** (ou `OPENAI_API_KEY`) e opcional **`MISSION_LLM_BASE_URL`**, **POST `/api/aiox/doubts/chat`** (API compatível). `MISSION_LLM_VALIDATE=0` se o host não tiver `/v1/models`. Ver `docs/openapi.yaml`, `server/lib/doubts-llm.mjs`, `server/lib/llm-api-key.mjs`. |
 | **Notion (processo)** | Equipa + API Notion (fora deste repo) | Regra de equipa: actualizar base Notion **antes** de mudanças de escopo (ver secção abaixo). |
 | **Figma (design)** | Cursor MCP Figma + ficheiro no Figma | Front-end deve seguir leitura MCP do ficheiro antes de implementar UI (política de fidelidade). |
 | **Slack (feed)** | Variável `SLACK_WEBHOOK_URL` no servidor (`.env.local`) | Cada entrada do **feed** do hub é espelhada para o canal via [Incoming Webhook](https://api.slack.com/messaging/webhooks). Ver `.env.example`. |
@@ -99,10 +99,10 @@ Exemplo genérico (estrutura ilustrativa — não copiar pacotes à cega):
 | Cenário | Configuração |
 |---------|----------------|
 | **Chat / agente no Cursor** | Modelo e API keys em **Cursor Settings** (OpenAI, Anthropic, etc., conforme o teu plano). |
-| **Fluxo aiox-core** | Segue a CLI e documentação do repositório `aiox-core` (não duplicada aqui). |
-| **LLM no servidor Mission Agent** | **Não implementado.** Se no futuro houver `POST /api/...` para um modelo, documentar em OpenAPI e usar segredos só no servidor (nunca no bundle Vite). |
+| **Fluxo aiox-core** | Segue a CLI e documentação do repositório `aiox-core` (não duplicada aqui). Ideias e módulos reutilizáveis: [AIOX_CORE_IDEAS.md](./AIOX_CORE_IDEAS.md). |
+| **LLM no servidor (painel Dúvidas)** | **Opcional:** `MISSION_DOUBTS_LLM=1` + **`MISSION_LLM_API_KEY`** (recomendado) ou `OPENAI_API_KEY` + **`MISSION_LLM_BASE_URL`** para qualquer fornecedor compatível; rotas `POST /api/aiox/doubts/chat` e `.../stream` (SSE). Segredos só no servidor. Evoluções: [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md). |
 
-Variáveis opcionais para **futuras** integrações server-side podem ir para `.env.example` (secção comentada).
+Variáveis adicionais em `.env.example` (LLM, Notion, Figma, Slack, Postgres).
 
 ## 4. Processo de equipa (Notion + contratos)
 

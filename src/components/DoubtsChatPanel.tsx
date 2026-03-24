@@ -73,19 +73,69 @@ async function copyText(text: string) {
 const FAQ = [
   {
     q: "A API não responde / erro JSON",
-    a: "Em desenvolvimento, corre `npm run dev` na pasta MissionAgent — a API fica embebida em `/api`. Ver README.",
+    a:
+      "1) Em desenvolvimento, corre `npm run dev` na pasta MissionAgent (API embebida no Vite :5179).\n" +
+      "2) Alternativa split: `npm run dev:split` (Express :8787 + Vite proxy).\n" +
+      "3) Valida ligação: `GET /api/health` deve devolver `{ ok: true }`.\n" +
+      "4) Se receberes HTML em vez de JSON, reinicia o dev server e recarrega a página.",
   },
   {
     q: "Onde ficam os agentes?",
-    a: "Ficheiros `.md` em `aiox-core/.aiox-core/development/agents/`. Podes criar novos pela sidebar (**Novo**) se a edição estiver permitida.",
+    a: "Ficheiros `.md` em `aiox-core/.aiox-core/development/agents/` (raiz do clone ao lado de `MissionAgent/`). Podes criar novos pela sidebar (**Novo**) se a edição estiver permitida.",
   },
   {
-    q: "Notion e Figma?",
-    a: "Configuração no Cursor (MCP), não dentro desta UI. Ver `docs/INTEGRATIONS.md`.",
+    q: "Manual — configurar integrações no app (formulário)",
+    a:
+      "Abre o botão de configuração de integrações no header (ícone Sparkles) e preenche os campos.\n\n" +
+      "LLM (Dúvidas + Retorno no Canvas):\n" +
+      "• `MISSION_LLM_API_KEY` (preferencial) ou `OPENAI_API_KEY`.\n" +
+      "• `MISSION_DOUBTS_LLM=1` para activar respostas no servidor.\n" +
+      "• Opcional: `MISSION_LLM_BASE_URL`, `MISSION_LLM_MODEL`.\n\n" +
+      "Slack (espelho de atividade):\n" +
+      "• `SLACK_WEBHOOK_URL` com Incoming Webhook válido.\n" +
+      "• Guarda, cria uma atividade no canvas e confirma no workspace em https://app.slack.com/.\n\n" +
+      "Notion / Figma:\n" +
+      "• `NOTION_TOKEN` e `FIGMA_ACCESS_TOKEN`.\n" +
+      "• Valida no painel Integrações (tab lateral) e em `GET /api/aiox/integrations-status?validate=1`.\n\n" +
+      "Infra opcional:\n" +
+      "• `DATABASE_URL` (PostgreSQL).\n" +
+      "• `ENABLE_AIOX_CLI_EXEC=1` + `AIOX_EXEC_SECRET` para execução controlada.",
   },
   {
-    q: "O painel Dúvidas fala com a API?",
-    a: "GET /api/aiox/doubts indica se o LLM no servidor está activo. Com MISSION_DOUBTS_LLM=1 e chave, as mensagens usam streaming em POST /api/aiox/doubts/chat/stream; caso contrário só notas locais em sessionStorage.",
+    q: "Manual — checklist de validação por integração",
+    a: "GET /api/aiox/doubts indica se o LLM no servidor está activo. Com MISSION_DOUBTS_LLM=1, chave MISSION_LLM_API_KEY (ou OPENAI_API_KEY legado) e opcional MISSION_LLM_BASE_URL apontando ao teu fornecedor (qualquer API compatível com /v1/chat/completions), o chat usa streaming em POST /api/aiox/doubts/chat/stream.",
+  },
+  {
+    q: "LLM (OpenAI-compatible) — como validar",
+    a:
+      "1) Preencher chave + `MISSION_DOUBTS_LLM=1`.\n" +
+      "2) Guardar no formulário e abrir Integrações.\n" +
+      "3) Esperado: `llmEnabled=true` e `llmValidated=true`.\n" +
+      "4) Testar no canvas com botão `Retorno` num cartão atribuído.",
+  },
+  {
+    q: "Slack — como validar ponta-a-ponta",
+    a:
+      "1) Criar Incoming Webhook no Slack e colar `SLACK_WEBHOOK_URL`.\n" +
+      "2) Guardar configuração e confirmar no status: `mirrorReady=true`.\n" +
+      "3) Gerar atividade no Hub (movimento de tarefa/comando).\n" +
+      "4) Confirmar mensagem no canal em https://app.slack.com/.\n" +
+      "Se `webhookConfigured=true` e `mirrorReady=false`, a URL está mal formatada ou inválida.",
+  },
+  {
+    q: "Notion e Figma — como validar",
+    a:
+      "1) Preencher `NOTION_TOKEN` e/ou `FIGMA_ACCESS_TOKEN`.\n" +
+      "2) Guardar configuração.\n" +
+      "3) Verificar em Integrações: `tokenConfigured=true` e `tokenValidated=true`.\n" +
+      "4) Se falhar, rever permissões do token e escopos no provedor.",
+  },
+  {
+    q: "PostgreSQL e execução CLI — quando activar",
+    a:
+      "• PostgreSQL: define `DATABASE_URL` para persistência robusta (feed/runs).\n" +
+      "• CLI controlada: `ENABLE_AIOX_CLI_EXEC=1` + `AIOX_EXEC_SECRET`.\n" +
+      "• Mantém allowlist/policy por agente para reduzir risco operacional.",
   },
 ];
 
@@ -386,13 +436,40 @@ export function DoubtsChatPanel({ open, onClose }: DoubtsChatPanelProps) {
               {FAQ.map((item) => (
                 <li key={item.q} className="rounded-xl border border-border bg-background/40 p-3">
                   <p className="text-xs font-semibold text-foreground">{item.q}</p>
-                  <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{item.a}</p>
+                  <p className="mt-1.5 whitespace-pre-wrap text-[11px] leading-relaxed text-muted-foreground">{item.a}</p>
                 </li>
               ))}
             </ul>
           </div>
         ) : (
           <>
+            {serverCaps?.dataPolicyNotice ? (
+              <div
+                className="shrink-0 border-b border-border bg-amber-500/5 px-3 py-2 dark:bg-amber-500/10"
+                role="note"
+              >
+                <p className="text-[10px] leading-relaxed text-muted-foreground">{serverCaps.dataPolicyNotice}</p>
+                {serverCaps.dataPolicyUrl ? (
+                  <a
+                    href={serverCaps.dataPolicyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 inline-block text-[10px] font-medium text-primary underline-offset-2 hover:underline"
+                  >
+                    Política de dados (externa)
+                  </a>
+                ) : null}
+                {serverCaps.rateLimitMax != null && serverCaps.rateLimitWindowMs != null ? (
+                  <p className="mt-1.5 text-[10px] text-muted-foreground/90">
+                    Limite de API: até {serverCaps.rateLimitMax} pedidos (chat + stream) por IP por janela de{" "}
+                    {serverCaps.rateLimitWindowMs >= 60_000
+                      ? `${serverCaps.rateLimitWindowMs / 60_000} min`
+                      : `${Math.round(serverCaps.rateLimitWindowMs / 1000)} s`}
+                    .
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="min-h-0 flex-1 overflow-y-auto p-4 scrollbar-thin">
               <ul className="flex flex-col gap-3" aria-live="polite">
                 {messages.map((m) => (

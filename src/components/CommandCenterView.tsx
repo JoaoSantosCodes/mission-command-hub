@@ -48,6 +48,8 @@ export function CommandCenterView({
     () => agents.map((a) => `${a.id}:${a.title}`).join("|"),
     [agents]
   );
+  const agentsRef = useRef(agents);
+  agentsRef.current = agents;
   const seenLogIds = useRef(new Set<string>());
   const layoutFileRef = useRef<HTMLInputElement>(null);
   const [feedBusy, setFeedBusy] = useState(false);
@@ -65,6 +67,37 @@ export function CommandCenterView({
   useEffect(() => {
     officeCanvas.syncAgentsFromLogs(logs, agents);
   }, [logs, agentKey, agents]);
+
+  useEffect(() => {
+    const w = window as unknown as { __missionCanvasTasks?: { id: string }[] };
+    const t = w.__missionCanvasTasks;
+    if (Array.isArray(t) && t.length > 0) {
+      officeCanvas.syncTaskBoardFromCanvas(t, agents);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem("mission-agent-task-board-v1");
+      if (!raw) return;
+      const p = JSON.parse(raw) as { tasks?: unknown[] };
+      if (Array.isArray(p.tasks) && p.tasks.length > 0) {
+        officeCanvas.syncTaskBoardFromCanvas(
+          p.tasks as Parameters<typeof officeCanvas.syncTaskBoardFromCanvas>[0],
+          agents
+        );
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [agentKey, agents]);
+
+  useEffect(() => {
+    const onCanvasTasks = (e: Event) => {
+      const t = (e as CustomEvent<{ tasks?: unknown }>).detail?.tasks;
+      if (Array.isArray(t)) officeCanvas.syncTaskBoardFromCanvas(t, agentsRef.current);
+    };
+    window.addEventListener("mission-canvas-tasks", onCanvasTasks as EventListener);
+    return () => window.removeEventListener("mission-canvas-tasks", onCanvasTasks as EventListener);
+  }, []);
 
   useEffect(() => {
     const applyAccents = () => {

@@ -93,4 +93,12 @@ export type AioxDoubtsCapabilities = {
   knowledgeBaseEnabled: boolean;
   message: string;
   docsUrl?: string | null;
+  /** Aviso de privacidade / dados (servidor); personalizável com `MISSION_DOUBTS_DATA_NOTICE`. */
+  dataPolicyNotice?: string;
+  /** URL opcional para política completa (`MISSION_DOUBTS_DATA_POLICY_URL`). */
+  dataPolicyUrl?: string | null;
+  /** Máximo de pedidos `POST .../doubts/chat` e `.../stream` por IP por janela (partilhado). */
+  rateLimitMax?: number;
+  /** Duração da janela de rate limit em ms (`DOUBTS_CHAT_WINDOW_MS`, por defeito 60_000). */
+  rateLimitWindowMs?: number;
 };

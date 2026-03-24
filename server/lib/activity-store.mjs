@@ -8,6 +8,20 @@ import { logger } from "./logger.mjs";
 
 export const ACTIVITY_MAX_ENTRIES = 200;
 
+/**
+ * Evita gravar de novo a mesma linha que já está no topo do feed (duplo POST, debounce, etc.).
+ * @param {{ agent?: string; action?: string; type?: string; kind?: string }[]} logs
+ */
+export function isDuplicateActivityHead(logs, agent, action, type = "output", kind) {
+  const top = logs[0];
+  if (!top) return false;
+  const a = String(agent ?? "").trim();
+  const act = String(action ?? "").trim();
+  if (top.agent !== a || top.action !== act || top.type !== type) return false;
+  const norm = (k) => (k == null || k === "" ? "" : String(k));
+  return norm(top.kind) === norm(kind);
+}
+
 /** @param {unknown} x */
 function isEntry(x) {
   return (
@@ -64,6 +78,9 @@ export function createActivityStore(filePath) {
    * @param {string} [kind] command | bridge | agent | cli (semântica; `type` mantém compat.)
    */
   async function pushLog(agent, action, type = "output", kind) {
+    if (isDuplicateActivityHead(logs, agent, action, type, kind)) {
+      return logs[0];
+    }
     const now = new Date();
     const timestamp = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
     const entry = {
