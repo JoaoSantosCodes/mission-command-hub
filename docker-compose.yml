@@ -1,4 +1,4 @@
-# Exemplo: monta o aiox-core local em /data/aiox-core (ajusta o caminho no host).
+# Exemplo autocontido: monta `MissionAgent/.aiox-core` no contentor.
 # Opcional: descomenta `postgres` e define DATABASE_URL no serviço mission-agent para
 # persistir o feed de atividade em PostgreSQL (tabela mission_activity_log criada ao arranque).
 services:
@@ -9,13 +9,13 @@ services:
     environment:
       NODE_ENV: production
       PORT: "8787"
-      AIOX_CORE_PATH: /data/aiox-core
+      AIOX_CORE_PATH: /app
       # Opcional — LLM no painel Dúvidas (ou usa env_file: .env após npm run env:init)
       # MISSION_DOUBTS_LLM: "1"
       # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       # DATABASE_URL: postgresql://mission:mission@postgres:5432/mission_agent
     volumes:
-      - ../aiox-core:/data/aiox-core:ro
+      - ./.aiox-core:/app/.aiox-core:ro
     # depends_on:
     #   - postgres
 

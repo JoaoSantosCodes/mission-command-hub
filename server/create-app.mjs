@@ -1168,7 +1168,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       return res.status(503).json({
         ok: false,
         error:
-          "Raiz do projeto AIOX não encontrada (pasta com .aiox-core). Define AIOX_CORE_PATH ou coloca o clone aiox-core ao lado de MissionAgent (../aiox-core).",
+          "Raiz do projeto AIOX não encontrada (pasta com .aiox-core). Define AIOX_CORE_PATH ou usa a estrutura local em MissionAgent/.aiox-core.",
       });
     }
     try {

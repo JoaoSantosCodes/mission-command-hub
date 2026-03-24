@@ -4,7 +4,7 @@ Resumo do que cada pasta era **para o MissionAgent** e o que foi **preservado** 
 
 | Pasta (antiga) | Papel / ideias para o hub | Preservado em |
 |----------------|---------------------------|---------------|
-| **aiox-core** | Framework CLI, agentes `.md`, validadores | **`aiox-core/`** na raiz do workspace (movido para fora da *Base*). Ponte: `../aiox-core`, `AIOX_CORE_PATH`. |
+| **aiox-core** | Framework CLI, agentes `.md`, validadores | Integração via `.aiox-core` local em `MissionAgent/` (ou `AIOX_CORE_PATH`). |
 | **mission-command-hub** | Docs AIOX, LLM, agentes canónicos, notas de layout | **`MissionAgent/docs/reference/*.md`** (AIOX_*, ADAPTACAO_*). |
 | **ai-orchestration-hub-main** | Shell três colunas, CommandBar, tabs por fase | Ideias já reflectidas na UI do MissionAgent; detalhe em `ADAPTACAO_AI_ORCHESTRATION_HUB.md`. |
 | **Referência de command center (externa)** | Canvas pixel office, tempo/meteo, terminal, Kanban visual | Padrões absorvidos no *command center* / Central do MissionAgent; sem cópia de código necessária. |

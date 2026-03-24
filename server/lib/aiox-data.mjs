@@ -14,7 +14,7 @@ import { resolveAioxAgentsDir } from "./resolve-aiox-agents-dir.mjs";
 export function resolveAioxPaths(missionRoot) {
   const AIOX_ROOT = process.env.AIOX_CORE_PATH
     ? path.resolve(process.env.AIOX_CORE_PATH)
-    : path.resolve(missionRoot, "..", "aiox-core");
+    : path.resolve(missionRoot);
   const AGENTS_DIR = resolveAioxAgentsDir(AIOX_ROOT);
   const AIOX_BIN = path.join(AIOX_ROOT, "bin", "aiox.js");
   return { AIOX_ROOT, AGENTS_DIR, AIOX_BIN };

@@ -79,7 +79,7 @@ Painel lateral (**ícone mensagem** ou **Ctrl+/**): notas de sessão, export **J
 ## Requisitos
 
 - Node.js ≥ 20
-- Pasta `aiox-core` ao lado de `MissionAgent/`: `../aiox-core` (ou define `AIOX_CORE_PATH`)
+- Estrutura local `.aiox-core/` dentro de `MissionAgent/` (ou define `AIOX_CORE_PATH`)
 
 ## Arranque
 
@@ -100,7 +100,7 @@ npm run dev
 
 | Variável | Descrição |
 |----------|-----------|
-| `AIOX_CORE_PATH` | Raiz do **projeto AIOX** (pasta que contém `.aiox-core`; no monorepo costuma ser o clone `../aiox-core` relativo a `MissionAgent/`) |
+| `AIOX_CORE_PATH` | Raiz do **projeto AIOX** (pasta que contém `.aiox-core`). Por defeito o servidor usa a raiz do `MissionAgent/` |
 | `AIOX_AGENTS_DIR` | (Opcional) Caminho absoluto à pasta dos `.md` dos agentes; quando definido, ignora `resource_locations.agents_dir` nos YAML |
 | `PORT` | Porta em **`npm start`** / processo Express isolado (por defeito: `8787`) |
 | `MISSION_EMBED_API` | `0` — Vite encaminha `/api` para Express **:8787** (usado pelo **`npm run dev:split`**). Omitir (defeito) com **`npm run dev`** / **`preview`** embebe a API no Vite |
@@ -201,7 +201,7 @@ docker compose build
 docker compose up
 ```
 
-Por defeito o volume aponta para `../aiox-core`; ajusta em `docker-compose.yml` se o clone estiver noutro sítio. A imagem corre `node server/index.mjs` com o `dist/` construído no build.
+Por defeito o volume aponta para `./.aiox-core` dentro de `MissionAgent/`; ajusta em `docker-compose.yml` se usares outro caminho. A imagem corre `node server/index.mjs` com o `dist/` construído no build.
 
 ## Contrato HTTP
 

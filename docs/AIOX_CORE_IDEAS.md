@@ -1,6 +1,6 @@
 # Ideias e lógica do `aiox-core` para o MissionAgent
 
-O clone do framework fica em **`aiox-core/`** na raiz do monorepo (ao lado de `MissionAgent/`). O hub resolve por defeito `../aiox-core` (ou `AIOX_CORE_PATH`). A ponte técnica (API, MCP, agentes `.md`) está em [INTEGRATIONS.md](./INTEGRATIONS.md). Documentação AIOX espelhada do antigo *mission-command-hub*: [reference/AIOX_CORE_SYNC.md](./reference/AIOX_CORE_SYNC.md) e [reference/README.md](./reference/README.md).
+O projeto usa `.aiox-core/` local no `MissionAgent/` por defeito (ou `AIOX_CORE_PATH` para outro caminho). A ponte técnica (API, MCP, agentes `.md`) está em [INTEGRATIONS.md](./INTEGRATIONS.md). Documentação AIOX espelhada: [reference/AIOX_CORE_SYNC.md](./reference/AIOX_CORE_SYNC.md) e [reference/README.md](./reference/README.md).
 
 ## Princípios de produto (extraídos do framework)
 

@@ -7,7 +7,7 @@ Integração com **Notion, Figma, LLM** ao nível do IDE e da equipa: ver **[INT
 A implementação usa o SDK oficial [`@modelcontextprotocol/sdk`](https://www.npmjs.com/package/@modelcontextprotocol/sdk) com transporte **stdio** (`StdioServerTransport`). É adequado para integração com Cursor e outros clientes MCP que lançam um processo local e comunicam por JSON-RPC no stdin/stdout.
 
 - **Dependências:** `@modelcontextprotocol/sdk`, `zod` (peer para schemas das tools).
-- **Entrada:** variável de ambiente `AIOX_CORE_PATH` (opcional); se omitida, assume `../aiox-core` relativo à pasta `MissionAgent/`, igual à API Express.
+- **Entrada:** variável de ambiente `AIOX_CORE_PATH` (opcional); se omitida, usa a raiz do `MissionAgent/` (espera `.aiox-core` local), igual à API Express.
 
 ## Como correr
 

@@ -8,7 +8,7 @@ Lista curta para **arranque**, **PR**, **release** e **processo de equipa**. O i
 
 - [ ] Node.js ≥ 20 instalado
 - [ ] `cd MissionAgent` e `npm install` (cria `.env` a partir de `.env.ready` se necessário)
-- [ ] `aiox-core` acessível em `../aiox-core` ou `AIOX_CORE_PATH` definido
+- [ ] `.aiox-core` local acessível em `MissionAgent/.aiox-core` ou `AIOX_CORE_PATH` definido
 - [ ] `npm run dev` — Vite **:5179** com API embebida em `/api`; ou `npm run dev:split` — Express **:8787** + Vite com proxy; header **API ligada**; opcional `http://127.0.0.1:5179/api/health` ou **:8787** em modo split
 - [ ] (Opcional) **`MISSION_LLM_API_KEY`** (recomendado; qualquer API compatível) ou `OPENAI_API_KEY` (legado) em `.env` para LLM no painel **Dúvidas** (`MISSION_DOUBTS_LLM=1` já vem em `.env.ready`)
 
@@ -37,7 +37,7 @@ Lista curta para **arranque**, **PR**, **release** e **processo de equipa**. O i
 
 - [ ] `npm run build` e `NODE_ENV=production npm run verify:real` (sem aiox no CI: `MISSION_PREFLIGHT_SKIP_AIOX=1`)
 - [ ] `NODE_ENV=production` e `npm start` (ou imagem Docker) testados localmente
-- [ ] `AIOX_CORE_PATH` (ou `../aiox-core`) correcto no **servidor** — senão **agentes** não aparecem
+- [ ] `AIOX_CORE_PATH` (ou raiz do `MissionAgent` com `.aiox-core`) correcto no **servidor** — senão **agentes** não aparecem
 - [ ] `CORS_ORIGINS` definido para as origens reais (produção)
 - [ ] `TRUST_PROXY=1` se houver reverse proxy
 - [ ] Não expor o serviço à internet sem **auth** no perímetro (o hub não tem login integrado)

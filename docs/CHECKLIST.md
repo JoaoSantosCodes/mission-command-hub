@@ -124,7 +124,7 @@ Roadmap executável com critérios de pronto, dependências e ordem sugerida: **
 ## Integração `aiox-core`
 
 - [x] **Comando real opcional**: `POST /api/aiox/exec` (`doctor` \| `info`), `ENABLE_AIOX_CLI_EXEC` + `AIOX_EXEC_SECRET`, rate limit, timeout; UI `AioxCliPanel` quando disponível
-- [x] **Variável `AIOX_CORE_PATH`** documentada em `.env.example` na raiz do workspace e em `MissionAgent/.env.example` (caminho por defeito: `../aiox-core`)
+- [x] **Variável `AIOX_CORE_PATH`** documentada em `.env.example` / `MissionAgent/.env.example` (defeito: raiz do `MissionAgent` com `.aiox-core`)
 - [x] **Sincronização com documentação** — link opcional via `VITE_AIOX_DOCS_URL` na área de trabalho
 - [x] **Docs AIOX / LLM espelhados** — [docs/reference/README.md](./reference/README.md) (agora mantidos no próprio `MissionAgent`, sem dependência de pastas externas)
 

@@ -39,7 +39,7 @@ console.log("MissionAgent — preflight ambiente real\n");
 if (!skipAiox) {
   if (!fs.existsSync(AIOX_ROOT)) {
     fail(
-      `Raiz AIOX não encontrada (${AIOX_ROOT}). Define AIOX_CORE_PATH ou coloca o clone em ../aiox-core (relativo a MissionAgent/) — sem isto a lista de agentes fica vazia.`
+      `Raiz AIOX não encontrada (${AIOX_ROOT}). Define AIOX_CORE_PATH ou usa MissionAgent/.aiox-core — sem isto a lista de agentes fica vazia.`
     );
   } else {
     pass(`aiox-core: ${AIOX_ROOT}`);

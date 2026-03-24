@@ -43,7 +43,7 @@ flowchart TB
 
 - **Comando:** `npm run mcp` (na pasta `MissionAgent/`).
 - **Configuração Cursor:** exemplo em [MCP.md](./MCP.md) (`mcpServers.mission-agent-aiox`).
-- **Variáveis:** `AIOX_CORE_PATH` se o aiox-core não estiver em `../aiox-core`.
+- **Variáveis:** `AIOX_CORE_PATH` se `.aiox-core` não estiver na raiz do `MissionAgent`.
 
 Não escrever logs em `stdout` durante a sessão MCP.
 
