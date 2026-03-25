@@ -10,6 +10,7 @@ import {
 } from '@/lib/api';
 import { pickDisplayName } from '@/lib/agent-profile-store';
 import type { AgentRow } from '@/types/hub';
+import { useTaskBoardStore } from '@/store/taskBoardStore';
 
 const STORAGE_KEY = 'mission-agent-task-board-v1';
 /** Evita escritas em disco a cada tecla; flush em `beforeunload`. */
@@ -243,6 +244,37 @@ export function useTaskBoard(agentsForLabels: AgentRow[] = []) {
     }
   }, [tasks]);
 
+  // ── Supabase realtime (opcional) ──────────────────────────────────────────
+  const { bootstrap: supabaseBootstrap, subscribeRealtime } = useTaskBoardStore();
+  const isRemoteUpdateRef = useRef(false);
+
+  useEffect(() => {
+    // Bootstrap: tenta hidratar do Supabase na primeira montagem.
+    supabaseBootstrap().then(() => {
+      const storeTasks = useTaskBoardStore.getState().tasks;
+      if (storeTasks.length > 0 && tasksRef.current.length === 0) {
+        setTasks(storeTasks.map(normalizeLoadedTask));
+      }
+    });
+    // Subscrita a alterações remotas (outros clientes conectados ao mesmo canal).
+    const unsubscribe = subscribeRealtime((remoteTasks) => {
+      isRemoteUpdateRef.current = true;
+      setTasks(remoteTasks.map(normalizeLoadedTask));
+    });
+    return unsubscribe;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Propaga alterações locais para o store Supabase (debounced internamente pelo store).
+  useEffect(() => {
+    if (isRemoteUpdateRef.current) {
+      isRemoteUpdateRef.current = false;
+      return; // Ignorar o ciclo de eco causado por atualização remota
+    }
+    useTaskBoardStore.getState().setTasks(tasks);
+  }, [tasks]);
+
+  // ── Sincronização inicial com o servidor (opt-in) ─────────────────────────
   /** Sincronização inicial com o servidor (opt-in). Servidor vence quando tem tarefas; senão envia-se o quadro local. */
   useEffect(() => {
     if (!TASK_BOARD_SYNC) return;

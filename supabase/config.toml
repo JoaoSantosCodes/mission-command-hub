@@ -1,0 +1,21 @@
+# Supabase local dev config (supabase init)
+# Referência do projeto de produção: gnhewmyhbqxpecfaivmu
+# Documentação: https://supabase.com/docs/guides/local-development
+
+[api]
+port = 54321
+
+[db]
+port = 54322
+
+[studio]
+port = 54323
+
+[inbucket]
+port = 54324
+
+[storage]
+file_size_limit = "50MiB"
+
+[auth]
+site_url = "http://localhost:5179"

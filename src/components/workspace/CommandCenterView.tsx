@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useOfficeStore } from '@/store/officeStore';
 
 import type { ActivityEntry, AgentRow } from '@/types/hub';
 import * as officeCanvas from '@/command-center/office.js';
@@ -79,6 +80,16 @@ export function CommandCenterView({
     });
     return () => stopMissionCommandCenter();
   }, [agentKey, agents, onSelectAgent, onWallWhiteboardClick, onFurnitureClick]);
+
+  // ── Office layout Supabase realtime ───────────────────────────────────────
+  const { subscribeRealtime: subscribeOfficeRealtime } = useOfficeStore();
+  useEffect(() => {
+    const unsubscribe = subscribeOfficeRealtime((remoteLayout) => {
+      // Aplica o layout recebido de outro cliente no canvas isométrico.
+      officeCanvas.importOfficeLayoutFromJSON(JSON.stringify(remoteLayout));
+    });
+    return unsubscribe;
+  }, [subscribeOfficeRealtime]);
 
   useEffect(() => {
     officeCanvas.syncAgentsFromLogs(logs, agents);

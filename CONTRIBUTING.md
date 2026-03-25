@@ -36,6 +36,55 @@ npm test
 npm run lint
 ```
 
+## 🗄️ Infraestrutura e Integrações Opcionais
+
+### Supabase (Multiplayer Realtime)
+
+O Hub funciona 100% offline por padrão (localStorage + ficheiros locais). Para activar o modo **multiplayer em tempo real** (Kanban e escritório sincronizados entre browsers):
+
+1. Cria um projecto em [supabase.com](https://supabase.com) → copia **URL** e **anon key**
+2. Adiciona ao `.env`:
+   ```
+   VITE_SUPABASE_URL=https://xxxxx.supabase.co
+   VITE_SUPABASE_ANON_KEY=eyJ...
+   ```
+3. Executa a migração SQL (uma única vez):
+   ```bash
+   # Opção A — via terminal (precisa da DB password)
+   DATABASE_URL="postgresql://postgres:[SENHA]@aws-0-[REGION].pooler.supabase.com:5432/postgres" npm run db:migrate
+
+   # Opção B — cola o conteúdo de supabase/migrations/20260325000000_mission_agent_hub.sql
+   #           no SQL Editor do Supabase Dashboard → Run
+   ```
+4. Reinicia o servidor: `npm run dev`
+
+### MCPs (Model Context Protocol)
+
+O projecto inclui configuração pronta para vários servidores MCP em `.cursor/mcp.json` e `.opencode/mcp.json`.
+
+#### Gmail
+1. Acede a [Google Cloud Console](https://console.cloud.google.com) → cria credenciais OAuth 2.0 (Desktop)
+2. Faz download para `MissionAgent/config/gmail-credentials.json`
+3. Na primeira execução pelo Cursor, o browser abre para autorizar
+
+#### Google Calendar
+Reutiliza as mesmas credenciais OAuth do Gmail (`gmail-credentials.json`).
+
+#### WhatsApp (via Evolution API)
+```bash
+# Instala e arranca a Evolution API
+docker run -d -p 8080:8080 --name evolution atendai/evolution-api:latest
+```
+Acede a `http://localhost:8080` → cria instância → faz scan do QR code com o WhatsApp.
+Depois adiciona ao `.env`:
+```
+EVOLUTION_API_KEY=tua_chave_da_evolution_api
+```
+
+> **Nota:** A pasta `MissionAgent/config/` está no `.gitignore` — as credenciais não são versionadas.
+
+---
+
 ## 🛠️ Ferramentas de Desenvolvimento
 
 ### **Qualidade de Código**

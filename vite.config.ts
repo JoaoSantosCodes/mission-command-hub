@@ -11,7 +11,7 @@ export default defineConfig({
     },
   },
   server: {
-    host: "::",
+    host: true,
     port: 5179,
     proxy: {
       "/api": {
@@ -22,7 +22,7 @@ export default defineConfig({
   },
   /** Sem isto, `vite preview` não encaminha `/api` → 404 "Cannot GET" com a UI estática. */
   preview: {
-    host: "::",
+    host: true,
     proxy: {
       "/api": {
         target: "http://127.0.0.1:8787",

@@ -47,7 +47,62 @@ flowchart TB
 
 Não escrever logs em `stdout` durante a sessão MCP.
 
-## 2. MCP — Notion, Figma e outros (stack no Cursor)
+## 2. Supabase — Multiplayer Realtime
+
+O Hub usa Supabase para sincronizar o **Kanban** e o **layout do escritório isométrico** em tempo real entre múltiplos browsers/utilizadores.
+
+| Modo | Comportamento |
+|------|---------------|
+| `VITE_SUPABASE_URL` ausente | 100% offline — localStorage + API local |
+| `VITE_SUPABASE_URL` definido | Realtime multiplayer via `postgres_changes` + Broadcast |
+
+**Projecto activo:** `gnhewmyhbqxpecfaivmu` — configurado em `.cursor/mcp.json` e `.opencode/mcp.json`.
+
+**Tabelas criadas** (via `supabase/migrations/20260325000000_mission_agent_hub.sql`):
+- `public.task_board` — array JSONB de `TaskItem`
+- `public.office_layout` — posições de móveis e agentes
+
+Ver setup completo em `CONTRIBUTING.md → Infraestrutura`.
+
+---
+
+## 3. MCP — Gmail, Google Calendar, WhatsApp, Notion, Figma
+
+A configuração completa está em `.cursor/mcp.json` (Cursor/Claude) e `.opencode/mcp.json` (agentes opencode). Todos opcionais — activar individualmente conforme necessidade.
+
+### Gmail
+Permite ao agente **Analista de Mercado** enviar curadoria por email e ao **QA** alertar a equipa.
+
+```jsonc
+// .cursor/mcp.json
+"gmail": {
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-gmail"],
+  "env": {
+    "GMAIL_CREDENTIALS_PATH": "MissionAgent/config/gmail-credentials.json",
+    "GMAIL_TOKEN_PATH": "MissionAgent/config/gmail-token.json"
+  }
+}
+```
+
+Setup: [Google Cloud Console](https://console.cloud.google.com) → OAuth 2.0 Desktop → download `credentials.json` → `MissionAgent/config/gmail-credentials.json`.
+
+### Google Calendar
+Permite à **Analista de Reuniões** verificar a agenda e agendar próximas *calls*.
+
+Reutiliza as credenciais OAuth do Gmail. Pacote: `@nspilman/google-calendar-mcp`.
+
+### WhatsApp (via Evolution API)
+Permite ao **DevOps** enviar alertas urgentes directamente para o telemóvel.
+
+```bash
+docker run -d -p 8080:8080 --name evolution atendai/evolution-api:latest
+# Acede a http://localhost:8080 → cria instância → scan QR code
+```
+
+Adiciona ao `.env`: `EVOLUTION_API_KEY=...`
+
+### Notion / Figma
 
 Estes servidores **não fazem parte** do `package.json` do Mission Agent: instalas/configuras no **Cursor** (Settings → MCP ou ficheiro JSON do projecto).
 
@@ -64,7 +119,7 @@ Estes servidores **não fazem parte** do `package.json` do Mission Agent: instal
 2. Configura o servidor MCP Figma no Cursor (há variantes community/official — segue a documentação actual do Cursor para “Figma MCP”).
 3. Para **UI do hub**: usar o MCP para inspeccionar o ficheiro antes de alterar componentes React (fidelidade ao design).
 
-### Slack (ver a equipa no canal)
+### Slack
 
 1. No workspace [Slack](https://slack.com/), cria ou escolhe um canal (ex. `#agents-hub`).
 2. Adiciona a app **Incoming Webhooks** (ou equivalente no teu workspace) e obtém um URL `https://hooks.slack.com/services/...`.
@@ -94,7 +149,7 @@ Exemplo genérico (estrutura ilustrativa — não copiar pacotes à cega):
 }
 ```
 
-## 3. LLM
+## 4. LLM
 
 | Cenário | Configuração |
 |---------|----------------|
@@ -104,19 +159,19 @@ Exemplo genérico (estrutura ilustrativa — não copiar pacotes à cega):
 
 Variáveis adicionais em `.env.example` (LLM, Notion, Figma, Slack, Postgres).
 
-## 4. Processo de equipa (Notion + contratos)
+## 5. Processo de equipa (Notion + contratos)
 
 - **Novo projecto ou mudança de escopo:** actualizar a base Notion (ou base acordada) **antes** de expandir código — mantém contrato e desenho alinhados.
 - **API / persistência:** documentar endpoints relevantes em estilo OpenAPI (este repo usa `docs/openapi.yaml`).
 - **UI:** validar contra Figma via MCP antes de desenvolvimento de ecrãs críticos.
 
-## 5. Segurança
+## 6. Segurança
 
 - Nunca commitar **Notion tokens**, **Figma tokens**, nem **API keys** de LLM em ficheiros do repo.
 - Preferir **env** do Cursor para MCP ou gestor de secrets do SO.
 - O servidor MCP do Mission Agent só **lê** disco e não executa comandos arbitrários (ver [MCP.md](./MCP.md)).
 
-## 6. Ligações úteis
+## 7. Ligações úteis
 
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [Notion API](https://developers.notion.com/)

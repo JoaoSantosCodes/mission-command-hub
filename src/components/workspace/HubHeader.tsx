@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 
 import { HubMascot } from '@/components/workspace/HubMascot';
+import { AutoRunCountdown } from '@/components/workspace/AutoRunCountdown';
 import { MAX_COMMAND_CHARS } from '@/constants';
 import type { ThemeMode } from '@/hooks/useTheme';
 
@@ -124,6 +125,8 @@ export function HubHeader({
         </span>
         <span className="font-mono text-[9px] opacity-80">/api</span>
       </div>
+
+      <AutoRunCountdown />
 
       <div className="flex shrink-0 items-center gap-1 lg:hidden">
         <button

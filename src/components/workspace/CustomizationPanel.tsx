@@ -192,7 +192,7 @@ export function CustomizationPanel({
                   />
                 </label>
                 <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                  Foto (avatar)
+                  Skin / Rosto
                   <select
                     value={draft.avatarIndex}
                     onChange={(e) =>
@@ -200,10 +200,8 @@ export function CustomizationPanel({
                     }
                     className="rounded-lg border border-border bg-background px-2.5 py-2 text-xs normal-case text-foreground outline-none focus:border-primary"
                   >
-                    {Array.from({ length: 6 }, (_, i) => (
-                      <option key={i} value={i}>
-                        Rosto {i + 1}
-                      </option>
+                    {['👤 Padrão', '🧑 Casual', '👩 Feminino', '🧓 Sênior', '🧑‍💻 Dev', '🧑‍🎨 Creative'].map((label, i) => (
+                      <option key={i} value={i}>{label}</option>
                     ))}
                   </select>
                 </label>
@@ -233,38 +231,94 @@ export function CustomizationPanel({
                     }
                   />
                 </label>
-                <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground sm:col-span-2">
-                  Cor de destaque (hex)
-                  <input
-                    value={draft.accentColor}
-                    onChange={(e) => setDraft((d) => ({ ...d, accentColor: e.target.value }))}
-                    placeholder="#22c55e"
-                    className="rounded-lg border border-border bg-background px-2.5 py-2 text-xs normal-case text-foreground outline-none focus:border-primary"
-                  />
-                </label>
+                <div className="flex flex-col gap-2 sm:col-span-2">
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Cor de destaque
+                  </span>
+                  {/* Paleta de cores rápidas */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      '#22c55e','#38bdf8','#a78bfa','#f97316','#ec4899',
+                      '#eab308','#ef4444','#06b6d4','#84cc16','#ffffff',
+                    ].map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        title={c}
+                        onClick={() => setDraft((d) => ({ ...d, accentColor: c }))}
+                        className={`h-6 w-6 rounded-full border-2 transition-transform hover:scale-110 ${
+                          draft.accentColor === c
+                            ? 'border-foreground scale-110'
+                            : 'border-transparent'
+                        }`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                    {/* Picker livre */}
+                    <label
+                      className="relative h-6 w-6 cursor-pointer overflow-hidden rounded-full border-2 border-dashed border-border hover:border-primary"
+                      title="Cor personalizada"
+                    >
+                      <span className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">+</span>
+                      <input
+                        type="color"
+                        value={draft.accentColor || '#22c55e'}
+                        onChange={(e) => setDraft((d) => ({ ...d, accentColor: e.target.value }))}
+                        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                      />
+                    </label>
+                  </div>
+                  {/* Preview da cor seleccionada */}
+                  {draft.accentColor ? (
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-4 w-4 rounded-full border border-border"
+                        style={{ backgroundColor: draft.accentColor }}
+                      />
+                      <span className="font-mono text-[11px] text-muted-foreground">
+                        {draft.accentColor}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setDraft((d) => ({ ...d, accentColor: '' }))}
+                        className="text-[10px] text-muted-foreground hover:text-destructive"
+                      >
+                        limpar
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
           ) : (
-            <div className="grid max-w-xl gap-3">
-              <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                Tema do escritório
-                <select
-                  value={draft.officeTheme}
-                  onChange={(e) =>
-                    setDraft((d) => ({
-                      ...d,
-                      officeTheme: e.target.value === 'neon' ? 'neon' : 'default',
-                    }))
-                  }
-                  className="rounded-lg border border-border bg-background px-2.5 py-2 text-xs normal-case text-foreground outline-none focus:border-primary"
-                >
-                  <option value="default">Padrão</option>
-                  <option value="neon">Neon</option>
-                </select>
-              </label>
+            <div className="grid max-w-xl gap-4">
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Tema do escritório
+                </span>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {([
+                    { id: 'default', label: '🌃 Padrão', desc: 'Azul noturno' },
+                    { id: 'neon',    label: '🟣 Neon',   desc: 'Synthwave púrpura' },
+                  ] as const).map(({ id, label, desc }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setDraft((d) => ({ ...d, officeTheme: id }))}
+                      className={`flex flex-col items-start gap-0.5 rounded-xl border p-3 text-left transition-all ${
+                        draft.officeTheme === id
+                          ? 'border-primary/50 bg-primary/10 ring-1 ring-primary/30'
+                          : 'border-border hover:bg-secondary/50'
+                      }`}
+                    >
+                      <span className="text-sm">{label}</span>
+                      <span className="text-[10px] text-muted-foreground">{desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <p className="text-[11px] text-muted-foreground">
-                O tema aplica no escritório da Central. Use Aplicar para preview local e Guardar
-                para sincronizar.
+                Use <strong>Aplicar</strong> para preview local e <strong>Guardar + sync</strong> para persistir no servidor.
               </p>
             </div>
           )}

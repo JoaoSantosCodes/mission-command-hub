@@ -21,3 +21,8 @@ coverage/
 .nuxt/
 .vite/
 .turbo/
+
+# MCP OAuth credentials (never commit)
+config/gmail-credentials.json
+config/gmail-token.json
+config/calendar-token.json

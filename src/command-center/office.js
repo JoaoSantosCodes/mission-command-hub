@@ -853,11 +853,19 @@ function persistLayoutDebounced() {
     layoutSaveTimer = null;
     const positions = {};
     for (const a of agents) positions[a.id] = { x: round4(a.homeX), y: round4(a.homeY) };
+    const layout = { version: 5, positions, furniture: serializeFurniture() };
     try {
-      localStorage.setItem(
-        OFFICE_LAYOUT_KEY,
-        JSON.stringify({ version: 5, positions, furniture: serializeFurniture() })
-      );
+      localStorage.setItem(OFFICE_LAYOUT_KEY, JSON.stringify(layout));
+    } catch {
+      /* ignore */
+    }
+    // Also persist to server (fire-and-forget, non-blocking).
+    try {
+      fetch('/api/aiox/customization', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agents: {}, office: { layout } }),
+      }).catch(() => {/* offline — ignore */});
     } catch {
       /* ignore */
     }
