@@ -43,11 +43,16 @@ export function stopMissionCommandCenter() {
 }
 
 /**
- * @param {{ agentRows?: Array<{ id: string; title: string }>; onSelectAgent?: (id: string) => void }} opts
+ * @param {{
+ *   agentRows?: Array<{ id: string; title: string }>;
+ *   onSelectAgent?: (id: string) => void;
+ *   onWallWhiteboardClick?: () => void;
+ *   onFurnitureClick?: (key: string) => void;
+ * }} opts
  */
 export function startMissionCommandCenter(opts) {
   stopMissionCommandCenter();
-  const { agentRows = [], onSelectAgent } = opts;
+  const { agentRows = [], onSelectAgent, onWallWhiteboardClick, onFurnitureClick } = opts;
   running = true;
 
   terminal.init('terminal-output');
@@ -92,13 +97,26 @@ export function startMissionCommandCenter(opts) {
     if (!officeCanvas) return;
     if (office.consumeSuppressOfficeClick()) return;
     const rect = officeCanvas.getBoundingClientRect();
-    const id = office.getAgentAtPoint(e.clientX - rect.left, e.clientY - rect.top);
-    if (!id) return;
-    if (String(id).startsWith('demo-')) {
-      terminal.log('[demo] Coloca ficheiros .md em aiox-core/…/agents/', 'info');
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    const id = office.getAgentAtPoint(cx, cy);
+    if (id) {
+      if (String(id).startsWith('demo-')) {
+        terminal.log('[demo] Coloca ficheiros .md em aiox-core/…/agents/', 'info');
+        return;
+      }
+      onSelectAgent?.(id);
       return;
     }
-    onSelectAgent?.(id);
+    // No agent — check interactive furniture zones.
+    if (office.isWallWhiteboardAt(cx, cy)) {
+      onWallWhiteboardClick?.();
+      return;
+    }
+    const furKey = office.getFurnitureKeyAt(cx, cy);
+    if (furKey) {
+      onFurnitureClick?.(furKey);
+    }
   };
   officeCanvas?.addEventListener('click', onOfficeClick);
   cleanup.push(() => officeCanvas?.removeEventListener('click', onOfficeClick));

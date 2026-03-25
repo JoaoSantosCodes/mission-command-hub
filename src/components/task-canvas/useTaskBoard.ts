@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+
 import type { ColumnId, TaskItem, TaskPriority } from './types';
 
 import {
@@ -132,6 +133,28 @@ export function exportTaskBoardBlob(tasks: TaskItem[]) {
   return new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
 }
 
+/** Exporta o quadro como CSV (id, title, column, priority, blocked, assignee, note, createdAt). */
+export function exportTaskBoardCsvBlob(tasks: TaskItem[]): Blob {
+  const escape = (v: unknown): string => {
+    const s = v === null || v === undefined ? '' : String(v);
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+  const header = 'id,title,column,priority,blocked,assignee,note,createdAt';
+  const rows = tasks.map((t) =>
+    [
+      escape(t.id),
+      escape(t.title),
+      escape(t.columnId),
+      escape(t.priority ?? ''),
+      escape(t.blocked ? 'sim' : 'não'),
+      escape(t.assigneeAgentId ?? ''),
+      escape(t.note ?? ''),
+      escape(new Date(t.createdAt).toISOString()),
+    ].join(',')
+  );
+  return new Blob([[header, ...rows].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+}
+
 function newId() {
   return `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -168,6 +191,8 @@ async function persistTaskCanvasActivities(entries: { agent: string; action: str
   );
 }
 
+const HISTORY_LIMIT = 50;
+
 export function useTaskBoard(agentsForLabels: AgentRow[] = []) {
   const [tasks, setTasks] = useState<TaskItem[]>(() => load().map(normalizeLoadedTask));
   const [syncHydrated, setSyncHydrated] = useState(!TASK_BOARD_SYNC);
@@ -176,6 +201,39 @@ export function useTaskBoard(agentsForLabels: AgentRow[] = []) {
   const agentsRef = useRef(agentsForLabels);
   agentsRef.current = agentsForLabels;
   tasksRef.current = tasks;
+
+  // Undo/redo history
+  const pastRef = useRef<TaskItem[][]>([]);
+  const futureRef = useRef<TaskItem[][]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const pushHistory = useCallback(() => {
+    pastRef.current = [...pastRef.current, [...tasksRef.current]].slice(-HISTORY_LIMIT);
+    futureRef.current = [];
+    setCanUndo(true);
+    setCanRedo(false);
+  }, []);
+
+  const undo = useCallback(() => {
+    if (!pastRef.current.length) return;
+    const prev = pastRef.current[pastRef.current.length - 1]!;
+    futureRef.current = [[...tasksRef.current], ...futureRef.current];
+    pastRef.current = pastRef.current.slice(0, -1);
+    setTasks(prev);
+    setCanUndo(pastRef.current.length > 0);
+    setCanRedo(true);
+  }, []);
+
+  const redo = useCallback(() => {
+    if (!futureRef.current.length) return;
+    const next = futureRef.current[0]!;
+    pastRef.current = [...pastRef.current, [...tasksRef.current]].slice(-HISTORY_LIMIT);
+    futureRef.current = futureRef.current.slice(1);
+    setTasks(next);
+    setCanUndo(true);
+    setCanRedo(futureRef.current.length > 0);
+  }, []);
 
   useEffect(() => {
     try {
@@ -391,8 +449,9 @@ export function useTaskBoard(agentsForLabels: AgentRow[] = []) {
   }, []);
 
   const replaceTasks = useCallback((next: TaskItem[]) => {
+    pushHistory();
     setTasks(next.map(normalizeLoadedTask));
-  }, []);
+  }, [pushHistory]);
 
   const clearAll = useCallback(() => {
     setTasks([]);
@@ -400,24 +459,25 @@ export function useTaskBoard(agentsForLabels: AgentRow[] = []) {
 
   const addTaskWithActivity = useCallback(
     (columnId: ColumnId, title: string) => {
-      addTask(columnId, title);
       const t = title.trim();
-      if (t) {
-        void persistTaskCanvasActivities([
-          {
-            agent: '@task-canvas',
-            action: `Quadro: nova tarefa (${columnLabelPt(columnId)}) — ${t.slice(0, 80)}`,
-          },
-        ]);
-      }
+      if (!t) return;
+      pushHistory();
+      addTask(columnId, title);
+      void persistTaskCanvasActivities([
+        {
+          agent: '@task-canvas',
+          action: `Quadro: nova tarefa (${columnLabelPt(columnId)}) — ${t.slice(0, 80)}`,
+        },
+      ]);
     },
-    [addTask]
+    [addTask, pushHistory]
   );
 
   const moveTaskWithActivity = useCallback(
     (id: string, toColumn: ColumnId, toIndex?: number) => {
       const cur = tasksRef.current.find((t) => t.id === id);
       const from = cur?.columnId;
+      pushHistory();
       moveTask(id, toColumn, toIndex);
       if (from && from !== toColumn && cur) {
         const who = cur.assigneeAgentId
@@ -427,12 +487,13 @@ export function useTaskBoard(agentsForLabels: AgentRow[] = []) {
         void persistTaskCanvasActivities([{ agent: '@task-canvas', action: summary }]);
       }
     },
-    [moveTask]
+    [moveTask, pushHistory]
   );
 
   const removeTaskWithActivity = useCallback(
     (id: string) => {
       const cur = tasksRef.current.find((t) => t.id === id);
+      pushHistory();
       removeTask(id);
       void persistTaskCanvasActivities([
         {
@@ -443,7 +504,7 @@ export function useTaskBoard(agentsForLabels: AgentRow[] = []) {
         },
       ]);
     },
-    [removeTask]
+    [removeTask, pushHistory]
   );
 
   const distributeTodoAssignees = useCallback(() => {
@@ -457,6 +518,7 @@ export function useTaskBoard(agentsForLabels: AgentRow[] = []) {
       return { ...t, assigneeAgentId: ids[i++ % ids.length] };
     });
     if (assigned === 0) return;
+    pushHistory();
     setTasks(next);
     void persistTaskCanvasActivities([
       {
@@ -464,20 +526,22 @@ export function useTaskBoard(agentsForLabels: AgentRow[] = []) {
         action: `Quadro: distribuiu ${assigned} tarefa(s) na fila por ${ids.length} agente(s).`,
       },
     ]);
-  }, []);
+  }, [pushHistory]);
 
   const clearDoneWithActivity = useCallback(() => {
     const doneCount = tasksRef.current.filter((t) => t.columnId === 'done').length;
+    if (doneCount > 0) pushHistory();
     clearDone();
     if (doneCount > 0) {
       void persistTaskCanvasActivities([
         { agent: '@task-canvas', action: `Limpeza de concluídas: ${doneCount} tarefa(s)` },
       ]);
     }
-  }, [clearDone]);
+  }, [clearDone, pushHistory]);
 
   const clearAllWithActivity = useCallback(() => {
     const count = tasksRef.current.length;
+    if (count > 0) pushHistory();
     clearAll();
     if (count > 0) {
       void persistTaskCanvasActivities([
@@ -487,7 +551,7 @@ export function useTaskBoard(agentsForLabels: AgentRow[] = []) {
         },
       ]);
     }
-  }, [clearAll]);
+  }, [clearAll, pushHistory]);
 
   return {
     tasks,
@@ -501,6 +565,12 @@ export function useTaskBoard(agentsForLabels: AgentRow[] = []) {
     clearAll: clearAllWithActivity,
     /** Reparte tarefas em `todo` sem `assigneeAgentId` pelos agentes (round-robin). */
     distributeTodoAssignees,
+    /** Desfaz a última acção estrutural (add/remove/move/clear). */
+    undo,
+    /** Refaz a última acção desfeita. */
+    redo,
+    canUndo,
+    canRedo,
     /** `true` quando `VITE_TASK_BOARD_SYNC` está activo e a carga inicial do servidor terminou. */
     taskBoardSync: TASK_BOARD_SYNC,
     taskBoardSyncHydrated: syncHydrated,

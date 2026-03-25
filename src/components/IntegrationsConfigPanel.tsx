@@ -87,6 +87,7 @@ export function IntegrationsConfigPanel({
   const [tab, setTab] = useState<'onboarding' | 'llm' | 'integrations' | 'infra'>('onboarding');
   useEffect(() => {
     if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTab('onboarding');
   }, [open]);
   const ok = {

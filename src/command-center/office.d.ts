@@ -46,6 +46,8 @@ export function getOfficeLayoutExportJSON(): string;
 export function importOfficeLayoutFromJSON(jsonStr: string): boolean;
 export function resetOfficeLayoutToDefaults(): void;
 export function consumeSuppressOfficeClick(): boolean;
+export function getFurnitureKeyAt(canvasX: number, canvasY: number): string | null;
+export function isWallWhiteboardAt(canvasX: number, canvasY: number): boolean;
 
 export function onVoiceStart(targetAgentId: string): void;
 export function onTaskComplete(agentId: string): void;

@@ -5,35 +5,23 @@ import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import importPlugin from 'eslint-plugin-import';
 import prettier from 'eslint-plugin-prettier';
+import globals from 'globals';
 
 export default [
   js.configs.recommended,
+  // Browser source files (React/TS)
   {
-    files: ['**/*.{js,jsx,ts,tsx,mjs}'],
+    files: ['src/**/*.{js,jsx,ts,tsx}'],
     languageOptions: {
       parser: tsparser,
       parserOptions: {
         ecmaVersion: 'latest',
         sourceType: 'module',
-        ecmaFeatures: {
-          jsx: true,
-        },
+        ecmaFeatures: { jsx: true },
       },
       globals: {
-        console: 'readonly',
-        process: 'readonly',
-        Buffer: 'readonly',
-        __dirname: 'readonly',
-        __filename: 'readonly',
-        global: 'readonly',
-        window: 'readonly',
-        document: 'readonly',
-        navigator: 'readonly',
-        fetch: 'readonly',
-        setTimeout: 'readonly',
-        clearTimeout: 'readonly',
-        setInterval: 'readonly',
-        clearInterval: 'readonly',
+        ...globals.browser,
+        ...globals.es2021,
       },
     },
     plugins: {
@@ -49,19 +37,47 @@ export default [
       'prettier/prettier': 'error',
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      // TypeScript handles undefined references — disable no-undef for TS files
+      'no-undef': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
     },
     settings: {
-      react: {
-        version: 'detect',
-      },
+      react: { version: 'detect' },
       'import/resolver': {
-        node: {
-          extensions: ['.js', '.jsx', '.ts', '.tsx', '.mjs'],
-        },
+        node: { extensions: ['.js', '.jsx', '.ts', '.tsx', '.mjs'] },
       },
+    },
+  },
+  // Node server / scripts / tests
+  {
+    files: ['server/**/*.mjs', 'scripts/**/*.mjs', 'test/**/*.mjs', '**/*.mjs'],
+    languageOptions: {
+      parser: tsparser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
+      globals: {
+        ...globals.node,
+        ...globals.es2021,
+      },
+    },
+    plugins: {
+      prettier,
+    },
+    rules: {
+      'prettier/prettier': 'error',
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
   {
@@ -76,13 +92,11 @@ export default [
       '.mission-agent/',
       'public/',
       '@img/',
-      '*.config.js',
-      '*.config.ts',
-      '*.config.mjs',
       'vite.config.ts',
       'vitest.config.ts',
       'tailwind.config.ts',
       'postcss.config.mjs',
+      'eslint.config.js',
     ],
   },
 ];

@@ -8,44 +8,41 @@ Registo de auditorias cruzadas entre **`docs/CHECKLIST.md`** e o código / repos
 
 | Campo | Valor |
 |--------|--------|
-| **Data** | 2026-03-24 |
-| **Versão** | v1.0.0-complete (CI/CD, docs, qualidade) |
-| **Âmbito** | Validação documentação + integrações + ferramentas desenvolvimento |
-| **Comandos** | `npm test` → **51/51** pass; `npm run build` → OK; `npm run lint` → OK |
+| **Data** | 2026-03-25 |
+| **Versão** | v1.0.1 — code splitting + error boundary + deploy docs |
+| **Âmbito** | Pendências Fase 2.1 e Fase 4: code splitting, error boundary, DEPLOY.md |
+| **Comandos** | `npm test` → **51/51** pass; `npm run build` → OK (sem aviso chunk size); `npm run lint` → **0 erros** |
 
 ### Resultado
 
-- **Estado geral:** EXCELENTE — Documentação completa + CI/CD ativo + Testes 51/51 ✅ + Linting OK
-- **Contagem de testes:** **51** (`api.smoke` + `fish-api` + `e2e-basic-flow`) — cobertura abrangente
-- **Documentação:** [DOCUMENTATION-INDEX.md](./DOCUMENTATION-INDEX.md) como entrada central; [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md) fases bem definidas; [INTEGRATIONS.md](./INTEGRATIONS.md) completa
-- **Qualidade de Código:** ESLint v9 ✅ + Prettier ✅ + Husky+lint-staged ✅ + GitHub Actions ✅
-- **Ideias aiox:** [AIOX_CORE_IDEAS.md](./AIOX_CORE_IDEAS.md) / [reference/](./reference/README.md) bem organizadas
-- **Melhorias recentes (2026-03-24):**
-  - ✅ Criado [DOCUMENTATION-INDEX.md](./DOCUMENTATION-INDEX.md) como índice central
-  - ✅ README aprimorado com referência rápida à documentação
-  - ✅ [CONTRIBUTING.md](../CONTRIBUTING.md) com guia completo
-  - ✅ GitHub Actions CI/CD funcionando
-  - ✅ VSCode config (.vscode/settings.json, extensions.json)
-  - ✅ EditorConfig (.editorconfig) para cross-editor consistency
+- **Estado geral:** EXCELENTE — pendências técnicas fechadas; bundle inicial 513 kB → **41 kB** ✅
+- **Implementado (2026-03-25):**
+  - ✅ **Code splitting** — `vite.config.ts` com `manualChunks` (react-vendor, motion, icons); `App.tsx` com `React.lazy`+`Suspense` para 7 componentes pesados
+  - ✅ **Error boundary** — `src/components/ErrorBoundary.tsx` com fallback configurável e "Tentar novamente"
+  - ✅ **docs/DEPLOY.md** (Fase 2.1) — nginx, Caddy, Docker, variáveis de produção, checklist pré-deploy
+  - ✅ `IMPLEMENTATION-PLAN.md` — Fase 2.1 e Fases 4.4/4.5 marcadas concluídas
 
 ### Lacunas conhecidas (não são erros do checklist)
 
 | Tópico | Nota |
 |--------|------|
-| Testes de UI | Sem E2E do `DoubtsChatPanel` / `TaskCanvasView` — Fase 4 do **IMPLEMENTATION-PLAN**. |
-| MCP operacional | Item `[ ]` **Integrações MCP** — Fase 0 do plano. |
-| Slack inbound | Só webhook **outbound** — Fase 3 do plano. |
-| Roadmap | Quotas LLM + política de dados — Fase 1; base de conhecimento — Fase 3. |
+| Testes de UI | Sem E2E do `DoubtsChatPanel` / `TaskCanvasView` — Fase 4.1/4.2 do **IMPLEMENTATION-PLAN**. |
+| MCP operacional | Item `[ ]` **Integrações MCP** — Fase 0 do plano (config no Cursor, sem código). |
+| Slack inbound | Só webhook **outbound** — Fase 3.1 do plano. |
+| Auth / multi-tenant | Não implementado — Fase 2.2/2.3; requer decisão de produto. Não expor sem proxy+auth. |
 
 ### Próxima revisão sugerida
 
-- Após fechar **Fase 0** ou **1** do [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md).
+- Após fechar **Fase 0** (MCP Notion/Figma operacional no Cursor).
+- Após decisão sobre **Fase 2.2** (método de autenticação).
 - Após alterações em **`create-app.mjs`**, **OpenAPI**, ou **`.env.example`**.
 
 ### Auditoria anterior
 
 | Data | Âmbito | Comandos |
 |------|--------|----------|
+| 2026-03-25 | ESLint fix: 148 erros → 0; globals browser/node; TaskColumn React import | `npm test` **51/51**; `npm run build` OK; `npm run lint` **0 erros** |
+| 2026-03-24 | CI/CD, docs, qualidade; 51 testes | `npm test` **51/51**; `npm run build` OK; `npm run lint` ⚠️ 148 erros (não detectado) |
 | 2026-03-24 | Slack, verify:env, integrações, E2E; 39 testes | `npm test` **39/39**; `npm run build` OK |
 | 2026-03-23 | MissionAgent — integrações `alerts/history`, `activity/event`, E2E básico, 39 testes | `npm test` **39/39**; `npm run build` OK |
 | 2026-03-23 | MissionAgent — overview API, feed `kind`, revisão agente, activity JSON, Kanban priority/blocked | `npm test` **25/25**; `npm run build` OK |

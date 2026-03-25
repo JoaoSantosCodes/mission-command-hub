@@ -1,10 +1,11 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Download, LayoutList, RotateCcw, Search, Upload, Users } from 'lucide-react';
+import { toPng } from 'html-to-image';
+import { Download, FileImage, LayoutList, RotateCcw, Search, Upload, Users, Undo2, Redo2 } from 'lucide-react';
 
 import { BOARD_PRESETS, PRESET_ORDER } from './presets';
 import type { BoardPresetId, CanvasSortMode, ColumnId, TaskItem } from './types';
 import { TaskColumn } from './TaskColumn';
-import { exportTaskBoardBlob, parseTaskBoardJson, useTaskBoard } from './useTaskBoard';
+import { exportTaskBoardBlob, exportTaskBoardCsvBlob, parseTaskBoardJson, useTaskBoard } from './useTaskBoard';
 
 import type { AgentRow } from '@/types/hub';
 import {
@@ -315,8 +316,14 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
     taskBoardSync,
     taskBoardSyncHydrated,
     distributeTodoAssignees,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useTaskBoard(agents);
   const fileRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
   const autoExecSigByTaskIdRef = useRef<Record<string, string>>({});
 
   const handleAgentStep = useCallback(
@@ -573,6 +580,61 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
     URL.revokeObjectURL(a.href);
   };
 
+  const exportCsv = () => {
+    const blob = exportTaskBoardCsvBlob(tasks);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `mission-agent-tasks-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const exportPng = useCallback(async () => {
+    if (!boardRef.current) return;
+    try {
+      const dataUrl = await toPng(boardRef.current, { cacheBust: true, pixelRatio: 1.5 });
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `mission-agent-tasks-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.png`;
+      a.click();
+    } catch {
+      /* ignore capture errors */
+    }
+  }, []);
+
+  /** Atalhos globais do canvas — só activos quando a vista está montada. */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const inInput = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        if (inInput) return;
+        e.preventDefault();
+        undo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        if (inInput) return;
+        e.preventDefault();
+        redo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        searchRef.current?.focus();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        if (inInput) return;
+        e.preventDefault();
+        document.querySelector<HTMLInputElement>('[aria-label^="Adicionar tarefa em"]')?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
+
   const onImportFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -656,6 +718,42 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
             </button>
             <button
               type="button"
+              onClick={exportCsv}
+              className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-2 text-[11px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              title="Exportar quadro como CSV"
+            >
+              <Download className="h-3.5 w-3.5" aria-hidden />
+              CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => void exportPng()}
+              className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-2 text-[11px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              title="Exportar quadro como imagem PNG"
+            >
+              <FileImage className="h-3.5 w-3.5" aria-hidden />
+              PNG
+            </button>
+            <button
+              type="button"
+              onClick={undo}
+              disabled={!canUndo}
+              className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-2 text-[11px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40"
+              title="Desfazer última acção (Ctrl+Z)"
+            >
+              <Undo2 className="h-3.5 w-3.5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={redo}
+              disabled={!canRedo}
+              className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-2 text-[11px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40"
+              title="Refazer (Ctrl+Y)"
+            >
+              <Redo2 className="h-3.5 w-3.5" aria-hidden />
+            </button>
+            <button
+              type="button"
               disabled={!agents.length}
               onClick={() => {
                 if (!agents.length) return;
@@ -697,10 +795,11 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
                 Filtrar
               </span>
               <input
+                ref={searchRef}
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Título ou nota…"
+                placeholder="Título ou nota… (Ctrl+F)"
                 className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-normal normal-case text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
                 aria-label="Filtrar tarefas por texto"
               />
@@ -890,7 +989,7 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
       </div>
 
       <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden p-4 sm:p-6">
-        <div className="flex h-full min-w-min gap-4 pb-2">
+        <div ref={boardRef} className="flex h-full min-w-min gap-4 pb-2">
           {preset.columns.map((col) => (
             <TaskColumn
               key={col.id}

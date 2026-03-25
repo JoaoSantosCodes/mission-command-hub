@@ -9,19 +9,21 @@ import {
   Moon,
   PanelLeft,
   PanelRight,
+  PenLine,
   RefreshCw,
   SlidersHorizontal,
   Sparkles,
   SquareKanban,
   Sun,
   Terminal,
+  Users,
 } from 'lucide-react';
 
 import { HubMascot } from '@/components/HubMascot';
 import { MAX_COMMAND_CHARS } from '@/constants';
 import type { ThemeMode } from '@/hooks/useTheme';
 
-export type HubViewMode = 'hub' | 'commandCenter' | 'taskCanvas';
+export type HubViewMode = 'hub' | 'commandCenter' | 'taskCanvas' | 'squad' | 'whiteboard';
 
 type HubHeaderProps = {
   cmd: string;
@@ -194,7 +196,7 @@ export function HubHeader({
                   ? 'bg-secondary text-foreground'
                   : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
               }`}
-              title="Vista em colunas (hub)"
+              title="Vista hub — Alt+1"
               aria-pressed={viewMode === 'hub'}
               aria-label="Vista em colunas"
             >
@@ -208,7 +210,7 @@ export function HubHeader({
                   ? 'bg-secondary text-foreground'
                   : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
               }`}
-              title="Central de agentes (estilo OpenClaw)"
+              title="Central de agentes — Alt+2"
               aria-pressed={viewMode === 'commandCenter'}
               aria-label="Central de agentes"
             >
@@ -222,11 +224,39 @@ export function HubHeader({
                   ? 'bg-secondary text-foreground'
                   : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
               }`}
-              title="Canvas de tarefas (Kanban modular)"
+              title="Canvas de tarefas — Alt+3"
               aria-pressed={viewMode === 'taskCanvas'}
               aria-label="Canvas de tarefas"
             >
               <SquareKanban className="h-3.5 w-3.5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewModeChange('squad')}
+              className={`rounded px-2 py-1.5 transition-colors ${
+                viewMode === 'squad'
+                  ? 'bg-secondary text-foreground'
+                  : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
+              }`}
+              title="Squads — Alt+4"
+              aria-pressed={viewMode === 'squad'}
+              aria-label="Vista por squads"
+            >
+              <Users className="h-3.5 w-3.5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewModeChange('whiteboard')}
+              className={`rounded px-2 py-1.5 transition-colors ${
+                viewMode === 'whiteboard'
+                  ? 'bg-secondary text-foreground'
+                  : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
+              }`}
+              title="Whiteboard — Alt+5"
+              aria-pressed={viewMode === 'whiteboard'}
+              aria-label="Whiteboard de arquitetura"
+            >
+              <PenLine className="h-3.5 w-3.5" aria-hidden />
             </button>
           </div>
         ) : null}

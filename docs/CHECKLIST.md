@@ -1,6 +1,6 @@
 # Architecture Agents Hub — melhorias e pendências
 
-Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-24 — **Fase 1** do [IMPLEMENTATION-PLAN.md](./IMPLEMENTATION-PLAN.md): política de dados + quotas configuráveis (`DOUBTS_CHAT_WINDOW_MS`) + log métricas LLM sem PII + UI Dúvidas + OpenAPI; chave LLM genérica (`MISSION_LLM_API_KEY`); testes **51/51**. Projeto autocontido em `MissionAgent/`; referências operacionais: **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)** e **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
+Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03-25 — **Code splitting** (bundle 513 kB → 41 kB inicial; `React.lazy`+`Suspense` para 7 componentes; `manualChunks` react/motion/icons); **ErrorBoundary**; **docs/DEPLOY.md** (Fase 2.1); lint **0 erros**; testes **51/51**. Projeto autocontido em `MissionAgent/`; referências operacionais: **[CHECKLIST-OPERACIONAL.md](./CHECKLIST-OPERACIONAL.md)** e **[CHECKLIST-VALIDATION.md](./CHECKLIST-VALIDATION.md)**.
 
 ---
 
@@ -76,6 +76,10 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 
 - [x] **CI** (GitHub Actions): workflow `Mission Agent CI` em `.github/workflows/mission-agent-ci.yml` — `npm ci`, `npm test`, `npm run build`. **Repo só com esta pasta:** workflow na raiz do clone (ver `MissionAgent/.github/...`). **Monorepo** `AgentesMissao` (pasta pai): cópia alternativa em `AgentesMissao/.github/...` com `working-directory: MissionAgent` e paths `MissionAgent/**`
 - [x] **Separar** `App.tsx` em componentes (`HubHeader`, `AgentsSidebar`, `MainWorkspace`, `ActivityPanel`, `MobileSummary`, `AgentDetailModal`, `CommandCenterView`, `TaskCanvasView`, `DoubtsChatPanel`, …)
+- [x] **ESLint corrigido**: `eslint.config.js` com globals `browser`/`node` via pacote `globals`; `no-undef` desativado para TypeScript (TypeScript faz esta validação); `varsIgnorePattern`/`destructuredArrayIgnorePattern: ^_`; configs separadas para `src/` (browser) e `server/`+`scripts/`+`test/` (node); `office.js` com `eslint-disable` seletivo (canvas/animação); `TaskColumn.tsx` import `React` adicionado; `TeamStatusOverview` `profileTick` documentado — **0 erros de lint**
+- [x] **Code splitting** (Fase 4): bundle JS inicial 513 kB → **41 kB** (`index.js`); `vite.config.ts` com `manualChunks` (`react-vendor`, `motion`, `icons`); `App.tsx` com `React.lazy`+`Suspense` para 7 componentes (`CommandCenterView`, `TaskCanvasView`, `AgentDetailModal`, `CreateAgentModal`, `DoubtsChatPanel`, `CustomizationPanel`, `IntegrationsConfigPanel`); sem aviso de chunk size
+- [x] **Error boundaries** (Fase 4 / roadmap): `src/components/ErrorBoundary.tsx` — componente de classe com `getDerivedStateFromError`, fallback configurável, botão "Tentar novamente"; usado nas vistas lazy e nos painéis/modais
+- [x] **Documentação de deploy** (Fase 2.1): `docs/DEPLOY.md` — nginx, Caddy, Docker, variáveis de produção (`CORS_ORIGINS`, `TRUST_PROXY`, rate limits), checklist pré-deploy
 
 ---
 
@@ -104,6 +108,9 @@ Checklist vivo: marca com `[x]` quando concluído. **Última revisão:** 2026-03
 | ~~Baixa~~ | ~~**Canvas de tarefas: ordem dentro da coluna**~~ | **Feito:** zonas de inserção entre cartões com ordenação *Manual* e sem filtro; `moveTask(id, col, toIndex)` |
 | ~~Baixa~~ | ~~**Canvas de tarefas: pesquisa / filtro**~~ | **Feito:** campo *Filtrar* (título/nota); ordenação opcional; dados em `localStorage` só pelo estado do quadro (não pelo filtro) |
 | ~~Média~~ | ~~**Canvas de tarefas: persistência no servidor**~~ | **Feito:** `GET`/`PUT /api/aiox/task-board`, ficheiro no processo Node, UI `VITE_TASK_BOARD_SYNC`. *Ainda sem* auth nem isolamento por utilizador (ver Pendências) |
+| ~~Baixa~~ | ~~**Code splitting**~~ | **Feito:** bundle inicial 513 kB → 41 kB; `manualChunks` + `React.lazy`/`Suspense` em 7 componentes |
+| ~~Baixa~~ | ~~**Error boundaries**~~ | **Feito:** `ErrorBoundary.tsx` nas vistas lazy e painéis |
+| ~~Média~~ | ~~**Documentação de deploy**~~ | **Feito:** `docs/DEPLOY.md` — nginx, Caddy, Docker, variáveis prod, checklist |
 
 ---
 

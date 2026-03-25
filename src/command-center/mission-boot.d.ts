@@ -3,6 +3,8 @@ export function stopMissionCommandCenter(): void;
 export function startMissionCommandCenter(opts: {
   agentRows?: Array<{ id: string; title: string }>;
   onSelectAgent?: (id: string) => void;
+  onWallWhiteboardClick?: () => void;
+  onFurnitureClick?: (key: string) => void;
 }): void;
 
 export const terminal: {

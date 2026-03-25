@@ -29,6 +29,7 @@ import {
   isDoubtsLlmConfigured,
   parseTaskBacklogCheckResponse,
   parseTaskAgentStepResponse,
+  setAgentsDirForRag,
   streamDoubtsChatCompletion,
   validateDoubtsChatBody,
 } from './lib/doubts-llm.mjs';
@@ -91,6 +92,7 @@ function resolveAgentMarkdownPath(agentsDir, idParam) {
 export async function createBridgeApp(missionRoot, options = {}) {
   const ROOT = path.resolve(missionRoot);
   const { AIOX_ROOT, AGENTS_DIR, AIOX_BIN } = resolveAioxPaths(ROOT);
+  setAgentsDirForRag(AGENTS_DIR);
 
   const activityLogPath =
     options.activityLogPath ??
@@ -136,6 +138,16 @@ export async function createBridgeApp(missionRoot, options = {}) {
   const activityCore = await createActivityStoreAuto(activityLogPath);
   const taskRunStore = await createTaskRunStoreAuto(taskRunsPath);
   const taskAgentPolicy = createTaskAgentPolicyFromEnv();
+  // SSE: conjunto de respostas ativas (uma por cliente conectado)
+  const sseClients = new Set();
+  function broadcastSseEvent(eventType, data) {
+    if (!sseClients.size) return;
+    const line = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
+    for (const res of sseClients) {
+      try { res.write(line); } catch { sseClients.delete(res); }
+    }
+  }
+
   const activity = {
     ...activityCore,
     pushLog: async (agent, action, type, kind) => {
@@ -143,7 +155,10 @@ export async function createBridgeApp(missionRoot, options = {}) {
       await activityCore.pushLog(agent, action, type, kind);
       const headAfter = activityCore.getLogs()[0];
       const added = !headBefore || headAfter?.id !== headBefore.id;
-      if (added) void mirrorActivityToSlack({ agent, action, type, kind });
+      if (added) {
+        void mirrorActivityToSlack({ agent, action, type, kind });
+        if (headAfter) broadcastSseEvent('activity', headAfter);
+      }
     },
   };
 
@@ -214,6 +229,20 @@ export async function createBridgeApp(missionRoot, options = {}) {
   }
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+
+  // Auth: X-API-Key opcional — só activo quando MISSION_API_KEY está definido (≥8 chars)
+  const missionApiKey = String(process.env.MISSION_API_KEY || '').trim();
+  if (missionApiKey.length >= 8) {
+    app.use('/api', (req, res, next) => {
+      // Rotas públicas: health e SSE (EventSource não suporta headers custom)
+      if (req.path === '/health' || req.path.startsWith('/aiox/events/stream')) return next();
+      const provided = String(req.headers['x-api-key'] || '').trim();
+      if (provided !== missionApiKey) {
+        return res.status(401).json({ ok: false, error: 'não autorizado (X-API-Key inválida ou ausente)' });
+      }
+      next();
+    });
+  }
 
   const commandLimiter = rateLimitJson({
     windowMs: 60 * 1000,
@@ -369,6 +398,36 @@ export async function createBridgeApp(missionRoot, options = {}) {
         llmEnabled: isDoubtsLlmConfigured(),
         streamAvailable: isDoubtsLlmConfigured(),
       },
+    });
+  });
+
+  /** SSE: stream de eventos em tempo real (actividade + agentes). Exclui auth pois EventSource não suporta headers custom. */
+  app.get('/api/aiox/events/stream', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    // Snapshot inicial
+    const agentsResult = readAgentFiles(AGENTS_DIR);
+    const snapshot = {
+      agents: agentsResult.ok ? agentsResult.agents : [],
+      logs: activity.getLogs(),
+    };
+    res.write(`event: connected\ndata: ${JSON.stringify({ ok: true })}\n\n`);
+    res.write(`event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`);
+
+    sseClients.add(res);
+
+    // Keepalive a cada 25s (previne timeout de proxies)
+    const keepalive = setInterval(() => {
+      try { res.write(':\n\n'); } catch { clearInterval(keepalive); sseClients.delete(res); }
+    }, 25_000);
+
+    req.on('close', () => {
+      clearInterval(keepalive);
+      sseClients.delete(res);
     });
   });
 
@@ -1462,6 +1521,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       logger.warn({ err: String(e?.message || e) }, 'activity pushLog after agent create failed');
     }
     logger.info({ id, bytes }, 'agent markdown created');
+    broadcastSseEvent('agents', { agents: (readAgentFiles(AGENTS_DIR)).agents ?? [] });
     res.status(201).json({ ok: true, id, bytes });
   });
 
@@ -1564,6 +1624,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       logger.warn({ err: String(e?.message || e) }, 'activity pushLog after agent edit failed');
     }
     logger.info({ id, bytes }, 'agent markdown saved');
+    broadcastSseEvent('agents', { agents: (readAgentFiles(AGENTS_DIR)).agents ?? [] });
     res.json({ ok: true, id, bytes });
   });
 
@@ -1594,6 +1655,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       logger.warn({ err: String(e?.message || e) }, 'activity pushLog after agent delete failed');
     }
     logger.info({ id }, 'agent markdown deleted');
+    broadcastSseEvent('agents', { agents: (readAgentFiles(AGENTS_DIR)).agents ?? [] });
     res.json({ ok: true, id });
   });
 

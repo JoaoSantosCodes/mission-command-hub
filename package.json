@@ -37,6 +37,7 @@
     "express-rate-limit": "^7.5.0",
     "framer-motion": "^12.38.0",
     "helmet": "^8.0.0",
+    "html-to-image": "^1.11.13",
     "js-yaml": "^4.1.0",
     "lucide-react": "^0.462.0",
     "pg": "^8.20.0",

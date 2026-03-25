@@ -2,8 +2,51 @@
  * Chat opcional no painel Dúvidas via API compatível com OpenAI (`POST /v1/chat/completions`).
  * Chave: `MISSION_LLM_API_KEY` (recomendado) ou `OPENAI_API_KEY` (legado). Base: `MISSION_LLM_BASE_URL`.
  */
+import fs from 'fs';
+import path from 'path';
 import { logger } from './logger.mjs';
 import { getLlmApiKeyFromEnv, getLlmBaseUrlFromEnv } from './llm-api-key.mjs';
+
+// RAG: contexto dos agentes injectado no system prompt
+let _ragAgentsDir = '';
+let _agentContextCache = null; // { text: string, expiresAt: number }
+
+export function setAgentsDirForRag(dir) {
+  _ragAgentsDir = String(dir || '');
+  _agentContextCache = null;
+}
+
+function getAgentContextBlock() {
+  try {
+    if (!_ragAgentsDir) return '';
+    if (_agentContextCache && Date.now() < _agentContextCache.expiresAt) {
+      return _agentContextCache.text;
+    }
+    if (!fs.existsSync(_ragAgentsDir)) return '';
+    const files = fs.readdirSync(_ragAgentsDir).filter((f) => f.endsWith('.md'));
+    if (!files.length) return '';
+    const lines = [];
+    for (const f of files) {
+      const id = f.replace(/\.md$/i, '');
+      try {
+        const buf = Buffer.allocUnsafe(800);
+        const fd = fs.openSync(path.join(_ragAgentsDir, f), 'r');
+        const bytesRead = fs.readSync(fd, buf, 0, 800, 0);
+        fs.closeSync(fd);
+        const snippet = buf.slice(0, bytesRead).toString('utf8');
+        const firstLine = snippet.split(/\r?\n/).find((l) => l.trim().length > 0) || id;
+        lines.push(`- ${id}: ${firstLine.replace(/^#+\s*/, '').trim().slice(0, 120)}`);
+      } catch {
+        lines.push(`- ${id}`);
+      }
+    }
+    const text = `\n\n## Agentes disponíveis\n${lines.join('\n')}`;
+    _agentContextCache = { text, expiresAt: Date.now() + 60_000 };
+    return text;
+  } catch {
+    return '';
+  }
+}
 
 function apiKey() {
   return getLlmApiKeyFromEnv();
@@ -67,7 +110,8 @@ export async function callDoubtsChatCompletion(userMessages) {
     4096
   );
 
-  const messages = [{ role: 'system', content: getDoubtsSystemPrompt() }, ...userMessages];
+  const systemContent = getDoubtsSystemPrompt() + getAgentContextBlock();
+  const messages = [{ role: 'system', content: systemContent }, ...userMessages];
   logDoubtsLlmRequest(userMessages, 'json');
 
   const controller = new AbortController();
@@ -196,7 +240,8 @@ export async function* streamDoubtsChatCompletion(userMessages) {
     Math.max(Number(process.env.MISSION_LLM_MAX_TOKENS) || 1024, 64),
     4096
   );
-  const messages = [{ role: 'system', content: getDoubtsSystemPrompt() }, ...userMessages];
+  const systemContent = getDoubtsSystemPrompt() + getAgentContextBlock();
+  const messages = [{ role: 'system', content: systemContent }, ...userMessages];
   logDoubtsLlmRequest(userMessages, 'stream');
 
   const controller = new AbortController();

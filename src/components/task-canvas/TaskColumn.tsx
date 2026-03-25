@@ -1,8 +1,13 @@
-import { Fragment, useState } from 'react';
+import React, { Fragment, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
 
 import type { ColumnDef, ColumnId, TaskItem } from './types';
 import { TaskCard } from './TaskCard';
+
+const prefersReducedMotion =
+  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CARD_DURATION = prefersReducedMotion ? 0 : 0.15;
 
 import type { AgentRow } from '@/types/hub';
 import type { FigmaContextResponse, TaskBacklogCheckResponse, TaskRunEntry } from '@/lib/api';
@@ -114,8 +119,52 @@ export function TaskColumn({
         {reorderEnabled ? (
           <>
             <InsertDropZone insertIndex={0} columnId={def.id} onMove={onMove} />
-            {tasks.map((t, i) => (
-              <Fragment key={t.id}>
+            <AnimatePresence initial={false}>
+              {tasks.map((t, i) => (
+                <Fragment key={t.id}>
+                  <motion.div
+                    layout
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    transition={{ duration: CARD_DURATION, ease: 'easeOut' }}
+                  >
+                    <TaskCard
+                      task={t}
+                      agents={agents}
+                      runStatus={runsByTaskId[t.id]?.status}
+                      runMessage={runsByTaskId[t.id]?.message}
+                      agentStepLoading={agentStepLoadingId === t.id}
+                      figmaContextLoading={figmaLoadingTaskId === t.id}
+                      figmaContextLoaded={Boolean(figmaContextByTaskId[t.id])}
+                      figmaContextSummary={figmaContextByTaskId[t.id]?.designSummary}
+                      figmaMeta={figmaContextByTaskId[t.id]?.meta}
+                      onAgentStep={onAgentStep}
+                      onBacklogCheck={onBacklogCheck}
+                      backlogCheckLoading={backlogCheckLoadingTaskId === t.id}
+                      backlogCheckResult={backlogCheckByTaskId[t.id]}
+                      onReadFigmaContext={onReadFigmaContext}
+                      onUpdate={onUpdate}
+                      onRemove={onRemove}
+                      onMove={onMove}
+                    />
+                  </motion.div>
+                  <InsertDropZone insertIndex={i + 1} columnId={def.id} onMove={onMove} />
+                </Fragment>
+              ))}
+            </AnimatePresence>
+          </>
+        ) : (
+          <AnimatePresence initial={false}>
+            {tasks.map((t) => (
+              <motion.div
+                key={t.id}
+                layout
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: CARD_DURATION, ease: 'easeOut' }}
+              >
                 <TaskCard
                   task={t}
                   agents={agents}
@@ -135,33 +184,9 @@ export function TaskColumn({
                   onRemove={onRemove}
                   onMove={onMove}
                 />
-                <InsertDropZone insertIndex={i + 1} columnId={def.id} onMove={onMove} />
-              </Fragment>
+              </motion.div>
             ))}
-          </>
-        ) : (
-          tasks.map((t) => (
-            <TaskCard
-              key={t.id}
-              task={t}
-              agents={agents}
-              runStatus={runsByTaskId[t.id]?.status}
-              runMessage={runsByTaskId[t.id]?.message}
-              agentStepLoading={agentStepLoadingId === t.id}
-              figmaContextLoading={figmaLoadingTaskId === t.id}
-              figmaContextLoaded={Boolean(figmaContextByTaskId[t.id])}
-              figmaContextSummary={figmaContextByTaskId[t.id]?.designSummary}
-              figmaMeta={figmaContextByTaskId[t.id]?.meta}
-              onAgentStep={onAgentStep}
-              onBacklogCheck={onBacklogCheck}
-              backlogCheckLoading={backlogCheckLoadingTaskId === t.id}
-              backlogCheckResult={backlogCheckByTaskId[t.id]}
-              onReadFigmaContext={onReadFigmaContext}
-              onUpdate={onUpdate}
-              onRemove={onRemove}
-              onMove={onMove}
-            />
-          ))
+          </AnimatePresence>
         )}
         <form
           className="mt-1 flex gap-2"

@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import {
+  BarChart2,
   FileText,
   Inbox,
   MessageSquare,
@@ -11,6 +13,7 @@ import {
 
 import type { ActivityEntry } from '@/types/hub';
 import { MobileDrawer } from '@/components/MobileDrawer';
+import { ActivityTimeline } from '@/components/ActivityTimeline';
 
 function FeedKindIcon({ kind, type }: { kind?: string; type: string }) {
   const k = (kind || type || '').toLowerCase();
@@ -98,6 +101,8 @@ export function ActivityPanel({
   mobileOpen,
   onMobileClose,
 }: ActivityPanelProps) {
+  const [showTimeline, setShowTimeline] = useState(false);
+
   return (
     <>
       {collapsed ? (
@@ -127,16 +132,32 @@ export function ActivityPanel({
                 Feed de atividade
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => onCollapsedChange(true)}
-              className="rounded-md text-muted-foreground transition-colors hover:text-foreground active:scale-95"
-              aria-expanded
-              title="Recolher feed"
-            >
-              <PanelRightClose className="h-4 w-4" aria-hidden />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setShowTimeline((v) => !v)}
+                className={`rounded-md p-1 transition-colors ${showTimeline ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                aria-pressed={showTimeline}
+                title="Mostrar timeline por hora"
+              >
+                <BarChart2 className="h-3.5 w-3.5" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => onCollapsedChange(true)}
+                className="rounded-md text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+                aria-expanded
+                title="Recolher feed"
+              >
+                <PanelRightClose className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
           </div>
+          {showTimeline && (
+            <div className="shrink-0 border-b border-border">
+              <ActivityTimeline logs={logs} />
+            </div>
+          )}
           <div className="scrollbar-thin flex-1 space-y-1 overflow-auto p-3">
             <ActivityFeedList logs={logs} />
           </div>

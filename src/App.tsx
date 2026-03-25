@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 
 import { useDocumentVisible } from '@/hooks/useDocumentVisible';
 import { useTheme } from '@/hooks/useTheme';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
+import { useActivityStream } from '@/hooks/useActivityStream';
 import {
   consumeFishFood,
   fetchJson,
@@ -27,23 +28,52 @@ import {
   writeOfficeTheme,
 } from '@/lib/office-customization-store';
 import { formatUserFacingError } from '@/lib/format-error';
-import { POLL_INTERVAL_MS } from '@/constants';
+import { POLL_INTERVAL_MS, SSE_FALLBACK_POLL_MS } from '@/constants';
 import type { ActivityEntry, AgentRow, AioxInfo, AioxOverviewResponse } from '@/types/hub';
 import { SkipLink } from '@/components/SkipLink';
-import { CommandCenterView } from '@/components/CommandCenterView';
 import { HubHeader, type HubViewMode } from '@/components/HubHeader';
 import { AgentsSidebar } from '@/components/AgentsSidebar';
 import { MainWorkspace } from '@/components/MainWorkspace';
 import { ActivityPanel } from '@/components/ActivityPanel';
 import { MobileSummary } from '@/components/MobileSummary';
-import { AgentDetailModal } from '@/components/AgentDetailModal';
-import { CreateAgentModal } from '@/components/CreateAgentModal';
-import { TaskCanvasView } from '@/components/task-canvas';
-import { DoubtsChatPanel } from '@/components/DoubtsChatPanel';
-import { CustomizationPanel } from '@/components/CustomizationPanel';
-import { IntegrationsConfigPanel } from '@/components/IntegrationsConfigPanel';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+
+// Lazy-loaded: vistas e painéis não visíveis no arranque
+const CommandCenterView = lazy(() =>
+  import('@/components/CommandCenterView').then((m) => ({ default: m.CommandCenterView }))
+);
+const TaskCanvasView = lazy(() =>
+  import('@/components/task-canvas').then((m) => ({ default: m.TaskCanvasView }))
+);
+const AgentDetailModal = lazy(() =>
+  import('@/components/AgentDetailModal').then((m) => ({ default: m.AgentDetailModal }))
+);
+const CreateAgentModal = lazy(() =>
+  import('@/components/CreateAgentModal').then((m) => ({ default: m.CreateAgentModal }))
+);
+const DoubtsChatPanel = lazy(() =>
+  import('@/components/DoubtsChatPanel').then((m) => ({ default: m.DoubtsChatPanel }))
+);
+const CustomizationPanel = lazy(() =>
+  import('@/components/CustomizationPanel').then((m) => ({ default: m.CustomizationPanel }))
+);
+const IntegrationsConfigPanel = lazy(() =>
+  import('@/components/IntegrationsConfigPanel').then((m) => ({
+    default: m.IntegrationsConfigPanel,
+  }))
+);
+const SquadView = lazy(() =>
+  import('@/components/SquadView').then((m) => ({ default: m.SquadView }))
+);
+const WhiteboardView = lazy(() =>
+  import('@/components/whiteboard/WhiteboardView').then((m) => ({ default: m.WhiteboardView }))
+);
+const OnboardingModal = lazy(() =>
+  import('@/components/OnboardingModal').then((m) => ({ default: m.OnboardingModal }))
+);
 
 const GLOBAL_HELP_VISIBLE_STORAGE_KEY = 'mission-agent-global-help-visible';
+const ONBOARDING_DONE_KEY = 'mission-onboarding-done';
 
 export default function App() {
   const docVisible = useDocumentVisible();
@@ -100,6 +130,23 @@ export default function App() {
       return true;
     }
   });
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+
+  const ACTIVITY_MAX = 200;
+  const { connected: sseConnected } = useActivityStream({
+    enabled: docVisible,
+    onActivity: (entry) => setLogs((prev) => {
+      if (prev.length > 0 && prev[0].id === entry.id) return prev;
+      return [entry, ...prev].slice(0, ACTIVITY_MAX);
+    }),
+    onAgents: (newAgents) => setAgents(newAgents),
+    onSnapshot: ({ agents: newAgents, logs: newLogs }) => {
+      setAgents(newAgents);
+      setLogs(newLogs);
+      setApiOnline(true);
+      setLoading(false);
+    },
+  });
 
   const refreshIntegrations = useCallback(async () => {
     try {
@@ -150,6 +197,14 @@ export default function App() {
   }, [globalHelpVisible]);
 
   useEffect(() => {
+    try {
+      if (!localStorage.getItem(ONBOARDING_DONE_KEY)) setOnboardingOpen(true);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
     void refreshIntegrationsConfig();
   }, [refreshIntegrationsConfig]);
 
@@ -188,6 +243,12 @@ export default function App() {
     if (r.data.office?.theme === 'neon' || r.data.office?.theme === 'default') {
       writeOfficeTheme(r.data.office.theme, { emit: false });
     }
+    // Restore office layout from server to localStorage (office.js reads on next init).
+    if (r.data.office?.layout && typeof r.data.office.layout === 'object') {
+      try {
+        localStorage.setItem('mission-agent-office-layout-v5', JSON.stringify(r.data.office.layout));
+      } catch { /* ignore */ }
+    }
     setCustomRev(r.revision || '0:0');
     return r;
   }, []);
@@ -211,9 +272,15 @@ export default function App() {
 
   const syncCustomizationNow = useCallback(async () => {
     setCustomSyncState('syncing');
+    // Include the office layout from localStorage (written by office.js).
+    let officeLayout: unknown = null;
+    try {
+      const raw = localStorage.getItem('mission-agent-office-layout-v5');
+      if (raw) officeLayout = JSON.parse(raw);
+    } catch { /* ignore */ }
     const payload = {
       agents: readAllAgentProfiles(),
-      office: { theme: readOfficeTheme() },
+      office: { theme: readOfficeTheme(), ...(officeLayout ? { layout: officeLayout } : {}) },
     };
     try {
       const r = await putCustomization(payload, customRev || '0:0');
@@ -254,9 +321,11 @@ export default function App() {
 
   useEffect(() => {
     if (!docVisible) return;
-    const t = window.setInterval(() => void refresh({ silent: true }), POLL_INTERVAL_MS);
+    // Quando SSE está ativo usa intervalo longo (60s) como segurança; sem SSE usa intervalo normal
+    const interval = sseConnected ? SSE_FALLBACK_POLL_MS : POLL_INTERVAL_MS;
+    const t = window.setInterval(() => void refresh({ silent: true }), interval);
     return () => window.clearInterval(t);
-  }, [docVisible, refresh]);
+  }, [docVisible, refresh, sseConnected]);
 
   useEffect(() => {
     /** Evita rajadas de GET /overview quando há várias acções seguidas no canvas (cada uma gerava um refresh). */
@@ -304,7 +373,8 @@ export default function App() {
       createAgentOpen ||
       doubtsOpen ||
       customizationOpen ||
-      integrationsConfigOpen
+      integrationsConfigOpen ||
+      onboardingOpen
   );
 
   useEffect(() => {
@@ -361,6 +431,30 @@ export default function App() {
       }
       e.preventDefault();
       setDoubtsOpen((v) => !v);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  /** Atalhos de navegação: Alt+1/2/3/4 mudam de vista; Ctrl+K foca o campo de comando. */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el) {
+        const tag = el.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable) return;
+      }
+      if (e.altKey) {
+        if (e.key === '1') { e.preventDefault(); setViewMode('hub'); return; }
+        if (e.key === '2') { e.preventDefault(); setViewMode('commandCenter'); return; }
+        if (e.key === '3') { e.preventDefault(); setViewMode('taskCanvas'); return; }
+        if (e.key === '4') { e.preventDefault(); setViewMode('squad'); return; }
+        if (e.key === '5') { e.preventDefault(); setViewMode('whiteboard'); return; }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        document.querySelector<HTMLInputElement>('[aria-label="Texto do comando"]')?.focus();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -493,7 +587,10 @@ export default function App() {
               agents={agents}
               logs={logs}
               loading={loading}
-              onSelectAgent={(a) => setDetailAgentId(a.id)}
+              onSelectAgent={(a) => {
+                if (a.id === 'starter') { setOnboardingOpen(true); return; }
+                setDetailAgentId(a.id);
+              }}
               mobileOpen={agentsDrawerOpen}
               onMobileClose={() => setAgentsDrawerOpen(false)}
               canCreate={info?.agentEditAllowed !== false}
@@ -517,25 +614,46 @@ export default function App() {
             />
           </>
         ) : viewMode === 'commandCenter' ? (
-          <CommandCenterView
-            agents={agents}
-            logs={logs}
-            onSelectAgent={onSelectAgentFromCommandCenter}
-            highlightedAgentId={detailAgentId}
-            customizationSyncLabel={customSyncLabelPt}
-            onSyncCustomization={() => void syncCustomizationNow()}
-            fishFood={fishFood}
-            onFeedFish={async () => {
-              const next = await feedFish(12);
-              setFishFood({ food: next.food, maxFood: next.maxFood, mood: next.mood });
-            }}
-          />
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <CommandCenterView
+                agents={agents}
+                logs={logs}
+                onSelectAgent={onSelectAgentFromCommandCenter}
+                highlightedAgentId={detailAgentId}
+                customizationSyncLabel={customSyncLabelPt}
+                onSyncCustomization={() => void syncCustomizationNow()}
+                fishFood={fishFood}
+                onFeedFish={async () => {
+                  const next = await feedFish(12);
+                  setFishFood({ food: next.food, maxFood: next.maxFood, mood: next.mood });
+                }}
+                onViewModeChange={setViewMode}
+              />
+            </Suspense>
+          </ErrorBoundary>
+        ) : viewMode === 'taskCanvas' ? (
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <TaskCanvasView
+                agents={agents}
+                helpVisible={globalHelpVisible}
+                onHelpVisibleChange={setGlobalHelpVisible}
+              />
+            </Suspense>
+          </ErrorBoundary>
+        ) : viewMode === 'squad' ? (
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <SquadView agents={agents} logs={logs} />
+            </Suspense>
+          </ErrorBoundary>
         ) : (
-          <TaskCanvasView
-            agents={agents}
-            helpVisible={globalHelpVisible}
-            onHelpVisibleChange={setGlobalHelpVisible}
-          />
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <WhiteboardView />
+            </Suspense>
+          </ErrorBoundary>
         )}
       </div>
 
@@ -548,81 +666,90 @@ export default function App() {
         />
       ) : null}
 
-      <AgentDetailModal
-        agentId={detailAgentId}
-        onClose={() => setDetailAgentId(null)}
-        canEdit={info?.agentEditAllowed !== false}
-        onSaved={() => void refresh({ silent: true })}
-        onDeleted={() => void refresh({ silent: true })}
-        apiOnline={apiOnline}
-        onRetryConnection={handleRetryConnection}
-      />
+      <ErrorBoundary fallback={null}>
+        <Suspense fallback={null}>
+          <AgentDetailModal
+            agentId={detailAgentId}
+            onClose={() => setDetailAgentId(null)}
+            canEdit={info?.agentEditAllowed !== false}
+            onSaved={() => void refresh({ silent: true })}
+            onDeleted={() => void refresh({ silent: true })}
+            apiOnline={apiOnline}
+            onRetryConnection={handleRetryConnection}
+          />
 
-      <CreateAgentModal
-        open={createAgentOpen}
-        onClose={() => setCreateAgentOpen(false)}
-        onCreated={(id) => {
-          void refresh({ silent: true });
-          setDetailAgentId(id);
-        }}
-      />
+          <CreateAgentModal
+            open={createAgentOpen}
+            onClose={() => setCreateAgentOpen(false)}
+            onCreated={(id) => {
+              void refresh({ silent: true });
+              setDetailAgentId(id);
+            }}
+          />
 
-      <DoubtsChatPanel
-        open={doubtsOpen}
-        onClose={() => setDoubtsOpen(false)}
-        helpVisible={globalHelpVisible}
-        onHelpVisibleChange={setGlobalHelpVisible}
-      />
+          <DoubtsChatPanel
+            open={doubtsOpen}
+            onClose={() => setDoubtsOpen(false)}
+            helpVisible={globalHelpVisible}
+            onHelpVisibleChange={setGlobalHelpVisible}
+          />
 
-      <CustomizationPanel
-        open={customizationOpen}
-        onClose={() => setCustomizationOpen(false)}
-        agents={agents}
-        syncStateLabel={customSyncLabelPt}
-        onSyncNow={() => void syncCustomizationNow()}
-      />
+          <CustomizationPanel
+            open={customizationOpen}
+            onClose={() => setCustomizationOpen(false)}
+            agents={agents}
+            syncStateLabel={customSyncLabelPt}
+            onSyncNow={() => void syncCustomizationNow()}
+          />
 
-      <IntegrationsConfigPanel
-        open={integrationsConfigOpen}
-        onClose={() => setIntegrationsConfigOpen(false)}
-        draft={integrationsConfigDraft}
-        redacted={integrationsConfigRedacted}
-        status={integrations}
-        saving={integrationsConfigSaving}
-        onChange={(patch) => setIntegrationsConfigDraft((d) => ({ ...d, ...patch }))}
-        onReload={() => void refreshIntegrationsConfig()}
-        onValidateNow={() => void refreshIntegrations()}
-        helpVisible={globalHelpVisible}
-        onHelpVisibleChange={setGlobalHelpVisible}
-        onSave={() => {
-          void (async () => {
-            setIntegrationsConfigSaving(true);
-            setErr(null);
-            try {
-              const r = await putIntegrationsConfig(
-                integrationsConfigDraft,
-                integrationsConfigRev || '0:0'
-              );
-              setIntegrationsConfigRev(r.revision);
-              setIntegrationsConfigRedacted(r.redacted);
-              setToast('Configurações guardadas. A validar integrações…');
-              await refreshIntegrations();
-            } catch (e) {
-              const msg = String(e);
-              if (msg.includes('CONFLICT_INTEGRATIONS_CONFIG')) {
-                setErr(
-                  'Conflito na configuração de integrações. Recarreguei os valores do servidor.'
-                );
-                await refreshIntegrationsConfig();
-              } else {
-                setErr(msg);
-              }
-            } finally {
-              setIntegrationsConfigSaving(false);
-            }
-          })();
-        }}
-      />
+          <OnboardingModal
+            open={onboardingOpen}
+            onClose={() => setOnboardingOpen(false)}
+          />
+
+          <IntegrationsConfigPanel
+            open={integrationsConfigOpen}
+            onClose={() => setIntegrationsConfigOpen(false)}
+            draft={integrationsConfigDraft}
+            redacted={integrationsConfigRedacted}
+            status={integrations}
+            saving={integrationsConfigSaving}
+            onChange={(patch) => setIntegrationsConfigDraft((d) => ({ ...d, ...patch }))}
+            onReload={() => void refreshIntegrationsConfig()}
+            onValidateNow={() => void refreshIntegrations()}
+            helpVisible={globalHelpVisible}
+            onHelpVisibleChange={setGlobalHelpVisible}
+            onSave={() => {
+              void (async () => {
+                setIntegrationsConfigSaving(true);
+                setErr(null);
+                try {
+                  const r = await putIntegrationsConfig(
+                    integrationsConfigDraft,
+                    integrationsConfigRev || '0:0'
+                  );
+                  setIntegrationsConfigRev(r.revision);
+                  setIntegrationsConfigRedacted(r.redacted);
+                  setToast('Configurações guardadas. A validar integrações…');
+                  await refreshIntegrations();
+                } catch (e) {
+                  const msg = String(e);
+                  if (msg.includes('CONFLICT_INTEGRATIONS_CONFIG')) {
+                    setErr(
+                      'Conflito na configuração de integrações. Recarreguei os valores do servidor.'
+                    );
+                    await refreshIntegrationsConfig();
+                  } else {
+                    setErr(msg);
+                  }
+                } finally {
+                  setIntegrationsConfigSaving(false);
+                }
+              })();
+            }}
+          />
+        </Suspense>
+      </ErrorBoundary>
     </div>
   );
 }

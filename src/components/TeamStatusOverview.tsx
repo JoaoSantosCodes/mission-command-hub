@@ -147,6 +147,7 @@ export function TeamStatusOverview({
       }
       return true;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- profileTick é um contador intencional para forçar re-computação ao mudar perfis
   }, [agents, statusMap, filter, query, profileTick]);
 
   return (

@@ -4,13 +4,14 @@ Documento vivo: prioriza **pendências** e **roadmap** alinhados a [CHECKLIST.md
 
 ---
 
-## Estado validado (2026-03-24)
+## Estado validado (2026-03-25)
 
 | Área | Estado |
 |------|--------|
-| API Express + UI | Alinhado com checklist; **43** testes (`npm test`); `npm run build` OK |
+| API Express + UI | Alinhado com checklist; **51** testes (`npm test`); `npm run build` OK; lint **0 erros** |
 | Dev | Express **:8787** + Vite **:5179** (`npm run dev`); `dev:embed` / `preview` com API embebida |
 | Chaves no código | **Não** — tudo via `.env` / `.env.local` (`load-env.mjs`) |
+| Bundle frontend | 513 kB → **41 kB** inicial (code splitting + lazy load) |
 | Lacunas principais | Auth, multi-utilizador, MCP Notion/Figma **operacional** no Cursor, quotas LLM, Slack inbound, RAG/base de conhecimento |
 
 ---
@@ -52,7 +53,7 @@ Documento vivo: prioriza **pendências** e **roadmap** alinhados a [CHECKLIST.md
 
 | # | Tarefa | Notas |
 |---|--------|--------|
-| 2.1 | **Documentação** de referência: nginx/Caddy + `TRUST_PROXY` + `CORS_ORIGINS` + rate limits | Pode ser só `docs/DEPLOY.md` ou secção no README |
+| 2.1 | **Documentação** de referência: nginx/Caddy + `TRUST_PROXY` + `CORS_ORIGINS` + rate limits | **Feito (2026-03-25):** `docs/DEPLOY.md` — nginx, Caddy, Docker, variáveis, checklist pré-deploy |
 | 2.2 | **Auth** (escolher uma): API key no header para `/api/*` **ou** sessão cookie + login mínimo **ou** obrigatoriedade de VPN (documentada) | Hoje: *sem auth* — ver pendências no CHECKLIST |
 | 2.3 | **Isolamento** feed / task-board: `X-User-Id` confiável atrás do proxy **ou** coluna `user_id` / `tenant_id` em Postgres | Depende de 2.2; ficheiro JSON único não serve multi-tenant |
 | 2.4 | **MISSION_AGENT_EDIT** e rotas sensíveis atrás do mesmo mecanismo de auth | Coerência com 2.2 |
@@ -76,6 +77,8 @@ Documento vivo: prioriza **pendências** e **roadmap** alinhados a [CHECKLIST.md
 | 4.1 | **E2E** Playwright ou Vitest browser: fluxo Dúvidas (abrir, enviar, receber) | CHECKLIST-OPERACIONAL já lista como opcional |
 | 4.2 | **E2E** smoke Task Canvas: criar cartão, mudar coluna | Opcional |
 | 4.3 | **CI:** garantir workflow na raiz do repo em uso (`MissionAgent` vs monorepo) | Já documentado no checklist técnico |
+| ~~4.4~~ | ~~**Code splitting**~~ | **Feito (2026-03-25):** `manualChunks` + `React.lazy`/`Suspense`; bundle 513 kB → 41 kB |
+| ~~4.5~~ | ~~**Error boundaries**~~ | **Feito (2026-03-25):** `ErrorBoundary.tsx` nas vistas e painéis lazy |
 
 ---
 

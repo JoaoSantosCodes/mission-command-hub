@@ -24,7 +24,7 @@ Lista curta para **arranque**, **PR**, **release** e **processo de equipa**. O i
 
 ## 2. Antes de commit / PR
 
-- [ ] `npm test` — **43** testes a passar (smoke + fish API + E2E básico)
+- [ ] `npm test` — **51** testes a passar (smoke + fish API + E2E básico)
 - [ ] (Opcional) Com `npm run dev` noutro terminal: **`npm run qa:real`** — cenário API real (activity + task-board + overview); guia UI em **[QA-CENARIO-CANVAS-REAL.md](./QA-CENARIO-CANVAS-REAL.md)**
 - [ ] `npm run build` — sem erros TypeScript / Vite
 - [ ] Sem segredos no commit (`.env` está no `.gitignore`; não commitar chaves)

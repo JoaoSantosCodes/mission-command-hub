@@ -14,6 +14,12 @@ function scopeForHttpStatus(status: number): string {
 
 const API_FETCH_INIT: RequestInit = { cache: 'no-store' };
 
+// Auth: X-API-Key opcional (só enviado se VITE_API_KEY estiver definido no .env)
+const VITE_API_KEY = ((import.meta.env.VITE_API_KEY as string | undefined) ?? '').trim();
+function getApiHeaders(): Record<string, string> {
+  return VITE_API_KEY ? { 'X-API-Key': VITE_API_KEY } : {};
+}
+
 /** Resposta HTML/404 típica quando só há estático ou a API não está na porta esperada. */
 function friendlyNonJsonErrorBody(text: string): string {
   const t = text.slice(0, 800);
@@ -52,7 +58,7 @@ function parseJsonOkBody<T>(text: string): T {
 export async function fetchJson<T>(path: string): Promise<T> {
   let r: Response;
   try {
-    r = await fetch(path, API_FETCH_INIT);
+    r = await fetch(path, { ...API_FETCH_INIT, headers: getApiHeaders() });
   } catch (e) {
     const msg =
       e instanceof TypeError
@@ -90,7 +96,7 @@ export async function postCommand(command: string): Promise<{ message?: string }
     r = await fetch('/api/aiox/command', {
       ...API_FETCH_INIT,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getApiHeaders() },
       body: JSON.stringify({ command }),
     });
   } catch (e) {
@@ -135,7 +141,7 @@ export async function postAioxExec(
     r = await fetch('/api/aiox/exec', {
       ...API_FETCH_INIT,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getApiHeaders() },
       body: JSON.stringify({ subcommand, confirm }),
     });
   } catch (e) {
@@ -179,7 +185,7 @@ export async function postDoubtsChat(
     r = await fetch('/api/aiox/doubts/chat', {
       ...API_FETCH_INIT,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getApiHeaders() },
       body: JSON.stringify({ messages }),
     });
   } catch (e) {
@@ -230,7 +236,7 @@ export async function postDoubtsChatStream(
     r = await fetch('/api/aiox/doubts/chat/stream', {
       ...API_FETCH_INIT,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getApiHeaders() },
       body: JSON.stringify({ messages }),
     });
   } catch (e) {
@@ -366,6 +372,7 @@ export async function putTaskBoard(
       headers: {
         'Content-Type': 'application/json',
         'If-Match': ifMatchRevision,
+        ...getApiHeaders(),
       },
       body: JSON.stringify({ tasks }),
     });
@@ -465,7 +472,7 @@ export async function putIntegrationsConfig(
     r = await fetch('/api/aiox/integrations-config', {
       ...API_FETCH_INIT,
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'If-Match': ifMatchRevision },
+      headers: { 'Content-Type': 'application/json', 'If-Match': ifMatchRevision, ...getApiHeaders() },
       body: JSON.stringify({ data }),
     });
   } catch (e) {
@@ -509,6 +516,7 @@ export async function putCustomization(
       headers: {
         'Content-Type': 'application/json',
         'If-Match': ifMatchRevision,
+        ...getApiHeaders(),
       },
       body: JSON.stringify(data),
     });
@@ -651,7 +659,7 @@ export async function postActivityEvent(payload: {
     r = await fetch('/api/aiox/activity/event', {
       ...API_FETCH_INIT,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getApiHeaders() },
       body: JSON.stringify(payload),
     });
   } catch (e) {
@@ -720,7 +728,7 @@ export async function postTaskBoardAgentStep(payload: {
     r = await fetch('/api/aiox/task-board/agent-step', {
       ...API_FETCH_INIT,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getApiHeaders() },
       body: JSON.stringify(payload),
     });
   } catch (e) {
@@ -782,7 +790,7 @@ export async function postFigmaContext(payload: {
     r = await fetch('/api/aiox/figma/context', {
       ...API_FETCH_INIT,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getApiHeaders() },
       body: JSON.stringify(payload),
     });
   } catch (e) {
@@ -840,7 +848,7 @@ export async function postTaskBacklogCheck(payload: {
     r = await fetch('/api/aiox/task-board/backlog-check', {
       ...API_FETCH_INIT,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getApiHeaders() },
       body: JSON.stringify(payload),
     });
   } catch (e) {
@@ -893,7 +901,7 @@ export async function putAgentMarkdown(
   content: string,
   revision?: string | null
 ): Promise<{ ok: boolean; id: string; bytes: number }> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...getApiHeaders() };
   if (revision) {
     headers['If-Match'] = revision;
   }
@@ -972,6 +980,7 @@ export async function deleteAgent(id: string): Promise<{ ok: boolean; id: string
   const r = await fetch(`/api/aiox/agents/${encodeURIComponent(id)}`, {
     ...API_FETCH_INIT,
     method: 'DELETE',
+    headers: getApiHeaders(),
   });
   const text = await r.text();
   let data: { ok?: boolean; id?: string; error?: string } = {};

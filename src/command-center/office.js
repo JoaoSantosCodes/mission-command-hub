@@ -1,5 +1,6 @@
 // Canvas — escritório Architecture Agents Hub / ponte aiox-core (agentes .md no disco)
 // Features: wandering, huddles, tempo, métricas do host, kanban, celebrações
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-unused-expressions, no-empty */
 
 const PALETTE = {
   floor: '#1A1E2E',
@@ -863,7 +864,7 @@ function persistLayoutDebounced() {
   }, 320);
 }
 
-function getFurnitureKeyAt(canvasX, canvasY) {
+export function getFurnitureKeyAt(canvasX, canvasY) {
   if (!canvas) return null;
   const wallH = canvas.height * 0.32;
   const keys = Object.keys(FURNITURE_HIT_R);
@@ -884,6 +885,21 @@ function getFurnitureKeyAt(canvasX, canvasY) {
     }
   }
   return bestK;
+}
+
+/**
+ * Verdadeiro se o ponto (canvasX, canvasY) cai sobre o quadro branco fixo na parede.
+ * @param {number} canvasX
+ * @param {number} canvasY
+ */
+export function isWallWhiteboardAt(canvasX, canvasY) {
+  if (!canvas) return false;
+  const w = canvas.width;
+  const wbW = PX * 28;
+  const wbH = PX * 13;
+  const wbX = Math.floor(w * 0.5) - wbW / 2;
+  const wbY = PX * 2;
+  return canvasX >= wbX - PX && canvasX <= wbX + wbW + PX && canvasY >= wbY - PX && canvasY <= wbY + wbH + PX;
 }
 
 function onLayoutPointerDown(e) {
@@ -1011,6 +1027,32 @@ export function consumeSuppressOfficeClick() {
 export function syncTaskBoardFromCanvas(tasks, agentRows) {
   canvasBoardTasks = Array.isArray(tasks) ? tasks.slice() : [];
   canvasSyncAgentRows = Array.isArray(agentRows) ? agentRows.slice() : [];
+
+  if (!agents.length) return;
+
+  // Derive agent animation states from Kanban column membership.
+  const doingTasks = canvasBoardTasks.filter((t) => t.columnId === 'doing' && t.assigneeAgentId);
+  const doneTasks = canvasBoardTasks.filter(
+    (t) => (t.columnId === 'done' || t.columnId === 'review') && t.assigneeAgentId
+  );
+  const doingIds = new Set(doingTasks.map((t) => t.assigneeAgentId));
+  const doneIds = new Set(doneTasks.map((t) => t.assigneeAgentId));
+
+  for (const agent of agents) {
+    if (doingIds.has(agent.id)) {
+      const task = doingTasks.find((t) => t.assigneeAgentId === agent.id);
+      if (agent.state !== 'working') {
+        setAgentState(agent.id, 'working', { message: truncate(task?.title || 'a trabalhar', 28) });
+      }
+    } else if (doneIds.has(agent.id) && agent.state === 'idle') {
+      // Walk to the wall whiteboard to celebrate completion.
+      agent.wanderTarget = '__whiteboard__';
+      agent.wanderState = 'walking_to';
+      agent.thoughtText = ['Feito!', 'Concluído ✓', 'PR ready', 'Ship it!'][
+        Math.floor(Math.random() * 4)
+      ];
+    }
+  }
 }
 
 export function setAgentState(agentId, state, data = {}) {
@@ -1454,6 +1496,9 @@ function updateWander(agent, dt) {
       let dest;
       if (agent.wanderTarget?.startsWith('__desk_')) {
         dest = agent._checkDeskTarget;
+      } else if (agent.wanderTarget === '__whiteboard__') {
+        // Virtual destination: just below the wall whiteboard (floor line, centre).
+        dest = { xPct: 0.5, yPct: 0.35 };
       } else {
         dest = furniture[agent.wanderTarget];
       }

@@ -40,6 +40,7 @@ export type AgentCustomization = {
 
 export type OfficeCustomization = {
   theme?: 'default' | 'neon';
+  layout?: unknown;
 };
 
 export type HubCustomizationPayload = {

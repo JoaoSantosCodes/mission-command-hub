@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ActivityEntry, AgentRow } from '@/types/hub';
 import * as officeCanvas from '@/command-center/office.js';
 import * as mascotCanvas from '@/command-center/mascot.js';
 import { TeamStatusOverview } from '@/components/TeamStatusOverview';
+import { ServerMetricsModal } from '@/components/ServerMetricsModal';
 import { AGENT_PROFILE_CHANGED_EVENT, readAllAgentProfiles } from '@/lib/agent-profile-store';
 import {
   OFFICE_THEME_CHANGED_EVENT,
@@ -16,6 +17,7 @@ import {
   terminal,
 } from '@/command-center/mission-boot.js';
 import '@/command-center/command-center.css';
+import type { HubViewMode } from '@/components/HubHeader';
 
 type CommandCenterViewProps = {
   agents: AgentRow[];
@@ -31,6 +33,7 @@ type CommandCenterViewProps = {
     mood: 'feliz' | 'normal' | 'fome' | 'critico';
   } | null;
   onFeedFish?: () => Promise<void> | void;
+  onViewModeChange?: (mode: HubViewMode) => void;
 };
 
 export function CommandCenterView({
@@ -42,26 +45,40 @@ export function CommandCenterView({
   onSyncCustomization,
   fishFood = null,
   onFeedFish,
+  onViewModeChange,
 }: CommandCenterViewProps) {
   const [officeTheme, setOfficeTheme] = useState<'default' | 'neon'>(
     typeof window !== 'undefined' ? readOfficeTheme() : 'default'
   );
+  const [serverMetricsOpen, setServerMetricsOpen] = useState(false);
   const agentKey = useMemo(() => agents.map((a) => `${a.id}:${a.title}`).join('|'), [agents]);
   const agentsRef = useRef(agents);
   agentsRef.current = agents;
+  const onViewModeChangeRef = useRef(onViewModeChange);
+  onViewModeChangeRef.current = onViewModeChange;
   const seenLogIds = useRef(new Set<string>());
   const layoutFileRef = useRef<HTMLInputElement>(null);
   const [feedBusy, setFeedBusy] = useState(false);
   const [feedCooldownUntil, setFeedCooldownUntil] = useState(0);
+
+  const onWallWhiteboardClick = useCallback(() => {
+    onViewModeChangeRef.current?.('whiteboard');
+  }, []);
+
+  const onFurnitureClick = useCallback((key: string) => {
+    if (key === 'serverRack') setServerMetricsOpen(true);
+  }, []);
 
   useEffect(() => {
     seenLogIds.current.clear();
     startMissionCommandCenter({
       agentRows: agents,
       onSelectAgent,
+      onWallWhiteboardClick,
+      onFurnitureClick,
     });
     return () => stopMissionCommandCenter();
-  }, [agentKey, agents, onSelectAgent]);
+  }, [agentKey, agents, onSelectAgent, onWallWhiteboardClick, onFurnitureClick]);
 
   useEffect(() => {
     officeCanvas.syncAgentsFromLogs(logs, agents);
@@ -206,6 +223,8 @@ export function CommandCenterView({
   const moodPt = fishPct > 70 ? 'feliz' : fishPct > 40 ? 'com fome' : 'faminto';
 
   return (
+    <>
+    <ServerMetricsModal open={serverMetricsOpen} onClose={() => setServerMetricsOpen(false)} />
     <main
       id="conteudo-principal"
       tabIndex={-1}
@@ -346,6 +365,9 @@ export function CommandCenterView({
                   <span className="office-corner-hint-line">
                     Comandos e tarefas consomem ração no aquário
                   </span>
+                  <span className="office-corner-hint-line">
+                    Clica no quadro branco → abre Whiteboard · Server Rack → métricas
+                  </span>
                 </div>
               </div>
               <aside className="office-status-wrap" aria-label="Estado da equipa no escritório">
@@ -362,5 +384,6 @@ export function CommandCenterView({
         </div>
       </div>
     </main>
+    </>
   );
 }
