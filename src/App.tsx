@@ -30,32 +30,32 @@ import {
 import { formatUserFacingError } from '@/lib/format-error';
 import { POLL_INTERVAL_MS, SSE_FALLBACK_POLL_MS } from '@/constants';
 import type { ActivityEntry, AgentRow, AioxInfo, AioxOverviewResponse } from '@/types/hub';
-import { SkipLink } from '@/components/SkipLink';
-import { HubHeader, type HubViewMode } from '@/components/HubHeader';
-import { AgentsSidebar } from '@/components/AgentsSidebar';
-import { MainWorkspace } from '@/components/MainWorkspace';
-import { ActivityPanel } from '@/components/ActivityPanel';
-import { MobileSummary } from '@/components/MobileSummary';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { SkipLink } from '@/components/layout/SkipLink';
+import { HubHeader, type HubViewMode } from '@/components/workspace/HubHeader';
+import { AgentsSidebar } from '@/components/agents/AgentsSidebar';
+import { MainWorkspace } from '@/components/workspace/MainWorkspace';
+import { ActivityPanel } from '@/components/collaboration/ActivityPanel';
+import { MobileSummary } from '@/components/layout/MobileSummary';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 // Lazy-loaded: vistas e painéis não visíveis no arranque
 const CommandCenterView = lazy(() =>
-  import('@/components/CommandCenterView').then((m) => ({ default: m.CommandCenterView }))
+  import('@/components/workspace/CommandCenterView').then((m) => ({ default: m.CommandCenterView }))
 );
 const TaskCanvasView = lazy(() =>
   import('@/components/task-canvas').then((m) => ({ default: m.TaskCanvasView }))
 );
 const AgentDetailModal = lazy(() =>
-  import('@/components/AgentDetailModal').then((m) => ({ default: m.AgentDetailModal }))
+  import('@/components/agents/AgentDetailModal').then((m) => ({ default: m.AgentDetailModal }))
 );
 const CreateAgentModal = lazy(() =>
-  import('@/components/CreateAgentModal').then((m) => ({ default: m.CreateAgentModal }))
+  import('@/components/agents/CreateAgentModal').then((m) => ({ default: m.CreateAgentModal }))
 );
 const DoubtsChatPanel = lazy(() =>
-  import('@/components/DoubtsChatPanel').then((m) => ({ default: m.DoubtsChatPanel }))
+  import('@/components/collaboration/DoubtsChatPanel').then((m) => ({ default: m.DoubtsChatPanel }))
 );
 const CustomizationPanel = lazy(() =>
-  import('@/components/CustomizationPanel').then((m) => ({ default: m.CustomizationPanel }))
+  import('@/components/workspace/CustomizationPanel').then((m) => ({ default: m.CustomizationPanel }))
 );
 const IntegrationsConfigPanel = lazy(() =>
   import('@/components/IntegrationsConfigPanel').then((m) => ({
@@ -63,13 +63,13 @@ const IntegrationsConfigPanel = lazy(() =>
   }))
 );
 const SquadView = lazy(() =>
-  import('@/components/SquadView').then((m) => ({ default: m.SquadView }))
+  import('@/components/collaboration/SquadView').then((m) => ({ default: m.SquadView }))
 );
 const WhiteboardView = lazy(() =>
   import('@/components/whiteboard/WhiteboardView').then((m) => ({ default: m.WhiteboardView }))
 );
 const OnboardingModal = lazy(() =>
-  import('@/components/OnboardingModal').then((m) => ({ default: m.OnboardingModal }))
+  import('@/components/layout/OnboardingModal').then((m) => ({ default: m.OnboardingModal }))
 );
 
 const GLOBAL_HELP_VISIBLE_STORAGE_KEY = 'mission-agent-global-help-visible';
@@ -135,10 +135,11 @@ export default function App() {
   const ACTIVITY_MAX = 200;
   const { connected: sseConnected } = useActivityStream({
     enabled: docVisible,
-    onActivity: (entry) => setLogs((prev) => {
-      if (prev.length > 0 && prev[0].id === entry.id) return prev;
-      return [entry, ...prev].slice(0, ACTIVITY_MAX);
-    }),
+    onActivity: (entry) =>
+      setLogs((prev) => {
+        if (prev.length > 0 && prev[0].id === entry.id) return prev;
+        return [entry, ...prev].slice(0, ACTIVITY_MAX);
+      }),
     onAgents: (newAgents) => setAgents(newAgents),
     onSnapshot: ({ agents: newAgents, logs: newLogs }) => {
       setAgents(newAgents);
@@ -246,8 +247,13 @@ export default function App() {
     // Restore office layout from server to localStorage (office.js reads on next init).
     if (r.data.office?.layout && typeof r.data.office.layout === 'object') {
       try {
-        localStorage.setItem('mission-agent-office-layout-v5', JSON.stringify(r.data.office.layout));
-      } catch { /* ignore */ }
+        localStorage.setItem(
+          'mission-agent-office-layout-v5',
+          JSON.stringify(r.data.office.layout)
+        );
+      } catch {
+        /* ignore */
+      }
     }
     setCustomRev(r.revision || '0:0');
     return r;
@@ -277,7 +283,9 @@ export default function App() {
     try {
       const raw = localStorage.getItem('mission-agent-office-layout-v5');
       if (raw) officeLayout = JSON.parse(raw);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     const payload = {
       agents: readAllAgentProfiles(),
       office: { theme: readOfficeTheme(), ...(officeLayout ? { layout: officeLayout } : {}) },
@@ -442,14 +450,35 @@ export default function App() {
       const el = e.target as HTMLElement | null;
       if (el) {
         const tag = el.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable) return;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable)
+          return;
       }
       if (e.altKey) {
-        if (e.key === '1') { e.preventDefault(); setViewMode('hub'); return; }
-        if (e.key === '2') { e.preventDefault(); setViewMode('commandCenter'); return; }
-        if (e.key === '3') { e.preventDefault(); setViewMode('taskCanvas'); return; }
-        if (e.key === '4') { e.preventDefault(); setViewMode('squad'); return; }
-        if (e.key === '5') { e.preventDefault(); setViewMode('whiteboard'); return; }
+        if (e.key === '1') {
+          e.preventDefault();
+          setViewMode('hub');
+          return;
+        }
+        if (e.key === '2') {
+          e.preventDefault();
+          setViewMode('commandCenter');
+          return;
+        }
+        if (e.key === '3') {
+          e.preventDefault();
+          setViewMode('taskCanvas');
+          return;
+        }
+        if (e.key === '4') {
+          e.preventDefault();
+          setViewMode('squad');
+          return;
+        }
+        if (e.key === '5') {
+          e.preventDefault();
+          setViewMode('whiteboard');
+          return;
+        }
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
@@ -588,7 +617,10 @@ export default function App() {
               logs={logs}
               loading={loading}
               onSelectAgent={(a) => {
-                if (a.id === 'starter') { setOnboardingOpen(true); return; }
+                if (a.id === 'starter') {
+                  setOnboardingOpen(true);
+                  return;
+                }
                 setDetailAgentId(a.id);
               }}
               mobileOpen={agentsDrawerOpen}
@@ -702,10 +734,7 @@ export default function App() {
             onSyncNow={() => void syncCustomizationNow()}
           />
 
-          <OnboardingModal
-            open={onboardingOpen}
-            onClose={() => setOnboardingOpen(false)}
-          />
+          <OnboardingModal open={onboardingOpen} onClose={() => setOnboardingOpen(false)} />
 
           <IntegrationsConfigPanel
             open={integrationsConfigOpen}

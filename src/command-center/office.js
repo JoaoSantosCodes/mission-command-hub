@@ -899,7 +899,12 @@ export function isWallWhiteboardAt(canvasX, canvasY) {
   const wbH = PX * 13;
   const wbX = Math.floor(w * 0.5) - wbW / 2;
   const wbY = PX * 2;
-  return canvasX >= wbX - PX && canvasX <= wbX + wbW + PX && canvasY >= wbY - PX && canvasY <= wbY + wbH + PX;
+  return (
+    canvasX >= wbX - PX &&
+    canvasX <= wbX + wbW + PX &&
+    canvasY >= wbY - PX &&
+    canvasY <= wbY + wbH + PX
+  );
 }
 
 function onLayoutPointerDown(e) {

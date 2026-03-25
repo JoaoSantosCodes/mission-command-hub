@@ -472,7 +472,11 @@ export async function putIntegrationsConfig(
     r = await fetch('/api/aiox/integrations-config', {
       ...API_FETCH_INIT,
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'If-Match': ifMatchRevision, ...getApiHeaders() },
+      headers: {
+        'Content-Type': 'application/json',
+        'If-Match': ifMatchRevision,
+        ...getApiHeaders(),
+      },
       body: JSON.stringify({ data }),
     });
   } catch (e) {
@@ -901,7 +905,10 @@ export async function putAgentMarkdown(
   content: string,
   revision?: string | null
 ): Promise<{ ok: boolean; id: string; bytes: number }> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...getApiHeaders() };
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...getApiHeaders(),
+  };
   if (revision) {
     headers['If-Match'] = revision;
   }

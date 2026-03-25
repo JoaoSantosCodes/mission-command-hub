@@ -2,9 +2,16 @@ import { useState } from 'react';
 import { useDrawing } from './DrawingContext';
 
 const COLORS = [
-  '#1a1a1a', '#ffffff', '#ef4444', '#f97316',
-  '#fbbf24', '#10b981', '#06b6d4', '#6366f1',
-  '#a855f7', '#ec4899',
+  '#1a1a1a',
+  '#ffffff',
+  '#ef4444',
+  '#f97316',
+  '#fbbf24',
+  '#10b981',
+  '#06b6d4',
+  '#6366f1',
+  '#a855f7',
+  '#ec4899',
 ];
 
 const PRESETS = [
@@ -16,12 +23,18 @@ const PRESETS = [
 
 export function WhiteboardPropertiesPanel() {
   const {
-    strokeColor, setStrokeColor,
-    backgroundColor, setBackgroundColor,
-    strokeWidth, setStrokeWidth,
-    strokeStyle, setStrokeStyle,
-    roughness, setRoughness,
-    opacity, setOpacity,
+    strokeColor,
+    setStrokeColor,
+    backgroundColor,
+    setBackgroundColor,
+    strokeWidth,
+    setStrokeWidth,
+    strokeStyle,
+    setStrokeStyle,
+    roughness,
+    setRoughness,
+    opacity,
+    setOpacity,
     selectedIds,
   } = useDrawing();
 
@@ -60,7 +73,9 @@ export function WhiteboardPropertiesPanel() {
         <div className="space-y-3">
           {/* Stroke color */}
           <div>
-            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Cor do traço</p>
+            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Cor do traço
+            </p>
             <div className="grid grid-cols-5 gap-1.5">
               {COLORS.map((c) => (
                 <button
@@ -84,11 +99,16 @@ export function WhiteboardPropertiesPanel() {
           {/* Stroke width */}
           <div>
             <div className="mb-1 flex justify-between">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Espessura</p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Espessura
+              </p>
               <span className="font-mono text-[10px] text-muted-foreground">{strokeWidth}px</span>
             </div>
             <input
-              type="range" min={1} max={20} step={1}
+              type="range"
+              min={1}
+              max={20}
+              step={1}
               value={strokeWidth}
               onChange={(e) => setStrokeWidth(Number(e.target.value))}
               className="w-full accent-primary"
@@ -97,7 +117,9 @@ export function WhiteboardPropertiesPanel() {
 
           {/* Stroke style */}
           <div>
-            <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Estilo</p>
+            <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Estilo
+            </p>
             <select
               value={strokeStyle}
               onChange={(e) => setStrokeStyle(e.target.value as 'solid' | 'dashed' | 'dotted')}
@@ -112,11 +134,18 @@ export function WhiteboardPropertiesPanel() {
           {/* Roughness */}
           <div>
             <div className="mb-1 flex justify-between">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Rugosidade</p>
-              <span className="font-mono text-[10px] text-muted-foreground">{roughness.toFixed(1)}</span>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Rugosidade
+              </p>
+              <span className="font-mono text-[10px] text-muted-foreground">
+                {roughness.toFixed(1)}
+              </span>
             </div>
             <input
-              type="range" min={0} max={3} step={0.1}
+              type="range"
+              min={0}
+              max={3}
+              step={0.1}
               value={roughness}
               onChange={(e) => setRoughness(Number(e.target.value))}
               className="w-full accent-primary"
@@ -129,7 +158,9 @@ export function WhiteboardPropertiesPanel() {
         <div className="space-y-3">
           {/* Background color */}
           <div>
-            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Cor de preenchimento</p>
+            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Cor de preenchimento
+            </p>
             <div className="grid grid-cols-5 gap-1.5">
               {COLORS.map((c) => (
                 <button
@@ -162,11 +193,16 @@ export function WhiteboardPropertiesPanel() {
           {/* Opacity */}
           <div>
             <div className="mb-1 flex justify-between">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Opacidade</p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Opacidade
+              </p>
               <span className="font-mono text-[10px] text-muted-foreground">{opacity}%</span>
             </div>
             <input
-              type="range" min={0} max={100} step={1}
+              type="range"
+              min={0}
+              max={100}
+              step={1}
               value={opacity}
               onChange={(e) => setOpacity(Number(e.target.value))}
               className="w-full accent-primary"
@@ -177,7 +213,9 @@ export function WhiteboardPropertiesPanel() {
 
       {/* Presets */}
       <div className="mt-4">
-        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Predefinições</p>
+        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Predefinições
+        </p>
         <div className="grid grid-cols-2 gap-1.5">
           {PRESETS.map((p) => (
             <button

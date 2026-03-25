@@ -25,10 +25,22 @@ const STEPS = [
     title: 'Comandos globais',
     body: (
       <ul className="mt-2 space-y-1.5 text-left text-[12px]">
-        <li><kbd className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">Alt+1/2/3/4</kbd> — mudar de vista</li>
-        <li><kbd className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">Ctrl+K</kbd> — focar o campo de comando</li>
-        <li><kbd className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">Ctrl+/</kbd> — abrir painel de dúvidas IA</li>
-        <li><kbd className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">Esc</kbd> — fechar modais / painéis</li>
+        <li>
+          <kbd className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">Alt+1/2/3/4</kbd> —
+          mudar de vista
+        </li>
+        <li>
+          <kbd className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">Ctrl+K</kbd> — focar o
+          campo de comando
+        </li>
+        <li>
+          <kbd className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">Ctrl+/</kbd> — abrir
+          painel de dúvidas IA
+        </li>
+        <li>
+          <kbd className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">Esc</kbd> — fechar
+          modais / painéis
+        </li>
       </ul>
     ),
   },
@@ -101,7 +113,10 @@ export function OnboardingModal({ open, onClose }: Props) {
             </button>
 
             {/* Step dots */}
-            <div className="mb-5 flex justify-center gap-1.5" aria-label={`Passo ${step + 1} de ${total}`}>
+            <div
+              className="mb-5 flex justify-center gap-1.5"
+              aria-label={`Passo ${step + 1} de ${total}`}
+            >
               {Array.from({ length: total }, (_, i) => (
                 <span
                   key={i}

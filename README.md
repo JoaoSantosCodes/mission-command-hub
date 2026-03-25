@@ -233,9 +233,19 @@ npm run preview       # Preview do build local
 npm run start         # Servidor de produção
 ```
 
-## 🚀 Roadmap
+## 🚀 Evolução Arquitetural e Roadmap
 
-### **Próximas Features**
+### 🌟 **O Salto Tecnológico (Fases de Inovação)**
+*O MissionAgent encontra-se numa ambiciosa reestruturação arquitetural (plano detalhado em `docs/MELHORIAS.md`):*
+
+- ✅ **Fase 1: Estabilização do Core e Domínio React (Concluída):** Refatoração massiva da UI em pastas de Domínio Semântico (`workspace/`, `agents/`, etc.) e extração dos *templates* dos agentes para zero redundância e Tipagem segura (0 TS Errors).
+- 🚀 **Fase 2: Supabase & Realtime (Próximo Passo):** Migração do back-end `.json` local para SQL / nuvem com sincronia bidirecional via WebSockets (Interligando as reações do Canvas Isométrico aos cartões do Kanban de imediato).
+- 💡 **Fase 3: Whiteboard (Futuro):** Lousa integrada estilo *Excalidraw* para que agentes como *ux-design-expert* e *architect* explorem componentes nativamente.
+- 🔒 **Fase 4: Multi-tenancy e Single Sign-On:** Segurança da conta global e limitação de visualização de agentes por Squads usando **Supabase Auth**.
+
+---
+
+### **Próximas Features (Backlog)**
 - [ ] **Deploy automatizado** - GitHub Actions para staging/production
 - [ ] **Cobertura de testes** - Relatórios detalhados de cobertura
 - [ ] **Performance monitoring** - Métricas e otimização

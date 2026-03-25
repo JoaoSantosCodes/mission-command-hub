@@ -17,7 +17,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 import type { AioxInfo } from '@/types/hub';
 import { POLL_INTERVAL_MS } from '@/constants';
-import { AioxCliPanel } from '@/components/AioxCliPanel';
+import { AioxCliPanel } from '@/components/workspace/AioxCliPanel';
 
 type MainWorkspaceProps = {
   info: AioxInfo | null;

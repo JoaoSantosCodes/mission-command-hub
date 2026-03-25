@@ -92,19 +92,24 @@ O Hub tem de orquestrar código e arquitetura.
 
 ## 5. Roteiro e Recomendações Prioritárias Expandidas
 
-### Fase 1: Estabilização do Core (Dívida Técnica) - *Alta Prioridade*
-1. **Validação de Skills:** Script de checagem contra `dependencies` quebradas.
-2. **Reorganização de Componentes:** Migrar React para a estrutura focada em Domínio.
-3. **Template de Ativação:** Eliminar redundância nos ficheiros `.md`.
+### Fase 1: Estabilização do Core e Domínio React - ✅ [CONCLUÍDO]
+Nos avanços mais recentes, toda esta fase foi integralmente concluída com sucesso:
+1. **Padronização das Skills e CodeRabbit:** Extraídas as as instruções de ativação massivas de todos os 13 agentes para um *template* único partilhado (`activation-template.md`).
+2. **Reorganização de Componentes (React):** O Hub passou por uma refatoração total, movendo todos os componentes da raiz para as pastas rigorosas de Domínio (`agents/`, `workspace/`, `tasks/`, `collaboration/`, `layout/`, `ui/`). 
+3. **Validação TypeScript:** Todo o processo foi validado sem quebrar rotas, com o `tsc` a reportar 0 erros.
 
-### Fase 2: O Salto Colaborativo (Infraestrutura) - *Prioridade Média/Estratégica*
-4. **Setup Zustand + Supabase:** Inicializar SDK, criar canais WebSocket, mover `localStorage` do layout para a nuvem.
-5. **Bidirecionalidade:** Integrar o motor isolado do `office.js` na store Zustand para que o React consiga "ordenar" ações exatas aos agentes pixelados.
+### Fase 2: O Salto Colaborativo (Supabase) - 🚀 [PRÓXIMO PASSO]
+O projeto necessita agora de escalar para múltiplos utilizadores em tempo-real.
+4. **Instalação do Supabase:** Configurar o `@supabase/supabase-js`.
+5. **Migração do Kanban:** Mover a dependência do ficheiro `task-board.json` local para uma tabela SQL mantida através da API do supabase no frontend.
+6. **Integração Realtime e Zustand:** Fazer com que o motor isométrico do escritório (`office.js`) comece a "escutar" WebSockets para que um arrasto no Kanban por um colega anime o Agente no escritório de todos.
 
-### Fase 3: Funcionalidades Estelares (UX Máxima) - *Prioridade Inovação*
-6. **Módulo Whiteboard (Diagramação):** Absorver o Canvas Livre.
-7. **Sincronia Total de Animação:** Os movimentos do Agente no escritório espelhados através de Reducers que ouvem o estado exato da Task Board real.
-8. **Documentação Final:** Produzir `AGENTS.md` dinâmico que o próprio Hub React expõe numa aba acessível.
+### Fase 3: Whiteboard de Arquitetura (Excalidraw) - 💡 [FUTURO]
+7. **Módulo Whiteboard:** Integrar a versão baseada no Excalidraw, fornecendo a ferramenta definitiva onde os agentes multimodais poderão "ver" e interagir com os diagramas exportados e analisar wireframes de UI desenhados no pranchão.
+8. **Anexação Direta:** Ligar desenhos de arquitetura às histórias de utilizador (Stories) criadas pelo `sm` ou `po`.
+
+### Fase 4: Autenticação Segura e Deploy - 🔒 [FUTURO]
+9. **Single Sign-On:** Uma vez que o Supabase estiver a rodar, usar a feature de *Auth* nativa para proteger o hub, restringindo a visão dos agentes e quadros à equipa ou empresa.
 
 ---
 

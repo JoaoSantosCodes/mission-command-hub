@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ActivityEntry, AgentRow } from '@/types/hub';
 import * as officeCanvas from '@/command-center/office.js';
 import * as mascotCanvas from '@/command-center/mascot.js';
-import { TeamStatusOverview } from '@/components/TeamStatusOverview';
+import { TeamStatusOverview } from '@/components/collaboration/TeamStatusOverview';
 import { ServerMetricsModal } from '@/components/ServerMetricsModal';
 import { AGENT_PROFILE_CHANGED_EVENT, readAllAgentProfiles } from '@/lib/agent-profile-store';
 import {
@@ -17,7 +17,7 @@ import {
   terminal,
 } from '@/command-center/mission-boot.js';
 import '@/command-center/command-center.css';
-import type { HubViewMode } from '@/components/HubHeader';
+import type { HubViewMode } from '@/components/workspace/HubHeader';
 
 type CommandCenterViewProps = {
   agents: AgentRow[];
@@ -224,166 +224,166 @@ export function CommandCenterView({
 
   return (
     <>
-    <ServerMetricsModal open={serverMetricsOpen} onClose={() => setServerMetricsOpen(false)} />
-    <main
-      id="conteudo-principal"
-      tabIndex={-1}
-      className="flex min-h-0 min-w-0 flex-1 flex-col outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-    >
-      <div
-        id="mission-cc-root"
-        data-office-theme={officeTheme}
-        className="flex min-h-0 flex-1 flex-col"
-        aria-label="Central de agentes"
+      <ServerMetricsModal open={serverMetricsOpen} onClose={() => setServerMetricsOpen(false)} />
+      <main
+        id="conteudo-principal"
+        tabIndex={-1}
+        className="flex min-h-0 min-w-0 flex-1 flex-col outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        <div id="command-center">
-          <div id="zone-mascot" className="zone">
-            <div className="zone-header">
-              <span className="zone-dot" aria-hidden />
-              Estado do hub
-            </div>
-            <canvas id="mascot-canvas" width={320} height={240} />
-            <div id="mascot-label">IDLE</div>
-            <div className="mascot-fish-hud" aria-live="polite">
-              <div className="mascot-fish-row">
-                <span className="mascot-fish-title">Ração</span>
-                <span className="mascot-fish-value">
-                  {fishFood ? `${fishFood.food}/${fishFood.maxFood}` : '—'} · {moodPt}
-                </span>
+        <div
+          id="mission-cc-root"
+          data-office-theme={officeTheme}
+          className="flex min-h-0 flex-1 flex-col"
+          aria-label="Central de agentes"
+        >
+          <div id="command-center">
+            <div id="zone-mascot" className="zone">
+              <div className="zone-header">
+                <span className="zone-dot" aria-hidden />
+                Estado do hub
               </div>
-              <div
-                className="mascot-fish-bar"
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={fishPct}
-              >
-                <div className="mascot-fish-bar-fill" style={{ width: `${fishPct}%` }} />
-              </div>
-              <button
-                type="button"
-                className="office-toolbar-btn mascot-feed-btn"
-                disabled={!canFeed || !onFeedFish}
-                onClick={async () => {
-                  if (!onFeedFish || !canFeed) return;
-                  setFeedBusy(true);
-                  try {
-                    await onFeedFish();
-                    setFeedCooldownUntil(Date.now() + 12_000);
-                  } finally {
-                    setFeedBusy(false);
-                  }
-                }}
-                title="Alimenta o peixe e recupera ração"
-              >
-                {feedBusy ? 'A alimentar...' : canFeed ? 'Alimentar peixe' : 'Aguarde...'}
-              </button>
-            </div>
-          </div>
-
-          <div id="zone-terminal" className="zone">
-            <div className="zone-header">
-              <span className="zone-dot" aria-hidden />
-              Registo de actividade
-            </div>
-            <div id="terminal-output" />
-          </div>
-
-          <div id="zone-office" className="zone">
-            <div className="zone-header">
-              <span className="zone-dot" aria-hidden />
-              Escritório Architecture Agents Hub · agentes no disco
-            </div>
-            <div className="office-toolbar" role="toolbar" aria-label="Layout do escritório">
-              <input
-                ref={layoutFileRef}
-                type="file"
-                accept="application/json,.json"
-                className="sr-only"
-                aria-hidden
-                tabIndex={-1}
-                onChange={onLayoutFileChange}
-              />
-              <button type="button" className="office-toolbar-btn" onClick={onExportLayout}>
-                Exportar layout
-              </button>
-              <button type="button" className="office-toolbar-btn" onClick={onPickImportLayout}>
-                Importar layout
-              </button>
-              <button type="button" className="office-toolbar-btn" onClick={onResetLayout}>
-                Repor posições
-              </button>
-              <button
-                type="button"
-                className="office-toolbar-btn"
-                onClick={() => onSyncCustomization?.()}
-                disabled={!onSyncCustomization}
-                title="Sincronizar personalização com servidor"
-              >
-                Sync perfil
-              </button>
-              <span
-                className="office-toolbar-sync"
-                title="Estado de sincronização da personalização"
-              >
-                {customizationSyncLabel}
-              </span>
-              <label className="office-toolbar-theme">
-                Tema
-                <select
-                  value={officeTheme}
-                  onChange={(e) =>
-                    onOfficeThemeChange(e.target.value === 'neon' ? 'neon' : 'default')
-                  }
-                >
-                  <option value="default">Padrão</option>
-                  <option value="neon">Neon</option>
-                </select>
-              </label>
-            </div>
-            <div className="office-main">
-              <div className="office-canvas-wrap">
-                <canvas id="office-canvas" width={640} height={480} />
-                <div
-                  className="office-corner-hint"
-                  role="note"
-                  aria-label="Dicas de layout no canvas"
-                >
-                  <span className="office-corner-hint-line">Alt + arrastar → mover agente</span>
-                  <span className="office-corner-hint-line">
-                    Shift + Alt + arrastar → mobiliário (inclui aquário)
-                  </span>
-                  <span className="office-corner-hint-line">
-                    Ctrl + Shift + Alt + arrastar → tamanho do aquário
-                  </span>
-                  <span className="office-corner-hint-line">
-                    Sync perfil → botão no topo (estado: {customizationSyncLabel})
-                  </span>
-                  <span className="office-corner-hint-line">
-                    Cor de destaque do agente aparece no escritório
-                  </span>
-                  <span className="office-corner-hint-line">
-                    Comandos e tarefas consomem ração no aquário
-                  </span>
-                  <span className="office-corner-hint-line">
-                    Clica no quadro branco → abre Whiteboard · Server Rack → métricas
+              <canvas id="mascot-canvas" width={320} height={240} />
+              <div id="mascot-label">IDLE</div>
+              <div className="mascot-fish-hud" aria-live="polite">
+                <div className="mascot-fish-row">
+                  <span className="mascot-fish-title">Ração</span>
+                  <span className="mascot-fish-value">
+                    {fishFood ? `${fishFood.food}/${fishFood.maxFood}` : '—'} · {moodPt}
                   </span>
                 </div>
+                <div
+                  className="mascot-fish-bar"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={fishPct}
+                >
+                  <div className="mascot-fish-bar-fill" style={{ width: `${fishPct}%` }} />
+                </div>
+                <button
+                  type="button"
+                  className="office-toolbar-btn mascot-feed-btn"
+                  disabled={!canFeed || !onFeedFish}
+                  onClick={async () => {
+                    if (!onFeedFish || !canFeed) return;
+                    setFeedBusy(true);
+                    try {
+                      await onFeedFish();
+                      setFeedCooldownUntil(Date.now() + 12_000);
+                    } finally {
+                      setFeedBusy(false);
+                    }
+                  }}
+                  title="Alimenta o peixe e recupera ração"
+                >
+                  {feedBusy ? 'A alimentar...' : canFeed ? 'Alimentar peixe' : 'Aguarde...'}
+                </button>
               </div>
-              <aside className="office-status-wrap" aria-label="Estado da equipa no escritório">
-                <TeamStatusOverview
-                  agents={agents}
-                  logs={logs}
-                  loading={false}
-                  compact
-                  onSelectAgent={(a) => onSelectAgent(a.id)}
+            </div>
+
+            <div id="zone-terminal" className="zone">
+              <div className="zone-header">
+                <span className="zone-dot" aria-hidden />
+                Registo de actividade
+              </div>
+              <div id="terminal-output" />
+            </div>
+
+            <div id="zone-office" className="zone">
+              <div className="zone-header">
+                <span className="zone-dot" aria-hidden />
+                Escritório Architecture Agents Hub · agentes no disco
+              </div>
+              <div className="office-toolbar" role="toolbar" aria-label="Layout do escritório">
+                <input
+                  ref={layoutFileRef}
+                  type="file"
+                  accept="application/json,.json"
+                  className="sr-only"
+                  aria-hidden
+                  tabIndex={-1}
+                  onChange={onLayoutFileChange}
                 />
-              </aside>
+                <button type="button" className="office-toolbar-btn" onClick={onExportLayout}>
+                  Exportar layout
+                </button>
+                <button type="button" className="office-toolbar-btn" onClick={onPickImportLayout}>
+                  Importar layout
+                </button>
+                <button type="button" className="office-toolbar-btn" onClick={onResetLayout}>
+                  Repor posições
+                </button>
+                <button
+                  type="button"
+                  className="office-toolbar-btn"
+                  onClick={() => onSyncCustomization?.()}
+                  disabled={!onSyncCustomization}
+                  title="Sincronizar personalização com servidor"
+                >
+                  Sync perfil
+                </button>
+                <span
+                  className="office-toolbar-sync"
+                  title="Estado de sincronização da personalização"
+                >
+                  {customizationSyncLabel}
+                </span>
+                <label className="office-toolbar-theme">
+                  Tema
+                  <select
+                    value={officeTheme}
+                    onChange={(e) =>
+                      onOfficeThemeChange(e.target.value === 'neon' ? 'neon' : 'default')
+                    }
+                  >
+                    <option value="default">Padrão</option>
+                    <option value="neon">Neon</option>
+                  </select>
+                </label>
+              </div>
+              <div className="office-main">
+                <div className="office-canvas-wrap">
+                  <canvas id="office-canvas" width={640} height={480} />
+                  <div
+                    className="office-corner-hint"
+                    role="note"
+                    aria-label="Dicas de layout no canvas"
+                  >
+                    <span className="office-corner-hint-line">Alt + arrastar → mover agente</span>
+                    <span className="office-corner-hint-line">
+                      Shift + Alt + arrastar → mobiliário (inclui aquário)
+                    </span>
+                    <span className="office-corner-hint-line">
+                      Ctrl + Shift + Alt + arrastar → tamanho do aquário
+                    </span>
+                    <span className="office-corner-hint-line">
+                      Sync perfil → botão no topo (estado: {customizationSyncLabel})
+                    </span>
+                    <span className="office-corner-hint-line">
+                      Cor de destaque do agente aparece no escritório
+                    </span>
+                    <span className="office-corner-hint-line">
+                      Comandos e tarefas consomem ração no aquário
+                    </span>
+                    <span className="office-corner-hint-line">
+                      Clica no quadro branco → abre Whiteboard · Server Rack → métricas
+                    </span>
+                  </div>
+                </div>
+                <aside className="office-status-wrap" aria-label="Estado da equipa no escritório">
+                  <TeamStatusOverview
+                    agents={agents}
+                    logs={logs}
+                    loading={false}
+                    compact
+                    onSelectAgent={(a) => onSelectAgent(a.id)}
+                  />
+                </aside>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </main>
+      </main>
     </>
   );
 }

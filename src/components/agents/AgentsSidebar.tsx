@@ -13,9 +13,9 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-import { TeamStatusOverview } from '@/components/TeamStatusOverview';
+import { TeamStatusOverview } from '@/components/collaboration/TeamStatusOverview';
 import type { ActivityEntry, AgentRow } from '@/types/hub';
-import { MobileDrawer } from '@/components/MobileDrawer';
+import { MobileDrawer } from '@/components/layout/MobileDrawer';
 import {
   AGENT_PROFILE_CHANGED_EVENT,
   pickDisplayName,

@@ -68,11 +68,7 @@ function drawArrowHead(
   ctx.fill();
 }
 
-function drawElement(
-  ctx: CanvasRenderingContext2D,
-  element: DrawingElement,
-  isSelected: boolean
-) {
+function drawElement(ctx: CanvasRenderingContext2D, element: DrawingElement, isSelected: boolean) {
   ctx.globalAlpha = element.opacity / 100;
   ctx.strokeStyle = element.strokeColor;
   ctx.lineWidth = element.strokeWidth;
@@ -99,7 +95,9 @@ function drawElement(
         element.y + element.height / 2,
         element.width / 2,
         element.height / 2,
-        0, 0, 2 * Math.PI
+        0,
+        0,
+        2 * Math.PI
       );
       ctx.fill();
       ctx.stroke();
@@ -123,8 +121,10 @@ function drawElement(
       if (element.type === 'arrow') {
         drawArrowHead(
           ctx,
-          element.x, element.y,
-          element.x + element.width, element.y + element.height
+          element.x,
+          element.y,
+          element.x + element.width,
+          element.y + element.height
         );
       }
       break;
@@ -259,7 +259,13 @@ export function WhiteboardCanvas({ canvasRef }: Props) {
 
     elements.forEach((el) => drawElement(ctx, el, selectedIds.includes(el.id)));
 
-    if (isDrawing && startPos && currentPos && activeTool !== 'selection' && activeTool !== 'hand') {
+    if (
+      isDrawing &&
+      startPos &&
+      currentPos &&
+      activeTool !== 'selection' &&
+      activeTool !== 'hand'
+    ) {
       if (activeTool === 'draw' && drawPoints.length > 0) {
         drawFreehand(ctx, drawPoints, strokeColor, strokeWidth, opacity);
       } else {
@@ -273,8 +279,22 @@ export function WhiteboardCanvas({ canvasRef }: Props) {
 
     ctx.restore();
   }, [
-    canvasRef, elements, isDrawing, startPos, currentPos, activeTool, selectedIds, drawPoints,
-    zoom, pan, strokeColor, backgroundColor, strokeWidth, strokeStyle, roughness, opacity,
+    canvasRef,
+    elements,
+    isDrawing,
+    startPos,
+    currentPos,
+    activeTool,
+    selectedIds,
+    drawPoints,
+    zoom,
+    pan,
+    strokeColor,
+    backgroundColor,
+    strokeWidth,
+    strokeStyle,
+    roughness,
+    opacity,
   ]);
 
   const getCanvasPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -295,10 +315,7 @@ export function WhiteboardCanvas({ canvasRef }: Props) {
     if (activeTool === 'selection') {
       const clicked = elements.find(
         (el) =>
-          pos.x >= el.x &&
-          pos.x <= el.x + el.width &&
-          pos.y >= el.y &&
-          pos.y <= el.y + el.height
+          pos.x >= el.x && pos.x <= el.x + el.width && pos.y >= el.y && pos.y <= el.y + el.height
       );
       if (clicked) {
         if (e.ctrlKey || e.metaKey) {
@@ -358,26 +375,50 @@ export function WhiteboardCanvas({ canvasRef }: Props) {
       addElement({
         id: newId(),
         type: 'draw',
-        x: minX, y: minY,
-        width: maxX - minX, height: maxY - minY,
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
         angle: 0,
-        strokeColor, backgroundColor: 'transparent',
-        strokeWidth, strokeStyle, roughness, opacity,
+        strokeColor,
+        backgroundColor: 'transparent',
+        strokeWidth,
+        strokeStyle,
+        roughness,
+        opacity,
         points: drawPoints.map((p) => [p[0] - minX, p[1] - minY]),
       });
-    } else if (isDrawing && startPos && currentPos && activeTool !== 'draw' && activeTool !== 'hand') {
+    } else if (
+      isDrawing &&
+      startPos &&
+      currentPos &&
+      activeTool !== 'draw' &&
+      activeTool !== 'hand'
+    ) {
       const width = Math.abs(currentPos.x - startPos.x);
       const height = Math.abs(currentPos.y - startPos.y);
       const x = Math.min(startPos.x, currentPos.x);
       const y = Math.min(startPos.y, currentPos.y);
 
-      if (width > 5 && height > 5 && ['rectangle', 'diamond', 'ellipse', 'arrow', 'line'].includes(activeTool)) {
+      if (
+        width > 5 &&
+        height > 5 &&
+        ['rectangle', 'diamond', 'ellipse', 'arrow', 'line'].includes(activeTool)
+      ) {
         addElement({
           id: newId(),
           type: activeTool as DrawingElement['type'],
-          x, y, width, height,
+          x,
+          y,
+          width,
+          height,
           angle: 0,
-          strokeColor, backgroundColor, strokeWidth, strokeStyle, roughness, opacity,
+          strokeColor,
+          backgroundColor,
+          strokeWidth,
+          strokeStyle,
+          roughness,
+          opacity,
         });
       }
     }
@@ -418,7 +459,10 @@ export function WhiteboardCanvas({ canvasRef }: Props) {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={() => { setIsDrawing(false); setDraggedElement(null); }}
+        onMouseLeave={() => {
+          setIsDrawing(false);
+          setDraggedElement(null);
+        }}
         onKeyDown={handleKeyDown}
         onWheel={handleWheel}
         tabIndex={0}

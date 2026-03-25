@@ -35,7 +35,12 @@ function getAgentContextBlock() {
         fs.closeSync(fd);
         const snippet = buf.slice(0, bytesRead).toString('utf8');
         const firstLine = snippet.split(/\r?\n/).find((l) => l.trim().length > 0) || id;
-        lines.push(`- ${id}: ${firstLine.replace(/^#+\s*/, '').trim().slice(0, 120)}`);
+        lines.push(
+          `- ${id}: ${firstLine
+            .replace(/^#+\s*/, '')
+            .trim()
+            .slice(0, 120)}`
+        );
       } catch {
         lines.push(`- ${id}`);
       }

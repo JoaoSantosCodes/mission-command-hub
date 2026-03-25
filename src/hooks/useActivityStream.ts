@@ -34,7 +34,9 @@ export function useActivityStream({
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -61,7 +63,9 @@ export function useActivityStream({
         try {
           const data = JSON.parse(e.data) as { agents: AgentRow[]; logs: ActivityEntry[] };
           cbSnapshot.current(data);
-        } catch { /* ignorar parse errors */ }
+        } catch {
+          /* ignorar parse errors */
+        }
       });
 
       es.addEventListener('activity', (e: MessageEvent) => {
@@ -69,7 +73,9 @@ export function useActivityStream({
         try {
           const entry = JSON.parse(e.data) as ActivityEntry;
           cbActivity.current(entry);
-        } catch { /* ignorar */ }
+        } catch {
+          /* ignorar */
+        }
       });
 
       es.addEventListener('agents', (e: MessageEvent) => {
@@ -77,7 +83,9 @@ export function useActivityStream({
         try {
           const data = JSON.parse(e.data) as { agents: AgentRow[] };
           cbAgents.current(data.agents);
-        } catch { /* ignorar */ }
+        } catch {
+          /* ignorar */
+        }
       });
 
       es.onerror = () => {

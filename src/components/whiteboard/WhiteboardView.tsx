@@ -6,8 +6,16 @@ import { WhiteboardToolbar } from './WhiteboardToolbar';
 import { WhiteboardPropertiesPanel } from './WhiteboardPropertiesPanel';
 
 const TOOL_KEYS: Record<string, string> = {
-  v: 'selection', r: 'rectangle', d: 'diamond', o: 'ellipse',
-  a: 'arrow', l: 'line', p: 'draw', t: 'text', e: 'eraser', h: 'hand',
+  v: 'selection',
+  r: 'rectangle',
+  d: 'diamond',
+  o: 'ellipse',
+  a: 'arrow',
+  l: 'line',
+  p: 'draw',
+  t: 'text',
+  e: 'eraser',
+  h: 'hand',
 };
 
 function WhiteboardInner() {
@@ -18,17 +26,24 @@ function WhiteboardInner() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable))
+        return;
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault(); undo(); return;
+        e.preventDefault();
+        undo();
+        return;
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
-        e.preventDefault(); redo(); return;
+        e.preventDefault();
+        redo();
+        return;
       }
       if (!e.ctrlKey && !e.metaKey && !e.altKey) {
         const tool = TOOL_KEYS[e.key.toLowerCase()];
-        if (tool) { setActiveTool(tool as Parameters<typeof setActiveTool>[0]); }
+        if (tool) {
+          setActiveTool(tool as Parameters<typeof setActiveTool>[0]);
+        }
       }
     };
     window.addEventListener('keydown', onKey);

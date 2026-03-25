@@ -145,9 +145,7 @@ export function ServerMetricsModal({ open, onClose }: Props) {
               </span>
             </div>
 
-            <p className="text-center text-[10px] text-muted-foreground/60">
-              Atualiza a cada 5 s
-            </p>
+            <p className="text-center text-[10px] text-muted-foreground/60">Atualiza a cada 5 s</p>
           </div>
         )}
       </div>

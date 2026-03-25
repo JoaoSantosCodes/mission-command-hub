@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-
 import type { ColumnId, TaskItem, TaskPriority } from './types';
 
 import {
@@ -448,10 +447,13 @@ export function useTaskBoard(agentsForLabels: AgentRow[] = []) {
     setTasks((prev) => prev.filter((t) => t.columnId !== 'done'));
   }, []);
 
-  const replaceTasks = useCallback((next: TaskItem[]) => {
-    pushHistory();
-    setTasks(next.map(normalizeLoadedTask));
-  }, [pushHistory]);
+  const replaceTasks = useCallback(
+    (next: TaskItem[]) => {
+      pushHistory();
+      setTasks(next.map(normalizeLoadedTask));
+    },
+    [pushHistory]
+  );
 
   const clearAll = useCallback(() => {
     setTasks([]);

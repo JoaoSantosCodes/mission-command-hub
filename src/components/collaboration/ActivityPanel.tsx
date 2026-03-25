@@ -12,8 +12,8 @@ import {
 } from 'lucide-react';
 
 import type { ActivityEntry } from '@/types/hub';
-import { MobileDrawer } from '@/components/MobileDrawer';
-import { ActivityTimeline } from '@/components/ActivityTimeline';
+import { MobileDrawer } from '@/components/layout/MobileDrawer';
+import { ActivityTimeline } from '@/components/collaboration/ActivityTimeline';
 
 function FeedKindIcon({ kind, type }: { kind?: string; type: string }) {
   const k = (kind || type || '').toLowerCase();

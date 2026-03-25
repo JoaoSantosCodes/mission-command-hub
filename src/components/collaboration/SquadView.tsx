@@ -24,10 +24,26 @@ const SQUADS = {
 } as const;
 
 const COLOR_CLASSES: Record<string, { badge: string; border: string; dot: string }> = {
-  blue:   { badge: 'bg-blue-500/10 text-blue-600 dark:text-blue-400', border: 'border-blue-500/20', dot: 'bg-blue-500' },
-  green:  { badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/20', dot: 'bg-emerald-500' },
-  orange: { badge: 'bg-orange-500/10 text-orange-600 dark:text-orange-400', border: 'border-orange-500/20', dot: 'bg-orange-500' },
-  purple: { badge: 'bg-violet-500/10 text-violet-600 dark:text-violet-400', border: 'border-violet-500/20', dot: 'bg-violet-500' },
+  blue: {
+    badge: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+    border: 'border-blue-500/20',
+    dot: 'bg-blue-500',
+  },
+  green: {
+    badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+    border: 'border-emerald-500/20',
+    dot: 'bg-emerald-500',
+  },
+  orange: {
+    badge: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
+    border: 'border-orange-500/20',
+    dot: 'bg-orange-500',
+  },
+  purple: {
+    badge: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
+    border: 'border-violet-500/20',
+    dot: 'bg-violet-500',
+  },
 };
 
 type Props = {
@@ -53,7 +69,10 @@ function AgentCard({ agent, logs }: { agent: AgentRow; logs: ActivityEntry[] }) 
         </div>
         <div className="truncate font-mono text-[10px] text-muted-foreground">@{agent.id}</div>
         {lastActivity && (
-          <div className="mt-0.5 truncate text-[10px] text-muted-foreground/70" title={lastActivity}>
+          <div
+            className="mt-0.5 truncate text-[10px] text-muted-foreground/70"
+            title={lastActivity}
+          >
             {lastActivity}
           </div>
         )}
@@ -83,7 +102,9 @@ export function SquadView({ agents, logs }: Props) {
         {(Object.entries(SQUADS) as [string, (typeof SQUADS)[keyof typeof SQUADS]][]).map(
           ([key, squad]) => {
             const colors = COLOR_CLASSES[squad.color] ?? COLOR_CLASSES['blue']!;
-            const squadAgents = agents.filter((a) => (squad.ids as readonly string[]).includes(a.id));
+            const squadAgents = agents.filter((a) =>
+              (squad.ids as readonly string[]).includes(a.id)
+            );
             return (
               <section
                 key={key}
@@ -92,7 +113,9 @@ export function SquadView({ agents, logs }: Props) {
               >
                 <div className="mb-3 flex items-center gap-2">
                   <span className={`h-2 w-2 shrink-0 rounded-full ${colors.dot}`} aria-hidden />
-                  <h3 className={`text-xs font-semibold uppercase tracking-wider ${colors.badge} rounded px-1.5 py-0.5`}>
+                  <h3
+                    className={`text-xs font-semibold uppercase tracking-wider ${colors.badge} rounded px-1.5 py-0.5`}
+                  >
                     {squad.label}
                   </h3>
                   <span className="ml-auto text-[10px] text-muted-foreground">

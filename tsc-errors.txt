@@ -1,0 +1,22 @@
+﻿src/App.tsx(43,10): error TS2307: Cannot find module '@/components/CommandCenterView' or its corresponding type declarations.
+src/App.tsx(49,10): error TS2307: Cannot find module '@/components/AgentDetailModal' or its corresponding type declarations.
+src/App.tsx(52,10): error TS2307: Cannot find module '@/components/CreateAgentModal' or its corresponding type declarations.
+src/App.tsx(55,10): error TS2307: Cannot find module '@/components/DoubtsChatPanel' or its corresponding type declarations.
+src/App.tsx(58,10): error TS2307: Cannot find module '@/components/CustomizationPanel' or its corresponding type declarations.
+src/App.tsx(66,10): error TS2307: Cannot find module '@/components/SquadView' or its corresponding type declarations.
+src/App.tsx(72,10): error TS2307: Cannot find module '@/components/OnboardingModal' or its corresponding type declarations.
+src/App.tsx(652,17): error TS2322: Type '{ agents: AgentRow[]; logs: ActivityEntry[]; onSelectAgent: (id: string) => void; highlightedAgentId: string | null; customizationSyncLabel: string; onSyncCustomization: () => undefined; fishFood: { ...; } | null; onFeedFish: () => Promise<...>; onViewModeChange: Dispatch<...>; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'agents' does not exist on type 'IntrinsicAttributes'.
+src/App.tsx(680,26): error TS2322: Type '{ agents: AgentRow[]; logs: ActivityEntry[]; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'agents' does not exist on type 'IntrinsicAttributes'.
+src/App.tsx(704,13): error TS2322: Type '{ agentId: string | null; onClose: () => void; canEdit: boolean; onSaved: () => undefined; onDeleted: () => undefined; apiOnline: boolean | null; onRetryConnection: () => void; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'agentId' does not exist on type 'IntrinsicAttributes'.
+src/App.tsx(714,13): error TS2322: Type '{ open: boolean; onClose: () => void; onCreated: (id: any) => void; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'open' does not exist on type 'IntrinsicAttributes'.
+src/App.tsx(716,25): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/App.tsx(723,13): error TS2322: Type '{ open: boolean; onClose: () => void; helpVisible: boolean; onHelpVisibleChange: Dispatch<SetStateAction<boolean>>; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'open' does not exist on type 'IntrinsicAttributes'.
+src/App.tsx(730,13): error TS2322: Type '{ open: boolean; onClose: () => void; agents: AgentRow[]; syncStateLabel: string; onSyncNow: () => undefined; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'open' does not exist on type 'IntrinsicAttributes'.
+src/App.tsx(737,28): error TS2322: Type '{ open: boolean; onClose: () => void; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'open' does not exist on type 'IntrinsicAttributes'.

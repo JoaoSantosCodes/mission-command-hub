@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, Loader2, Pencil, RefreshCw, Save, Trash2, X } from 'lucide-react';
 
-import { HubMascot } from '@/components/HubMascot';
+import { HubMascot } from '@/components/workspace/HubMascot';
 import { deleteAgent, fetchJson, putAgentMarkdown } from '@/lib/api';
 import { formatUserFacingError } from '@/lib/format-error';
 import { pickDisplayName, readAgentProfile, writeAgentProfile } from '@/lib/agent-profile-store';

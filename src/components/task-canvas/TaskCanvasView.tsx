@@ -1,11 +1,26 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toPng } from 'html-to-image';
-import { Download, FileImage, LayoutList, RotateCcw, Search, Upload, Users, Undo2, Redo2 } from 'lucide-react';
+import {
+  Download,
+  FileImage,
+  LayoutList,
+  RotateCcw,
+  Search,
+  Upload,
+  Users,
+  Undo2,
+  Redo2,
+} from 'lucide-react';
 
 import { BOARD_PRESETS, PRESET_ORDER } from './presets';
 import type { BoardPresetId, CanvasSortMode, ColumnId, TaskItem } from './types';
 import { TaskColumn } from './TaskColumn';
-import { exportTaskBoardBlob, exportTaskBoardCsvBlob, parseTaskBoardJson, useTaskBoard } from './useTaskBoard';
+import {
+  exportTaskBoardBlob,
+  exportTaskBoardCsvBlob,
+  parseTaskBoardJson,
+  useTaskBoard,
+} from './useTaskBoard';
 
 import type { AgentRow } from '@/types/hub';
 import {
@@ -606,7 +621,12 @@ export function TaskCanvasView({ agents, helpVisible, onHelpVisibleChange }: Tas
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
-      const inInput = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+      const inInput =
+        el &&
+        (el.tagName === 'INPUT' ||
+          el.tagName === 'TEXTAREA' ||
+          el.tagName === 'SELECT' ||
+          el.isContentEditable);
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         if (inInput) return;

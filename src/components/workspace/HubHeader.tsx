@@ -19,7 +19,7 @@ import {
   Users,
 } from 'lucide-react';
 
-import { HubMascot } from '@/components/HubMascot';
+import { HubMascot } from '@/components/workspace/HubMascot';
 import { MAX_COMMAND_CHARS } from '@/constants';
 import type { ThemeMode } from '@/hooks/useTheme';
 

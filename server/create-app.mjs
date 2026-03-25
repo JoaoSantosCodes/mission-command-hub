@@ -144,7 +144,11 @@ export async function createBridgeApp(missionRoot, options = {}) {
     if (!sseClients.size) return;
     const line = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
     for (const res of sseClients) {
-      try { res.write(line); } catch { sseClients.delete(res); }
+      try {
+        res.write(line);
+      } catch {
+        sseClients.delete(res);
+      }
     }
   }
 
@@ -238,7 +242,9 @@ export async function createBridgeApp(missionRoot, options = {}) {
       if (req.path === '/health' || req.path.startsWith('/aiox/events/stream')) return next();
       const provided = String(req.headers['x-api-key'] || '').trim();
       if (provided !== missionApiKey) {
-        return res.status(401).json({ ok: false, error: 'não autorizado (X-API-Key inválida ou ausente)' });
+        return res
+          .status(401)
+          .json({ ok: false, error: 'não autorizado (X-API-Key inválida ou ausente)' });
       }
       next();
     });
@@ -422,7 +428,12 @@ export async function createBridgeApp(missionRoot, options = {}) {
 
     // Keepalive a cada 25s (previne timeout de proxies)
     const keepalive = setInterval(() => {
-      try { res.write(':\n\n'); } catch { clearInterval(keepalive); sseClients.delete(res); }
+      try {
+        res.write(':\n\n');
+      } catch {
+        clearInterval(keepalive);
+        sseClients.delete(res);
+      }
     }, 25_000);
 
     req.on('close', () => {
@@ -1521,7 +1532,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       logger.warn({ err: String(e?.message || e) }, 'activity pushLog after agent create failed');
     }
     logger.info({ id, bytes }, 'agent markdown created');
-    broadcastSseEvent('agents', { agents: (readAgentFiles(AGENTS_DIR)).agents ?? [] });
+    broadcastSseEvent('agents', { agents: readAgentFiles(AGENTS_DIR).agents ?? [] });
     res.status(201).json({ ok: true, id, bytes });
   });
 
@@ -1624,7 +1635,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       logger.warn({ err: String(e?.message || e) }, 'activity pushLog after agent edit failed');
     }
     logger.info({ id, bytes }, 'agent markdown saved');
-    broadcastSseEvent('agents', { agents: (readAgentFiles(AGENTS_DIR)).agents ?? [] });
+    broadcastSseEvent('agents', { agents: readAgentFiles(AGENTS_DIR).agents ?? [] });
     res.json({ ok: true, id, bytes });
   });
 
@@ -1655,7 +1666,7 @@ export async function createBridgeApp(missionRoot, options = {}) {
       logger.warn({ err: String(e?.message || e) }, 'activity pushLog after agent delete failed');
     }
     logger.info({ id }, 'agent markdown deleted');
-    broadcastSseEvent('agents', { agents: (readAgentFiles(AGENTS_DIR)).agents ?? [] });
+    broadcastSseEvent('agents', { agents: readAgentFiles(AGENTS_DIR).agents ?? [] });
     res.json({ ok: true, id });
   });
 
